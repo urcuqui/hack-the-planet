@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HACK THE PLANET — Level 3: Social Engineer</title>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050010;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    cursor: crosshair;
+  }
+  #renderer-canvas {
+    display: block;
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* ── SCANLINES ── */
+  body::after {
+    content: '';
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
+    pointer-events: none; z-index: 999;
+  }
+
+  /* ── INTRO ── */
+  #intro-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #000;
+    z-index: 500;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .intro-badge {
+    font-size: 10px; letter-spacing: 10px;
+    color: rgba(255,110,180,0.5); margin-bottom: 20px;
+  }
+  .intro-title {
+    font-size: 52px; letter-spacing: 6px;
+    color: #ff6eb4;
+    text-shadow: 0 0 40px #ff6eb4, 0 0 80px rgba(255,110,180,0.4);
+    margin-bottom: 6px;
+  }
+  .intro-sub {
+    font-size: 14px; letter-spacing: 7px;
+    color: #00ffff;
+    text-shadow: 0 0 15px #00ffff;
+    margin-bottom: 44px;
+  }
+  .intro-brief {
+    width: 520px;
+    background: rgba(255,110,180,0.04);
+    border: 1px solid rgba(255,110,180,0.25);
+    padding: 22px 28px;
+    color: #ccc; font-size: 12px;
+    line-height: 2.1; letter-spacing: 0.8px;
+    margin-bottom: 44px;
+  }
+  .intro-brief .hi { color: #ff6eb4; }
+  .intro-brief .cyan { color: #00ffff; }
+  .intro-start {
+    background: none;
+    border: 2px solid #ff6eb4;
+    color: #ff6eb4;
+    font-family: 'Courier New', monospace;
+    font-size: 13px; letter-spacing: 6px;
+    padding: 14px 44px; cursor: pointer;
+    text-shadow: 0 0 12px #ff6eb4;
+    box-shadow: 0 0 24px rgba(255,110,180,0.25);
+    animation: blink 1.2s step-end infinite;
+    transition: background 0.2s;
+  }
+  .intro-start:hover { background: rgba(255,110,180,0.12); animation: none; }
+
+  /* ── HUD ── */
+  #hud {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+  }
+  #intel-panel {
+    position: absolute; top: 18px; left: 18px;
+    background: rgba(0,0,15,0.85);
+    border: 1px solid #ff6eb4;
+    padding: 12px 20px;
+    box-shadow: 0 0 18px rgba(255,110,180,0.2);
+  }
+  #intel-panel .label {
+    font-size: 10px; letter-spacing: 4px;
+    color: rgba(255,110,180,0.6); margin-bottom: 4px;
+  }
+  #intel-panel .count {
+    font-size: 22px; letter-spacing: 3px; color: #ff6eb4;
+    text-shadow: 0 0 12px #ff6eb4;
+  }
+  #minimap-wrap {
+    position: absolute; top: 18px; right: 18px;
+    background: rgba(0,0,15,0.85);
+    border: 1px solid rgba(255,110,180,0.4);
+    padding: 4px;
+  }
+  #minimap-wrap .map-label {
+    font-size: 9px; letter-spacing: 4px;
+    color: rgba(0,255,255,0.5);
+    text-align: center; padding: 2px 0 4px;
+  }
+  #minimap { display: block; }
+  #zone-display {
+    position: absolute; top: 18px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px; letter-spacing: 5px;
+    color: rgba(0,255,255,0.7);
+    text-shadow: 0 0 8px rgba(0,255,255,0.5);
+    background: rgba(0,0,15,0.7);
+    border: 1px solid rgba(0,255,255,0.2);
+    padding: 6px 18px;
+  }
+  #interact-prompt {
+    position: absolute; bottom: 210px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,15,0.9);
+    border: 1px solid #ffff00;
+    color: #ffff00; font-size: 12px; letter-spacing: 3px;
+    padding: 8px 22px;
+    text-shadow: 0 0 10px #ffff00;
+    display: none;
+    animation: pulse-yellow 1s ease-in-out infinite;
+  }
+  #controls-hint {
+    position: absolute; bottom: 18px; left: 18px;
+    color: rgba(255,110,180,0.35);
+    font-size: 9px; letter-spacing: 2px; line-height: 2;
+  }
+  #music-toggle {
+    position: absolute; bottom: 18px; right: 18px;
+    color: rgba(0,255,255,0.4); font-size: 9px; letter-spacing: 2px;
+  }
+
+  /* ── NPC LABELS ── */
+  .npc-label {
+    position: fixed;
+    transform: translateX(-50%);
+    background: rgba(0,0,15,0.85);
+    border: 1px solid rgba(255,255,0,0.5);
+    color: #ffff00; font-size: 9px; letter-spacing: 2px;
+    padding: 3px 8px;
+    pointer-events: none; z-index: 8;
+    text-shadow: 0 0 6px rgba(255,255,0,0.8);
+    white-space: nowrap;
+    transition: opacity 0.3s;
+  }
+  .npc-label.done {
+    border-color: rgba(0,255,65,0.3);
+    color: rgba(0,255,65,0.4);
+    text-shadow: none;
+  }
+
+  /* ── DIALOGUE ── */
+  #dialogue-box {
+    position: fixed; bottom: 18px; left: 50%;
+    transform: translateX(-50%);
+    width: min(740px, 95vw);
+    background: rgba(3,0,18,0.97);
+    border: 2px solid #ff6eb4;
+    box-shadow: 0 0 40px rgba(255,110,180,0.25), inset 0 0 40px rgba(255,110,180,0.03);
+    padding: 20px 22px;
+    display: none;
+    pointer-events: all; z-index: 20;
+  }
+  #dialogue-npc { font-size: 12px; letter-spacing: 5px; color: #ffff00; text-shadow: 0 0 10px #ffff00; margin-bottom: 10px; }
+  #dialogue-technique-tag { font-size: 9px; letter-spacing: 3px; color: rgba(255,110,180,0.6); float: right; padding-top: 2px; }
+  #dialogue-text { color: #ddd; font-size: 12px; line-height: 1.8; letter-spacing: 0.5px; margin-bottom: 14px; border-top: 1px solid rgba(255,110,180,0.15); padding-top: 10px; }
+  .d-choice {
+    display: block; width: 100%;
+    background: rgba(0,0,25,0.7);
+    border: 1px solid rgba(0,255,255,0.25);
+    color: rgba(0,255,255,0.85);
+    font-family: 'Courier New', monospace; font-size: 11px;
+    letter-spacing: 0.8px; line-height: 1.6;
+    padding: 10px 14px; margin-bottom: 7px;
+    cursor: pointer; text-align: left;
+    transition: all 0.15s;
+  }
+  .d-choice:hover:not(:disabled) {
+    background: rgba(0,255,255,0.08);
+    border-color: #00ffff; color: #00ffff;
+    text-shadow: 0 0 8px rgba(0,255,255,0.6);
+  }
+  .d-choice.correct { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.08); text-shadow: 0 0 8px rgba(0,255,65,0.6); }
+  .d-choice.wrong   { border-color: #ff3300; color: #ff3300; background: rgba(255,51,0,0.08); }
+  #dialogue-feedback {
+    margin-top: 10px; padding: 10px 14px; font-size: 11px;
+    line-height: 1.8; letter-spacing: 0.5px; display: none;
+  }
+  #dialogue-feedback.ok  { color: #00ff41; border-left: 3px solid #00ff41; }
+  #dialogue-feedback.bad { color: #ff6600; border-left: 3px solid #ff6600; }
+  #dialogue-close { display: none; margin-top: 10px; background: none; border: 1px solid rgba(255,110,180,0.4); color: rgba(255,110,180,0.6); font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 3px; padding: 6px 16px; cursor: pointer; float: right; }
+  #dialogue-close:hover { background: rgba(255,110,180,0.1); }
+
+  /* ── BOSS MODE dialogue ── */
+  #dialogue-box.boss-mode {
+    border-color: #ff0044;
+    box-shadow: 0 0 40px rgba(255,0,68,0.6), 0 0 80px rgba(255,0,68,0.2);
+    background: rgba(20,0,8,0.97);
+  }
+  #dialogue-box.boss-mode #dialogue-npc {
+    color: #ff0044;
+    text-shadow: 0 0 12px #ff0044;
+  }
+  #dialogue-box.boss-mode #dialogue-technique-tag {
+    color: #ff6600;
+    border-color: rgba(255,100,0,0.5);
+  }
+  #dialogue-box.boss-mode .d-choice { border-color: rgba(255,0,68,0.35); }
+  #dialogue-box.boss-mode .d-choice:hover { border-color: #ff0044; background: rgba(255,0,68,0.12); }
+
+  /* ── BOSS WIN SCREEN ── */
+  #boss-win-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.95);
+    z-index: 201; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    animation: fadeIn 0.8s ease;
+  }
+  .bw-badge {
+    font-size: 11px; letter-spacing: 8px; color: #ff0044;
+    text-shadow: 0 0 20px #ff0044; margin-bottom: 18px;
+  }
+  .bw-title {
+    font-size: 44px; letter-spacing: 5px; color: #ff0044;
+    text-shadow: 0 0 50px #ff0044, 0 0 100px rgba(255,0,68,0.4);
+    margin-bottom: 6px;
+  }
+  .bw-sub {
+    font-size: 13px; letter-spacing: 8px; color: #00ffff;
+    text-shadow: 0 0 15px #00ffff; margin-bottom: 40px;
+  }
+  .bw-items {
+    width: 520px; margin-bottom: 32px;
+  }
+  .bw-item {
+    color: #aaffaa; font-size: 12px; letter-spacing: 0.5px;
+    padding: 8px 0; border-bottom: 1px solid rgba(0,255,0,0.1);
+    line-height: 1.7;
+  }
+  .bw-quote {
+    color: rgba(255,0,68,0.6); font-size: 12px; letter-spacing: 2px;
+    font-style: italic; margin-bottom: 36px;
+  }
+
+  /* ── WIN SCREEN ── */
+  #win-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.92);
+    z-index: 200; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+  }
+  .win-title {
+    font-size: 52px; letter-spacing: 8px; color: #ff6eb4;
+    text-shadow: 0 0 50px #ff6eb4; margin-bottom: 10px;
+    animation: glitch 4s infinite;
+  }
+  .win-sub { font-size: 13px; letter-spacing: 5px; color: #00ffff; text-shadow: 0 0 12px #00ffff; margin-bottom: 36px; }
+  .intel-log { width: 560px; list-style: none; margin-bottom: 30px; }
+  .intel-log li {
+    color: #00ff41; font-size: 10px; letter-spacing: 1px; line-height: 1.7;
+    padding: 8px 14px; border-left: 2px solid #00ff41;
+    background: rgba(0,255,65,0.04); margin-bottom: 8px;
+  }
+  .intel-log li .tag { color: #ff6eb4; letter-spacing: 2px; }
+  .win-footer { color: rgba(255,110,180,0.5); font-size: 10px; letter-spacing: 4px; }
+  .win-nav {
+    margin-top: 24px; background: none;
+    border: 1px solid rgba(255,110,180,0.4);
+    color: rgba(255,110,180,0.7); font-family: 'Courier New', monospace;
+    font-size: 11px; letter-spacing: 4px; padding: 10px 28px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .win-nav:hover { background: rgba(255,110,180,0.1); color: #ff6eb4; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes pulse-yellow { 0%,100%{box-shadow:0 0 8px rgba(255,255,0,0.4)} 50%{box-shadow:0 0 20px rgba(255,255,0,0.9)} }
+  @keyframes glitch {
+    0%,90%,100%{transform:none;color:#ff6eb4}
+    91%{transform:translateX(-4px);color:#00ffff}
+    92%{transform:translateX(4px) skew(3deg);color:#ff6eb4}
+    93%{transform:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro-screen">
+  <div class="intro-badge">HACK THE PLANET &nbsp;·&nbsp; LEVEL 03</div>
+  <div class="intro-title">SOCIAL ENGINEER</div>
+  <div class="intro-sub">MIAMI VICE CITY &nbsp;·&nbsp; OPERATION GHOST</div>
+  <div class="intro-brief">
+    <span class="hi">MISSION BRIEFING:</span><br><br>
+    You are <span class="hi">GHOST</span> — elite hacker, Miami.<br>
+    Five targets hold critical intelligence scattered across the city.<br>
+    Weapons are useless here. Your only tool: <span class="cyan">the human mind.</span><br><br>
+    Apply the right <span class="hi">social engineering technique</span> to each target.<br>
+    Extract all five intel files without raising suspicion.<br><br>
+    <span style="color:rgba(255,255,255,0.35)">WASD · MOVE &nbsp;|&nbsp; MOUSE DRAG · CAMERA &nbsp;|&nbsp; E · INTERACT &nbsp;|&nbsp; M · MUSIC</span>
+  </div>
+  <button class="intro-start" onclick="startGame()">[ ENTER VICE CITY ]</button>
+</div>
+
+<!-- HUD (hidden until game starts) -->
+<div id="hud" style="display:none">
+  <div id="intel-panel">
+    <div class="label">INTEL ACQUIRED</div>
+    <div class="count"><span id="intel-count">0</span> <span style="font-size:14px;color:rgba(255,110,180,0.5)">/5</span></div>
+  </div>
+  <div id="minimap-wrap">
+    <div class="map-label">VICE CITY</div>
+    <canvas id="minimap" width="160" height="160"></canvas>
+  </div>
+  <div id="zone-display">📍 MIAMI BEACH</div>
+  <div id="interact-prompt">[ E ] APPROACH TARGET</div>
+  <div id="controls-hint">
+    WASD — MOVE<br>
+    DRAG — CAMERA<br>
+    E — INTERACT<br>
+    M — MUSIC
+  </div>
+  <div id="music-toggle">♪ MUSIC: ON</div>
+</div>
+
+<!-- NPC LABELS CONTAINER -->
+<div id="npc-labels"></div>
+
+<!-- DIALOGUE -->
+<div id="dialogue-box">
+  <div>
+    <span id="dialogue-npc"></span>
+    <span id="dialogue-technique-tag"></span>
+  </div>
+  <div id="dialogue-text"></div>
+  <div id="dialogue-choices"></div>
+  <div id="dialogue-feedback"></div>
+  <button id="dialogue-close" onclick="closeDialogue()">[ CLOSE ]</button>
+</div>
+
+<!-- BOSS WIN -->
+<div id="boss-win-screen">
+  <div class="bw-badge">⚠ FINAL BOSS DEFEATED &nbsp;·&nbsp; CIPHER DOWN</div>
+  <div class="bw-title">MISSION COMPLETE</div>
+  <div class="bw-sub">AI THREAT INTELLIGENCE — MASTER</div>
+  <div class="bw-items">
+    <div class="bw-item">✓ AI processes billions of threat indicators in real-time to predict attacks</div>
+    <div class="bw-item">✓ Behavioral anomaly detection identifies zero-day threats without prior signatures</div>
+    <div class="bw-item">✓ Adversarial AI is used to blind, deceive, and poison detection models</div>
+    <div class="bw-item">✓ LLMs enable autonomous vulnerability research and attacks at scale</div>
+  </div>
+  <div class="bw-quote">"The most dangerous weapon is knowledge." — CIPHER</div>
+  <button class="win-nav" onclick="location.href='index.html'">[ RETURN TO BASE ]</button>
+</div>
+
+<!-- WIN -->
+<div id="win-screen">
+  <div class="win-title">MISSION COMPLETE</div>
+  <div class="win-sub">ALL INTEL ACQUIRED &nbsp;·&nbsp; GHOST OUT</div>
+  <ul class="intel-log" id="intel-log"></ul>
+  <div class="win-footer">SOCIAL ENGINEERING MASTERY UNLOCKED</div>
+  <button class="win-nav" onclick="location.href='index.html'">[ RETURN TO BASE ]</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  AUDIO ENGINE — 8-BIT VICE CITY CHIPTUNE
+// ═══════════════════════════════════════════════════════════
+let audioCtx = null, musicOn = true, loopTimer = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function osc(freq, type, t0, dur, vol = 0.12) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.88);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t0); o.stop(t0 + dur);
+}
+
+function noise(t0, dur, vol = 0.14) {
+  if (!audioCtx) return;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const s = audioCtx.createBufferSource(), g = audioCtx.createGain();
+  s.buffer = buf;
+  g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  s.connect(g); g.connect(audioCtx.destination);
+  s.start(t0);
+}
+
+// Vice City-inspired pattern: A minor, ~118 BPM
+const B = 0.508; // seconds per beat
+const BASS = [
+  [110,0],[110,.5],[130.8,1],[146.8,1.5],
+  [98,2],[110,2.5],[130.8,3],[98,3.5],
+  [110,4],[110,4.5],[164.8,5],[146.8,5.5],
+  [130.8,6],[110,6.5],[98,7],[110,7.5]
+];
+const LEAD = [
+  [440,0,.4],[493.9,.5,.4],[523.3,1,.8],[493.9,2,.4],
+  [440,2.5,.4],[392,3,.8],[440,4,.4],[493.9,4.5,.3],
+  [523.3,5,.3],[587.3,5.5,.3],[659.3,6,.8],[587.3,7,.8]
+];
+const ARP = [440,523.3,659.3,784]; // A minor arpeggio
+
+function playMusicLoop() {
+  if (!audioCtx || !musicOn) return;
+  const t = audioCtx.currentTime + 0.05;
+  const bars = 8;
+  // Bass (square)
+  BASS.forEach(([f,b]) => osc(f, 'square', t + b*B, B*0.42, 0.11));
+  // Lead synth (sawtooth)
+  LEAD.forEach(([f,b,d]) => osc(f*2, 'sawtooth', t + b*B, d*B, 0.05));
+  // Arpeggios (high square, 16th notes)
+  for (let i = 0; i < 32; i++) osc(ARP[i%4]*2, 'square', t + i*B*0.25, B*0.18, 0.028);
+  // Kick noise on beats 0,2,4,6
+  [0,2,4,6].forEach(b => noise(t + b*B, 0.09, 0.16));
+  // Snare on 1,3,5,7
+  [1,3,5,7].forEach(b => noise(t + b*B, 0.05, 0.08));
+  // Hi-hat 8th notes
+  for (let i = 0; i < 16; i++) noise(t + i*B*0.5, 0.015, 0.04);
+
+  loopTimer = setTimeout(playMusicLoop, bars * B * 1000 - 60);
+}
+
+function toggleMusic() {
+  musicOn = !musicOn;
+  document.getElementById('music-toggle').textContent = '♪ MUSIC: ' + (musicOn ? 'ON' : 'OFF');
+  if (musicOn) playMusicLoop();
+  else clearTimeout(loopTimer);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NPC DATA — SOCIAL ENGINEERING TARGETS (declared early to avoid TDZ)
+// ═══════════════════════════════════════════════════════════
+const NPCS = [
+  {
+    id: 0, name: 'COCO', title: 'Tourist',
+    x: 65, z: 64, color: 0xffdd00, skin: 0xf4a460,
+    zone: 'MIAMI BEACH', done: false, mesh: null, labelEl: null,
+    dlg: {
+      text: '"Oh my god, Miami is GORGEOUS! I\'m here for the Synapse Corp executive conference — flew us all in from New York, can you believe it? They\'re dropping their next product in November and it\'s apparently going to be MASSIVE. My boss barely told me anything, all hush-hush..."',
+      choices: [
+        { t: 'A) "Oh really? What kind of product are they launching?"', ok: false },
+        { t: 'B) "That sounds incredible! I know ALL the secret spots in Miami — the real VIP beach clubs, rooftop bars locals don\'t share. I\'d love to show you around... you can tell me all about this mysterious conference while we explore."', ok: true },
+        { t: 'C) "I\'m a journalist for TechCrunch — can I quote you on that?"', ok: false }
+      ],
+      tech: 'BAITING',
+      okMsg: '✓ TECHNIQUE: BAITING\nYou offered something she wanted (exclusive Miami access) to create a reciprocal exchange. She opened up completely.\n\n📡 INTEL: Synapse Corp Q4 launch Nov 15. All C-suite present. Product: next-gen AI security chip. Conference hotel: Fontainebleau.',
+      badMsg: '✗ Too direct — she\'s guarded now. Offer her something she WANTS before asking for what you need.',
+      intel: 'Synapse Corp Q4 launch: Nov 15. All executives at Fontainebleau. Product: AI security chip.'
+    }
+  },
+  {
+    id: 1, name: 'MARCUS', title: 'Executive',
+    x: -62, z: -36, color: 0x2255cc, skin: 0xc68642,
+    zone: 'DOWNTOWN OFFICE', done: false, mesh: null, labelEl: null,
+    dlg: {
+      text: '"Damn it — forgot my access card AGAIN. Security is going to love this. I have a 3 PM board meeting, the CEO is flying in... I just need to get back in before anyone notices."',
+      choices: [
+        { t: 'A) "Can you give me your employee number? I might be able to look you up."', ok: false },
+        { t: 'B) "Hey, same situation — I\'m the new IT security contractor, here for the firewall audit before the board meeting. No badge yet either. Let\'s go in together and sort it at the front desk — I\'ll vouch for you."', ok: true },
+        { t: 'C) "Just wait for someone to exit and slip through the door behind them."', ok: false }
+      ],
+      tech: 'IMPERSONATION',
+      okMsg: '✓ TECHNIQUE: IMPERSONATION\nYou created a shared problem to build instant trust. He walked you straight through security.\n\n📡 INTEL: Board meeting 3 PM, QuantumTech HQ. CEO Harrington attending. Single guard on entrance. Badge-only access.',
+      badMsg: '✗ He won\'t give personal info to a stranger. Create a SHARED situation where you both benefit.',
+      intel: 'Board meeting 3 PM at QuantumTech HQ. CEO Harrington present. Security: single badge-only checkpoint.'
+    }
+  },
+  {
+    id: 2, name: 'RICO', title: 'Club Doorman',
+    x: 50, z: -70, color: 0x222222, skin: 0x3a2000,
+    zone: 'CLUB NEON', done: false, mesh: null, labelEl: null,
+    dlg: {
+      text: '"Not on the list, you don\'t get in. I don\'t care who you know. Mr. Vega\'s orders — VIP only tonight. Private event. Move along."',
+      choices: [
+        { t: 'A) "Come on, I\'ll make it worth your while..." [attempt bribe]', ok: false },
+        { t: 'B) "Sir — I work directly for Mr. Vega. Security liaison. There\'s a credible threat on the venue, I need to do a quiet sweep before the VIP arrivals at nine. Don\'t call upstairs — I don\'t want to cause a panic. This needs to stay quiet."', ok: true },
+        { t: 'C) "Can I borrow your phone to call my contact inside?"', ok: false }
+      ],
+      tech: 'PRETEXTING',
+      okMsg: '✓ TECHNIQUE: PRETEXTING\nYou fabricated an urgent authority scenario with a built-in reason to skip verification. He let you in to avoid being blamed if something went wrong.\n\n📡 INTEL: Club Neon floor plan obtained. VIP event 9 PM, 12 HVTs. Security: 3 guards, cameras north entrance only.',
+      badMsg: '✗ He\'s a professional — bribes get reported. You need AUTHORITY and URGENCY, plus a reason NOT to verify.',
+      intel: 'Club Neon VIP event 9 PM. 12 high-value targets. 3 guards deployed. Cameras: north entrance only.'
+    }
+  },
+  {
+    id: 3, name: 'DIANA', title: 'Hotel Receptionist',
+    x: -55, z: 50, color: 0xff6eb4, skin: 0xffe0bd,
+    zone: 'OCEAN PEARL HOTEL', done: false, mesh: null, labelEl: null,
+    dlg: {
+      text: '"Welcome to the Ocean Pearl, I\'m so sorry — our booking system crashed three hours ago and I\'ve been doing everything manually. I cannot find anyone\'s reservation, it\'s an absolute disaster..." She\'s on the verge of tears.',
+      choices: [
+        { t: 'A) "I need the guest registry for the past 72 hours. Official request."', ok: false },
+        { t: 'B) "Hey — deep breath. I\'m an IT consultant and I specialize in exactly this system. I can have it back online in ten minutes. Just let me sit at the terminal and I\'ll sort it out right now."', ok: true },
+        { t: 'C) "I\'m a health inspector. I need your complete guest list immediately."', ok: false }
+      ],
+      tech: 'QUID PRO QUO',
+      okMsg: '✓ TECHNIQUE: QUID PRO QUO\nYou offered a service in exchange for access. She was desperate and grateful. While \'fixing\' the system, you extracted the full guest list.\n\n📡 INTEL: 3 undercover operatives checked in as Johnson (214), Park (318), Reyes (407).',
+      badMsg: '✗ Demands and fake authority won\'t work on someone who just needs HELP. Offer her something real first.',
+      intel: 'Hotel guest list: undercover ops — Johnson rm 214, Park rm 318, Reyes rm 407.'
+    }
+  },
+  {
+    id: 4, name: 'CARLOS', title: 'Street Vendor',
+    x: 6, z: 7, color: 0xff6600, skin: 0xd4956a,
+    zone: 'LITTLE HAVANA MARKET', done: false, mesh: null, labelEl: null,
+    dlg: {
+      text: '"Oye amigo, best Cuban sandwich in all Miami, right here! Made fresh! Fifteen years on this corner — I know every face on this street, every schedule, everything. You want one? Come on, don\'t be shy!"',
+      choices: [
+        { t: 'A) "Do you know what the security patrol schedule is around here?"', ok: false },
+        { t: 'B) "Man, I\'ll take two — these are incredible! Fifteen years, wow. I just moved nearby. I love how quiet it gets late at night... what time does it usually wind down around here? I\'m a night owl, like to know when I\'ll have the street to myself."', ok: true },
+        { t: 'C) "What time does that security guard on the corner take his break?"', ok: false }
+      ],
+      tech: 'ELICITATION',
+      okMsg: '✓ TECHNIQUE: ELICITATION\nCasual conversation, genuine flattery, and a relatable reason. He volunteered exactly what you needed — never felt interrogated.\n\n📡 INTEL: Patrol gap 2:00–4:00 AM daily. Market district clears midnight. No cameras on south alley.',
+      badMsg: '✗ Too specific — he\'s getting suspicious. Keep it CASUAL. Let the conversation flow naturally to the information.',
+      intel: 'Security patrol gap: 2–4 AM. Market clears midnight. South alley: no camera coverage.'
+    }
+  },
+  {
+    id: 5, name: 'CIPHER', title: 'AI Security Boss',
+    x: 0, z: -89, color: 0x080010, skin: 0x1a0010,
+    zone: 'HACKER CONVENTION', done: false, mesh: null, labelEl: null,
+    isBoss: true,
+    rounds: [
+      {
+        text: '"Welcome to the HACKER CONVENTION, GHOST. You\'ve been running social engineering ops all over my city — bold. Now prove you understand the REAL threat: AI.\n\nQuestion 1/4 — What is the PRIMARY capability AI brings to modern Threat Intelligence platforms?"',
+        choices: [
+          { t: 'A) It automates report writing and incident documentation.' },
+          { t: 'B) It processes billions of indicators in real-time, correlating patterns across global threat feeds to predict attacks before they happen.' },
+          { t: 'C) It replaces all human security analysts with autonomous chatbots.' }
+        ], correct: 1
+      },
+      {
+        text: '"Correct. You know your theory.\n\nQuestion 2/4 — Which AI approach is most effective at detecting ZERO-DAY malware that has never been seen before?"',
+        choices: [
+          { t: 'A) Signature-based matching with the latest up-to-date virus definitions.' },
+          { t: 'B) Behavioral anomaly detection — models trained on baseline system patterns that flag any deviating activity.' },
+          { t: 'C) Deep packet inspection combined with continuously updated IP blacklists.' }
+        ], correct: 1
+      },
+      {
+        text: '"Impressive. Third question.\n\nQuestion 3/4 — What is ADVERSARIAL AI as a threat vector in cybersecurity?"',
+        choices: [
+          { t: 'A) When two AI companies aggressively compete for the same enterprise market.' },
+          { t: 'B) Crafting inputs specifically designed to deceive and blind AI detection models — making malware invisible, bypassing recognition systems, poisoning training data.' },
+          { t: 'C) AI used exclusively in controlled red team penetration testing exercises.' }
+        ], correct: 1
+      },
+      {
+        text: '"Last question, GHOST. And this one matters.\n\nQuestion 4/4 — How are threat actors weaponizing Large Language Models RIGHT NOW?"',
+        choices: [
+          { t: 'A) Primarily for writing phishing emails with better grammar and fewer typos.' },
+          { t: 'B) Autonomous vulnerability research, polymorphic malware that rewrites itself to evade detection, deepfake social engineering at scale, and poisoning AI-based defenses.' },
+          { t: 'C) LLMs cannot be weaponized — they have safety guardrails that prevent all malicious use.' }
+        ], correct: 1
+      }
+    ],
+    dlg: { text: '', choices: [], tech: 'AI THREAT INTEL', okMsg: '', badMsg: '', intel: '' }
+  }
+];
+
+// ── GAME STATE (declared before Three.js to avoid TDZ on button click) ──
+let gameStarted = false, dlgOpen = false, nearNPC = null;
+let intelCount = 0, collectedIntel = [];
+let camAngle = 0, mouseDown = false, lastMX = 0;
+let frame = 0;
+let bossActive = false, bossRound = 0;
+
+// ═══════════════════════════════════════════════════════════
+//  THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════
+const W = window.innerWidth, H = window.innerHeight;
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x87ceeb, 80, 220);
+
+const camera = new THREE.PerspectiveCamera(58, W/H, 0.1, 500);
+camera.position.set(0, 12, 20);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.setClearColor(0x87ceeb);
+renderer.shadowMap.enabled = false;
+renderer.domElement.id = 'renderer-canvas';
+document.body.prepend(renderer.domElement);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── LIGHTS ──────────────────────────────────────────────
+// Warm afternoon sun — balanced, not washed out
+scene.add(new THREE.AmbientLight(0xffe8c0, 0.9));
+
+const sun = new THREE.DirectionalLight(0xfff4d0, 1.3);
+sun.position.set(80, 110, 50); scene.add(sun);
+
+// Blue sky fill (shadow side)
+const skyFill = new THREE.DirectionalLight(0xadd8f0, 0.45);
+skyFill.position.set(-50, 60, -30); scene.add(skyFill);
+
+// Vice City accent lights (subtle color pop on buildings)
+function neonLight(x, y, z, col, intensity = 0.9, dist = 28) {
+  const l = new THREE.PointLight(col, intensity, dist);
+  l.position.set(x, y, z); scene.add(l);
+}
+neonLight(50,  10, -70, 0xff44aa, 1.2, 35);
+neonLight(-55,  8,  48, 0xff88bb, 0.9, 28);
+neonLight(65,   6,  65, 0x00ccff, 0.8, 26);
+
+// ── GEOMETRY HELPERS ──────────────────────────────────────
+function box(w, h, d, col, x, y, z, emissive = 0, emInt = 0) {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshLambertMaterial({ color: col, emissive, emissiveIntensity: emInt })
+  );
+  m.position.set(x, y + h * 0.5, z);
+  scene.add(m); return m;
+}
+function plane(w, d, col, x, y, z, ry = 0) {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    new THREE.MeshLambertMaterial({ color: col })
+  );
+  m.rotation.x = -Math.PI / 2; m.rotation.z = ry;
+  m.position.set(x, y, z);
+  scene.add(m); return m;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CITY — VICE CITY MIAMI
+// ═══════════════════════════════════════════════════════════
+
+// Ground — dark green grass
+plane(350, 350, 0x2e6b28, 0, 0, 0);
+// Sidewalks (light concrete strip along roads)
+plane(330, 18, 0xb8b0a0, 0, 0.005, 0);    // Main Ave sidewalk strip
+plane(18, 230, 0xb8b0a0, 32, 0.005, 0);   // Ocean Drive sidewalk
+plane(18, 230, 0xb8b0a0, -32, 0.005, 0);  // NW Ave sidewalk
+// Roads on top of sidewalk
+plane(320, 13, 0x2a2a38, 0, 0.01, 0);       // Main Ave
+plane(13, 220, 0x2a2a38, 32, 0.01, 0);      // Ocean Drive
+plane(13, 220, 0x2a2a38, -32, 0.01, 0);     // NW Ave
+plane(13, 100, 0x2a2a38, 0, 0.01, -45);     // Short NS road
+// Beach (warm sand, large area)
+plane(200, 60, 0xe2c97a, 0, 0.02, 82);
+// Wet sand at water edge
+plane(200, 10, 0xcdb96a, 0, 0.025, 108);
+// Ocean (deep tropical blue)
+plane(240, 100, 0x0e6eb5, 0, 0.01, 138);
+// Ocean shimmer strip near shore
+plane(240, 8, 0x3aa0e0, 0, 0.03, 112);
+
+// Road markings
+function roadLines(x0, z0, x1, z1, n, horiz) {
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    const x = x0 + (x1-x0)*t, z = z0 + (z1-z0)*t;
+    // Center dashes (yellow)
+    const dash = new THREE.Mesh(
+      new THREE.PlaneGeometry(horiz ? 7 : 0.5, horiz ? 0.5 : 7),
+      new THREE.MeshLambertMaterial({ color: 0xffdd00 })
+    );
+    dash.rotation.x = -Math.PI/2;
+    dash.position.set(x, 0.04, z);
+    scene.add(dash);
+  }
+}
+// White edge lines along roads
+function edgeLine(x0, z0, x1, z1, horiz) {
+  for (let s of [-1, 1]) {
+    const ox = horiz ? 0 : s * 5.5, oz = horiz ? s * 5.5 : 0;
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(horiz ? Math.abs(x1-x0) : 0.35, horiz ? 0.35 : Math.abs(z1-z0)),
+      new THREE.MeshLambertMaterial({ color: 0xffffff })
+    );
+    m.rotation.x = -Math.PI/2;
+    m.position.set((x0+x1)/2 + ox, 0.035, (z0+z1)/2 + oz);
+    scene.add(m);
+  }
+}
+roadLines(-150, 0, 150, 0, 20, true);
+roadLines(32, -100, 32, 100, 15, false);
+roadLines(-32, -100, -32, 100, 15, false);
+edgeLine(-150, 0, 150, 0, true);
+edgeLine(32, -100, 32, 100, false);
+edgeLine(-32, -100, -32, 100, false);
+
+// ── BUILDINGS ──────────────────────────────────────────────
+// Color palette: Vice City pastels + neon accents
+const PINK   = 0xf08aaa;
+const CYAN   = 0x70d8d8;
+const CORAL  = 0xf09060;
+const CREAM  = 0xede8c5;
+const LAVEN  = 0xb898d8;
+const TEAL   = 0x3a8080;
+const DARK   = 0x3a1850;
+
+// Office district (west, negative X)
+box(20, 42, 14, LAVEN,  -66, 0, -32);
+box(14, 30, 12, CREAM,  -56, 0, -52);
+box(18, 36, 14, CYAN,   -72, 0, -12);
+box(12, 24, 10, PINK,   -46, 0, -36);
+box(10, 20, 10, 0x506070,-76,0, -52);
+// Glass tower (office district centrepiece)
+const gMat = new THREE.MeshLambertMaterial({ color: 0x6ab0d8, emissive: 0x226688, emissiveIntensity: 0.2 });
+const gTower = new THREE.Mesh(new THREE.BoxGeometry(14, 55, 14), gMat);
+gTower.position.set(-62, 27.5, -32); scene.add(gTower);
+// Neon strip on tower
+box(14, 1.5, 0.4, 0xff00aa, -62, 50, -25.5, 0xff00aa, 1);
+box(14, 1.5, 0.4, 0x00ffff, -62, 42, -25.5, 0x00ffff, 1);
+
+// Club district (east, positive X, negative Z)
+box(28, 16, 22, DARK,    50, 0, -68);          // club body
+box(8,  6,  8,  0x2a0050, 44, 0, -56);         // annex
+box(22, 1.8,0.6, 0xff00ff, 50, 15, -57.6, 0xff00ff, 0.9); // NEON SIGN
+box(22, 1.2,0.6, 0x00ffff, 50, 12, -57.6, 0x00ffff, 0.7);
+box(18, 32, 14, CORAL,   66, 0, -48);
+box(14, 22, 12, PINK,    76, 0, -32);
+box(20, 34, 15, TEAL,    70, 0, -72);
+// Velvet rope posts
+for (let i = -2; i <= 2; i++) { box(0.3, 1.2, 0.3, 0xccaa00, 42 + i*3, 0, -55); }
+
+// Hotel district (west, positive Z)
+box(22, 30, 16, PINK,   -55, 0, 48, 0x330018, 0.15);
+box(16, 20, 12, CREAM,  -66, 0, 63);
+box(14, 18, 11, LAVEN,  -46, 0, 56);
+box(10, 1.2, 6, 0xff6eb4,-52, 5.5, 39.5, 0x661133, 0.4); // awning
+box(10, 0.5, 6, 0x000000,-52, 5.5, 37.5); // awning shadow
+
+// Ocean Drive beach hotels
+box(14, 13, 10, PINK,   40, 0, 52);
+box(12, 11,  9, CYAN,   56, 0, 52);
+box(16, 15, 11, CORAL,  72, 0, 58);
+box(10,  9,  8, LAVEN,  24, 0, 55);
+
+// Market/centre
+box(12,  9, 10, CORAL,  16, 0, 18);
+box( 9,  7,  8, CREAM, -16, 0, 18);
+box(13, 11, 10, CYAN,   22, 0,-22);
+box(10,  8,  9, 0x806040,-22,0,-22);
+box( 8,  4,  6, CORAL,   4, 0,  8); // vendor stall
+// Market awning
+box(8, 0.3, 6, 0xff6600, 4, 4.3, 8, 0xff3300, 0.4);
+
+// Background fill buildings
+for (let [x, z, c] of [
+  [-90,-60,LAVEN],[90,-60,CORAL],[80,20,CYAN],[-80,20,CREAM],
+  [-90,-90,TEAL],[90,-80,PINK],[55,-88,CREAM]
+]) { box(18 + Math.random()*10, 15 + Math.random()*20, 14, c, x, 0, z); }
+
+// ── CONVENTION AVE (north road to convention) ──────────────
+plane(14, 62, 0xb8b0a0, 0, 0.005, -40);    // sidewalk
+plane(12, 60, 0x2a2a38, 0, 0.01, -40);     // asphalt
+roadLines(0, -10, 0, -70, 9, false);
+
+// ── HACKER CONVENTION CENTER ──────────────────────────────
+// Convention plaza (concrete courtyard)
+plane(58, 24, 0x484858, 0, 0.015, -74);
+// Main building body
+box(46, 22, 32, 0x080018, 0, 0, -91);
+// Roof slab
+box(48, 1.2, 34, 0x14083a, 0, 22, -91);
+// Left tower
+box(7, 30, 7, 0x10062a, -22, 0, -89);
+// Right tower
+box(7, 30, 7, 0x10062a,  22, 0, -89);
+// Tower caps cyan
+box(9, 1.4, 9, 0x00ffff, -22, 30, -89, 0x00ffff, 1.2);
+box(9, 1.4, 9, 0x00ffff,  22, 30, -89, 0x00ffff, 1.2);
+// Antenna rods on towers
+box(0.5, 6, 0.5, 0xff00ff, -22, 31, -89, 0xff00ff, 1);
+box(0.5, 6, 0.5, 0xff00ff,  22, 31, -89, 0xff00ff, 1);
+// Entry canopy overhang
+box(26, 5, 8, 0x1a0540, 0, 18, -79);
+// Entry pillars
+box(1.8, 18, 1.8, 0x2a0860, -11, 0, -77);
+box(1.8, 18, 1.8, 0x2a0860,  11, 0, -77);
+// Neon facade strips
+box(46, 1.8, 0.5, 0xff00ff, 0, 16, -77.4, 0xff00ff, 1.4);
+box(46, 1.2, 0.5, 0x00ffff, 0, 12, -77.4, 0x00ffff, 1.0);
+box(46, 0.9, 0.5, 0xff00ff, 0,  7, -77.4, 0xff00ff, 0.8);
+box(46, 0.6, 0.5, 0x00ffff, 0,  3, -77.4, 0x00ffff, 0.6);
+// BIG NEON SIGN backing plate
+box(34, 4.5, 0.8, 0x050010, 0, 22, -77.2);
+// SIGN glow — two neon bars spelling the sign
+box(32, 1.5, 0.4, 0x00ffff, 0, 23.2, -77.0, 0x00ffff, 2.0);
+box(32, 1.5, 0.4, 0xff00ff, 0, 21.2, -77.0, 0xff00ff, 2.0);
+// Floor inside (lit internal ground)
+plane(44, 30, 0x0e0830, 0, 0.02, -91);
+// Venue steps
+box(28, 0.6, 3, 0x2a1850, 0, 0, -75);
+box(22, 1.2, 3, 0x2a1850, 0, 0, -73.2);
+// Side neon columns flanking entrance
+box(0.6, 20, 0.6, 0x00ffff, -14, 0, -77, 0x00ffff, 0.8);
+box(0.6, 20, 0.6, 0x00ffff,  14, 0, -77, 0x00ffff, 0.8);
+// Accent neon light for convention
+neonLight(0, 16, -88, 0xff00ff, 2.2, 55);
+neonLight(0,  6, -78, 0x00ffff, 1.8, 40);
+neonLight(-22, 18, -89, 0x00ccff, 1.0, 30);
+neonLight( 22, 18, -89, 0x00ccff, 1.0, 30);
+
+// ── PALM TREES ──────────────────────────────────────────
+function palm(x, z) {
+  const trunkH = 7 + Math.random() * 2;
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.25, 0.35, trunkH, 7),
+    new THREE.MeshLambertMaterial({ color: 0x6b4c11 })
+  );
+  trunk.position.set(x, trunkH * 0.5, z);
+  trunk.rotation.z = (Math.random() - 0.5) * 0.22;
+  scene.add(trunk);
+  const leafMat = new THREE.MeshLambertMaterial({ color: 0x1a6918 });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(2.2, 5, 4), leafMat);
+    leaf.scale.set(1, 0.28, 1);
+    leaf.position.set(x + Math.cos(a)*1.8, trunkH + 0.4, z + Math.sin(a)*1.8);
+    scene.add(leaf);
+  }
+}
+[
+  [8,68],[-10,70],[28,72],[50,67],[72,70],[-22,65],[-44,62],
+  [5,48],[-5,44],[22,50],[32,37],[-32,40],[46,27],[-46,24],
+  [0,62],[58,27],[-60,30],[48,14],[-48,12],[18,60],[-18,58]
+].forEach(([x,z]) => palm(x, z));
+
+// ── STREET LIGHTS ──────────────────────────────────────
+function streetLight(x, z) {
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.1, 7, 6),
+    new THREE.MeshLambertMaterial({ color: 0x404050 })
+  );
+  pole.position.set(x, 3.5, z); scene.add(pole);
+  const lamp = new THREE.Mesh(
+    new THREE.SphereGeometry(0.35, 8, 8),
+    new THREE.MeshLambertMaterial({ color: 0xffddaa, emissive: 0xff8800, emissiveIntensity: 0.9 })
+  );
+  lamp.position.set(x, 7.2, z); scene.add(lamp);
+}
+[
+  [-20,-5],[20,-5],[-20,5],[20,5],[26,-20],[26,20],[-26,-20],[-26,20],
+  [26,-52],[26,52],[-26,52],[-26,-52],[-8,-4],[8,-4],[0,-38],[36,-15]
+].forEach(([x,z]) => streetLight(x, z));
+
+// ═══════════════════════════════════════════════════════════
+//  PLAYER — GHOST (Hooded Hacker)
+// ═══════════════════════════════════════════════════════════
+const player = new THREE.Group();
+const hoodCol = new THREE.MeshLambertMaterial({ color: 0x090915 });
+const skinCol = new THREE.MeshLambertMaterial({ color: 0x3a2820 });
+const eyeGlow = new THREE.MeshLambertMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1 });
+
+// Body / hoodie
+const pBody = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.1, 0.42), hoodCol);
+pBody.position.set(0, 0.55, 0); player.add(pBody);
+// Lower cape
+const cape = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.55, 0.48), hoodCol);
+cape.position.set(0, 0.08, 0); player.add(cape);
+// Head
+const pHead = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), skinCol);
+pHead.position.set(0, 1.25, 0); player.add(pHead);
+// Hood
+const pHood = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.56, 0.68), hoodCol);
+pHood.position.set(-0.02, 1.47, 0.04); player.add(pHood);
+// Cyan eyes
+[[-.13,.5,.26],[.13,.5,.26]].forEach(([x,y,z]) => {
+  const e = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.055, 0.04), eyeGlow);
+  e.position.set(x, y, z); pHead.add(e);
+});
+// Laptop glow light
+const lapGlow = new THREE.PointLight(0x00ffff, 0.7, 4);
+lapGlow.position.set(0, 0.7, 0.6); player.add(lapGlow);
+
+player.position.set(0, 0, 0);
+scene.add(player);
+
+// Build NPC meshes
+const labelsContainer = document.getElementById('npc-labels');
+NPCS.forEach(npc => {
+  const g = new THREE.Group();
+
+  const bodyMat = new THREE.MeshLambertMaterial({ color: npc.color });
+  const skinMat = new THREE.MeshLambertMaterial({ color: npc.skin });
+
+  // Body
+  const b = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.1, 0.42), bodyMat);
+  b.position.y = 0.55; g.add(b);
+  // Head
+  const h = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), skinMat);
+  h.position.y = 1.3; g.add(h);
+  // Hat / accessory (small box on head)
+  const hat = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.2, 0.55), bodyMat);
+  hat.position.y = 1.65; g.add(hat);
+
+  // Interaction ring
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(4.5, 0.06, 8, 36),
+    new THREE.MeshLambertMaterial({ color: 0xffff00, emissive: 0xaaaa00 })
+  );
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.06;
+  ring.visible = false;
+  g.add(ring);
+
+  g.position.set(npc.x, 0, npc.z);
+  scene.add(g);
+  npc.mesh = g;
+  npc.ring = ring;
+
+  // HTML label
+  const el = document.createElement('div');
+  el.className = 'npc-label';
+  el.textContent = npc.name + ' · ' + npc.title;
+  el.style.display = 'none';
+  labelsContainer.appendChild(el);
+  // Boss gets special large imposing mesh
+  if (npc.isBoss) {
+    // Remove default mesh parts
+    while (g.children.length) g.remove(g.children[0]);
+    const bDark = new THREE.MeshLambertMaterial({ color: 0x060008 });
+    const bRed  = new THREE.MeshLambertMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1 });
+    const bGrey = new THREE.MeshLambertMaterial({ color: 0x1a0010 });
+    // Tall body
+    const bb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.5, 0.55), bDark);
+    bb.position.y = 0.75; g.add(bb);
+    // Cape / coat
+    const bc = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.7, 0.65), bGrey);
+    bc.position.y = 0.35; g.add(bc);
+    // Head
+    const bh = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), bDark);
+    bh.position.y = 1.8; g.add(bh);
+    // Hood
+    const bhood = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.72, 0.82), bDark);
+    bhood.position.y = 2.05; g.add(bhood);
+    // RED glowing eyes
+    [[-.16,.62,.32],[.16,.62,.32]].forEach(([x,y,z]) => {
+      const e = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.04), bRed);
+      e.position.set(x, y, z); bh.add(e);
+    });
+    // Red aura light attached to boss
+    const bAura = new THREE.PointLight(0xff0022, 1.2, 8);
+    bAura.position.y = 1.5; g.add(bAura);
+    // Re-add ring
+    g.add(ring);
+    el.textContent = '⚠ CIPHER — AI SECURITY BOSS';
+    el.style.cssText += 'color:#ff0044;border-color:rgba(255,0,68,0.6);text-shadow:0 0 8px #ff0044;';
+  }
+
+  npc.labelEl = el;
+});
+
+// ── CONVENTION WALKERS (7 ambient NPCs around the building) ──────────
+const WALKERS = [];
+const walkerDefs = [
+  { color: 0xff6633, skin: 0xffddbb, r: 21, spd: 0.006,  dir:  1, a0: 0.0  },
+  { color: 0x3399ff, skin: 0xf4c68c, r: 24, spd: 0.005,  dir: -1, a0: 0.9  },
+  { color: 0xffcc00, skin: 0xffddbb, r: 19, spd: 0.007,  dir:  1, a0: 1.8  },
+  { color: 0xcc33ff, skin: 0xd4956a, r: 25, spd: 0.004,  dir: -1, a0: 2.7  },
+  { color: 0x00ffcc, skin: 0xffddbb, r: 20, spd: 0.0065, dir:  1, a0: 3.6  },
+  { color: 0xff3366, skin: 0xc68642, r: 23, spd: 0.0055, dir: -1, a0: 4.5  },
+  { color: 0xffffff, skin: 0xffe0bd, r: 17, spd: 0.008,  dir:  1, a0: 5.4  },
+];
+walkerDefs.forEach(w => {
+  const g = new THREE.Group();
+  const bm = new THREE.MeshLambertMaterial({ color: w.color });
+  const sm = new THREE.MeshLambertMaterial({ color: w.skin });
+  const wb = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.1, 0.4), bm);
+  wb.position.y = 0.55; g.add(wb);
+  const wh = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.48, 0.48), sm);
+  wh.position.y = 1.3; g.add(wh);
+  const wx = 0 + Math.cos(w.a0) * w.r;
+  const wz = -90 + Math.sin(w.a0) * w.r;
+  g.position.set(wx, 0, wz);
+  scene.add(g);
+  WALKERS.push({ mesh: g, angle: w.a0, r: w.r, spd: w.spd, dir: w.dir });
+});
+
+// ── CONVENTION BUILDING LABEL ──────────────────────────────
+const convLabelEl = document.createElement('div');
+convLabelEl.className = 'npc-label';
+convLabelEl.innerHTML = '🖥️ HACKER CONVENTION';
+convLabelEl.style.cssText += 'color:#00ffff;font-size:13px;letter-spacing:2px;text-shadow:0 0 12px #00ffff;border-color:rgba(0,255,255,0.5);';
+convLabelEl.style.display = 'none';
+labelsContainer.appendChild(convLabelEl);
+
+// ═══════════════════════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════════════════════
+const CAM_DIST = 14, CAM_H = 8;
+
+function updateCamera() {
+  const px = player.position.x, pz = player.position.z;
+  camera.position.x = px + Math.sin(camAngle) * CAM_DIST;
+  camera.position.z = pz + Math.cos(camAngle) * CAM_DIST;
+  camera.position.y = CAM_H;
+  camera.lookAt(px, 1.1, pz);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════════════
+const keys = {};
+
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyE' && nearNPC !== null && !dlgOpen) openDialogue(nearNPC);
+  if (e.code === 'KeyM') toggleMusic();
+  if (e.code === 'Escape' && dlgOpen) closeDialogue();
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+document.addEventListener('mousedown', e => { if (!dlgOpen) { mouseDown = true; lastMX = e.clientX; } });
+document.addEventListener('mouseup',   () => { mouseDown = false; });
+document.addEventListener('mousemove', e => {
+  if (mouseDown) { camAngle += (e.clientX - lastMX) * 0.007; lastMX = e.clientX; }
+});
+document.addEventListener('touchstart', e => { lastMX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!dlgOpen) { camAngle += (e.touches[0].clientX - lastMX) * 0.007; lastMX = e.touches[0].clientX; }
+  e.preventDefault();
+}, { passive: false });
+
+
+const intelCountEl   = document.getElementById('intel-count');
+const zoneEl         = document.getElementById('zone-display');
+const promptEl       = document.getElementById('interact-prompt');
+const dlgBox         = document.getElementById('dialogue-box');
+const dlgNpc         = document.getElementById('dialogue-npc');
+const dlgTag         = document.getElementById('dialogue-technique-tag');
+const dlgText        = document.getElementById('dialogue-text');
+const dlgChoices     = document.getElementById('dialogue-choices');
+const dlgFeedback    = document.getElementById('dialogue-feedback');
+const dlgCloseBtn    = document.getElementById('dialogue-close');
+
+// ── BOSS DIALOGUE ────────────────────────────────────────
+function openBossDialogue(round) {
+  bossActive = true;
+  bossRound = round;
+  const q = NPCS[5].rounds[round];
+  dlgOpen = true;
+  dlgBox.classList.add('boss-mode');
+  dlgBox.style.display = 'block';
+  promptEl.style.display = 'none';
+  dlgNpc.textContent = '⚠ CIPHER  —  FINAL BOSS  [' + (round + 1) + ' / 4]';
+  dlgTag.textContent = 'CHALLENGE: AI THREAT INTELLIGENCE';
+  dlgText.textContent = q.text;
+  dlgFeedback.style.display = 'none';
+  dlgCloseBtn.style.display = 'none';
+  dlgChoices.innerHTML = '';
+  q.choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'd-choice';
+    btn.textContent = c.t;
+    btn.onclick = () => handleBossChoice(round, i, btn);
+    dlgChoices.appendChild(btn);
+  });
+}
+
+function handleBossChoice(round, choiceIdx, btn) {
+  const q = NPCS[5].rounds[round];
+  document.querySelectorAll('.d-choice').forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
+  if (choiceIdx === q.correct) {
+    btn.className = 'd-choice correct'; btn.style.opacity = '1';
+    dlgFeedback.className = 'ok';
+    dlgFeedback.style.display = 'block';
+    if (round < 3) {
+      dlgFeedback.textContent = '✓ CORRECT.\n"...Impressive. Let\'s continue."';
+      setTimeout(() => {
+        dlgFeedback.style.display = 'none';
+        openBossDialogue(round + 1);
+      }, 2200);
+    } else {
+      dlgFeedback.textContent = '✓ CORRECT.\n\n"...You know too much, GHOST. The city is yours — for now. Don\'t make me regret this."';
+      dlgCloseBtn.style.display = 'inline-block';
+      NPCS[5].done = true;
+      NPCS[5].ring.visible = false;
+      if (NPCS[5].labelEl) NPCS[5].labelEl.className = 'npc-label done';
+      dlgCloseBtn.onclick = () => { closeDialogue(); showBossWin(); };
+    }
+  } else {
+    btn.className = 'd-choice wrong'; btn.style.opacity = '1';
+    dlgFeedback.className = 'bad';
+    dlgFeedback.style.display = 'block';
+    dlgFeedback.textContent = '✗ Wrong. "You\'re not even close. Try again, little ghost."';
+    setTimeout(() => {
+      document.querySelectorAll('.d-choice').forEach(b => {
+        b.disabled = false; b.style.opacity = '1'; b.className = 'd-choice';
+      });
+      dlgFeedback.style.display = 'none';
+    }, 2800);
+  }
+}
+
+function showBossWin() {
+  document.getElementById('boss-win-screen').style.display = 'flex';
+}
+
+function openDialogue(idx) {
+  const npc = NPCS[idx];
+  if (npc.done) return;
+  if (npc.isBoss) { openBossDialogue(0); return; }
+  dlgOpen = true;
+  dlgBox.style.display = 'block';
+  promptEl.style.display = 'none';
+  dlgNpc.textContent = '▶ ' + npc.name + ' — ' + npc.title.toUpperCase();
+  dlgTag.textContent = 'TECHNIQUE: ???';
+  dlgText.textContent = npc.dlg.text;
+  dlgFeedback.style.display = 'none';
+  dlgCloseBtn.style.display = 'none';
+
+  dlgChoices.innerHTML = '';
+  npc.dlg.choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'd-choice';
+    btn.textContent = c.t;
+    btn.onclick = () => handleChoice(idx, i, btn);
+    dlgChoices.appendChild(btn);
+  });
+}
+
+function handleChoice(npcIdx, choiceIdx, btn) {
+  const npc = NPCS[npcIdx];
+  const ch = npc.dlg.choices[choiceIdx];
+  document.querySelectorAll('.d-choice').forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
+
+  if (ch.ok) {
+    btn.className = 'd-choice correct'; btn.style.opacity = '1';
+    dlgTag.textContent = 'TECHNIQUE: ' + npc.dlg.tech;
+    dlgFeedback.className = 'ok';
+    dlgFeedback.style.display = 'block';
+    dlgFeedback.textContent = npc.dlg.okMsg;
+    dlgCloseBtn.style.display = 'inline-block';
+
+    npc.done = true;
+    intelCount++;
+    collectedIntel.push(npc);
+    intelCountEl.textContent = intelCount;
+
+    // Grey out NPC
+    npc.mesh.children.forEach(c => {
+      if (c !== npc.ring && c.material)
+        c.material = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
+    });
+    npc.ring.visible = false;
+    if (npc.labelEl) npc.labelEl.className = 'npc-label done';
+
+    if (intelCount >= 5) setTimeout(showWin, 2500);
+  } else {
+    btn.className = 'd-choice wrong'; btn.style.opacity = '1';
+    dlgFeedback.className = 'bad';
+    dlgFeedback.style.display = 'block';
+    dlgFeedback.textContent = npc.dlg.badMsg;
+
+    setTimeout(() => {
+      document.querySelectorAll('.d-choice').forEach(b => {
+        b.disabled = false; b.style.opacity = '1'; b.className = 'd-choice';
+      });
+      dlgFeedback.style.display = 'none';
+    }, 2800);
+  }
+}
+
+function closeDialogue() {
+  dlgOpen = false;
+  bossActive = false;
+  dlgBox.classList.remove('boss-mode');
+  dlgBox.style.display = 'none';
+  dlgCloseBtn.onclick = closeDialogue;
+}
+
+function showWin() {
+  document.getElementById('win-screen').style.display = 'flex';
+  const log = document.getElementById('intel-log');
+  const techs = ['BAITING','IMPERSONATION','PRETEXTING','QUID PRO QUO','ELICITATION'];
+  collectedIntel.forEach((npc, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="tag">[${techs[npc.id]}] ${npc.name}</span><br>${npc.dlg.intel}`;
+    log.appendChild(li);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PLAYER MOVEMENT
+// ═══════════════════════════════════════════════════════════
+const SPEED = 0.13, TURN = 0.042, BOUNDS = 92;
+
+function updatePlayer() {
+  if (dlgOpen) return;
+  if (keys['KeyA'] || keys['ArrowLeft'])  camAngle -= TURN;
+  if (keys['KeyD'] || keys['ArrowRight']) camAngle += TURN;
+
+  let moved = false;
+  const dx = Math.sin(camAngle), dz = Math.cos(camAngle);
+
+  if (keys['KeyW'] || keys['ArrowUp']) {
+    player.position.x -= dx * SPEED;
+    player.position.z -= dz * SPEED;
+    player.rotation.y = camAngle + Math.PI;
+    moved = true;
+  }
+  if (keys['KeyS'] || keys['ArrowDown']) {
+    player.position.x += dx * SPEED;
+    player.position.z += dz * SPEED;
+    player.rotation.y = camAngle;
+    moved = true;
+  }
+
+  player.position.x = Math.max(-BOUNDS, Math.min(BOUNDS, player.position.x));
+  player.position.z = Math.max(-BOUNDS, Math.min(BOUNDS, player.position.z));
+  player.position.y = moved ? Math.sin(Date.now() * 0.009) * 0.04 : 0;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PROXIMITY & ZONE
+// ═══════════════════════════════════════════════════════════
+const RANGE = 6.5;
+
+function checkProximity() {
+  let closest = null, bestDist = RANGE;
+  NPCS.forEach((npc, i) => {
+    if (npc.done) { npc.ring.visible = false; return; }
+    const dx = player.position.x - npc.x;
+    const dz = player.position.z - npc.z;
+    const d = Math.sqrt(dx*dx + dz*dz);
+    npc.ring.visible = d < RANGE + 4;
+    if (d < bestDist) { bestDist = d; closest = i; }
+  });
+  nearNPC = closest;
+  if (closest !== null && !dlgOpen) {
+    promptEl.style.display = 'block';
+    promptEl.textContent = '[ E ] APPROACH ' + NPCS[closest].name;
+  } else if (!dlgOpen) {
+    promptEl.style.display = 'none';
+  }
+}
+
+function getZone(x, z) {
+  if (z > 58) return '🏖  MIAMI BEACH';
+  if (Math.abs(x) < 26 && z < -68) return '🖥️  HACKER CONVENTION';
+  if (x < -36 && z < -15) return '🏢  DOWNTOWN OFFICE';
+  if (x > 34 && z < -48) return '🌃  CLUB NEON';
+  if (x < -36 && z > 22) return '🏨  OCEAN PEARL HOTEL';
+  if (Math.abs(x) < 28 && Math.abs(z) < 28) return '🥗  LITTLE HAVANA MARKET';
+  return '🌴  VICE CITY — MIAMI';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NPC LABELS (project 3D → 2D)
+// ═══════════════════════════════════════════════════════════
+const _v3 = new THREE.Vector3();
+
+function updateLabels() {
+  NPCS.forEach(npc => {
+    const el = npc.labelEl;
+    if (!el) return;
+    _v3.set(npc.x, 2.0, npc.z);
+    _v3.project(camera);
+    const sx = (_v3.x * 0.5 + 0.5) * window.innerWidth;
+    const sy = (-_v3.y * 0.5 + 0.5) * window.innerHeight;
+    const dx = player.position.x - npc.x, dz = player.position.z - npc.z;
+    const dist = Math.sqrt(dx*dx + dz*dz);
+    el.style.display = dist < 30 && _v3.z < 1 ? 'block' : 'none';
+    el.style.left = sx + 'px';
+    el.style.top  = (sy - 2) + 'px';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MINIMAP
+// ═══════════════════════════════════════════════════════════
+const minimapCanvas = document.getElementById('minimap');
+const mctx = minimapCanvas.getContext('2d');
+const MM = 160, MM_SCALE = MM / 220;
+
+function worldToMap(wx, wz) {
+  return {
+    x: MM/2 + (wx - player.position.x) * MM_SCALE,
+    y: MM/2 + (wz - player.position.z) * MM_SCALE
+  };
+}
+
+function drawMinimap() {
+  mctx.clearRect(0, 0, MM, MM);
+
+  // ── BACKGROUND: city geography ──────────────────────────
+  // Grass base
+  mctx.fillStyle = '#3a8030';
+  mctx.fillRect(0, 0, MM, MM);
+
+  // Ocean (world Z 118–180)
+  const oTop = worldToMap(-150, 118), oBot = worldToMap(150, 180);
+  mctx.fillStyle = '#1a6eaa';
+  mctx.fillRect(0, Math.max(0, oTop.y), MM, Math.min(MM, oBot.y - oTop.y));
+
+  // Wet sand strip (world Z 108–118)
+  const wsTop = worldToMap(-150, 108), wsBot = worldToMap(150, 118);
+  mctx.fillStyle = '#c8a850';
+  mctx.fillRect(0, Math.max(0, wsTop.y), MM, Math.max(0, wsBot.y - wsTop.y));
+
+  // Beach sand (world Z 55–108)
+  const bTop = worldToMap(-150, 55), bBot = worldToMap(150, 108);
+  mctx.fillStyle = '#e2c86a';
+  mctx.fillRect(0, Math.max(0, bTop.y), MM, Math.max(0, bBot.y - bTop.y));
+
+  // ── ROADS ───────────────────────────────────────────────
+  mctx.fillStyle = '#22222e';
+  // Main Ave (Z=0, width=13 world units)
+  const maL = worldToMap(-150, -6.5), maR = worldToMap(150, 6.5);
+  mctx.fillRect(0, Math.max(0,maL.y), MM, Math.max(1, maR.y - maL.y));
+  // Ocean Drive (X=32)
+  const odL = worldToMap(25.5, -110), odR = worldToMap(38.5, 110);
+  mctx.fillRect(Math.max(0,odL.x), 0, Math.max(1, odR.x - odL.x), MM);
+  // NW Ave (X=-32)
+  const nwL = worldToMap(-38.5, -110), nwR = worldToMap(-25.5, 110);
+  mctx.fillRect(Math.max(0,nwL.x), 0, Math.max(1, nwR.x - nwL.x), MM);
+
+  // Road center dashes (yellow)
+  mctx.fillStyle = '#ffdd00';
+  // Main Ave center dashes
+  for (let wx = -140; wx < 140; wx += 16) {
+    const p = worldToMap(wx, 0);
+    if (p.x > 0 && p.x < MM) mctx.fillRect(p.x - 3, p.y - 0.5, 6, 1);
+  }
+  // Ocean Drive center dashes
+  for (let wz = -100; wz < 100; wz += 16) {
+    const p = worldToMap(32, wz);
+    if (p.y > 0 && p.y < MM) mctx.fillRect(p.x - 0.5, p.y - 3, 1, 6);
+  }
+  // NW Ave center dashes
+  for (let wz = -100; wz < 100; wz += 16) {
+    const p = worldToMap(-32, wz);
+    if (p.y > 0 && p.y < MM) mctx.fillRect(p.x - 0.5, p.y - 3, 1, 6);
+  }
+
+  // ── DISTRICT BLOCKS (subtle) ─────────────────────────────
+  // Office district
+  const od1 = worldToMap(-85, -60), od2 = worldToMap(-36, 0);
+  mctx.fillStyle = 'rgba(180,150,220,0.35)';
+  mctx.fillRect(od1.x, od1.y, od2.x-od1.x, od2.y-od1.y);
+  // Club district
+  const cd1 = worldToMap(34, -85), cd2 = worldToMap(85, -40);
+  mctx.fillStyle = 'rgba(220,80,180,0.3)';
+  mctx.fillRect(cd1.x, cd1.y, cd2.x-cd1.x, cd2.y-cd1.y);
+  // Hotel district
+  const hd1 = worldToMap(-80, 25), hd2 = worldToMap(-34, 70);
+  mctx.fillStyle = 'rgba(220,120,160,0.3)';
+  mctx.fillRect(hd1.x, hd1.y, hd2.x-hd1.x, hd2.y-hd1.y);
+
+  // ── DISTRICT LABELS ──────────────────────────────────────
+  mctx.font = 'bold 6px monospace';
+  mctx.textAlign = 'center';
+
+  // Convention building block on minimap
+  const conv1 = worldToMap(-23, -76), conv2 = worldToMap(23, -106);
+  mctx.fillStyle = 'rgba(80,0,180,0.55)';
+  mctx.fillRect(conv1.x, conv1.y, conv2.x - conv1.x, conv2.y - conv1.y);
+  // Convention pulsing border
+  mctx.strokeStyle = NPCS[5] && NPCS[5].done ? 'rgba(0,255,0,0.5)' : '#ff00ff';
+  mctx.lineWidth = 1.5;
+  mctx.strokeRect(conv1.x, conv1.y, conv2.x - conv1.x, conv2.y - conv1.y);
+  // Convention Ave road
+  const ca1 = worldToMap(-6, -10), ca2 = worldToMap(6, -76);
+  mctx.fillStyle = '#22222e';
+  mctx.fillRect(ca1.x, ca1.y, ca2.x - ca1.x, ca2.y - ca1.y);
+
+  const labels = [
+    { text: 'OFFICE',     wx: -60, wz: -30, col: '#c8a0f0' },
+    { text: 'CLUB',       wx:  55, wz: -62, col: '#ff88cc' },
+    { text: 'HOTEL',      wx: -55, wz:  48, col: '#ffaacc' },
+    { text: 'MARKET',     wx:   6, wz:   6, col: '#ffdd88' },
+    { text: 'BEACH',      wx:   0, wz:  75, col: '#ffe080' },
+    { text: 'OCEAN',      wx:   0, wz: 140, col: '#80d4ff' },
+    { text: '⚠ CONV',     wx:   0, wz: -88, col: '#dd00ff' },
+  ];
+  labels.forEach(l => {
+    const p = worldToMap(l.wx, l.wz);
+    if (p.x < 4 || p.x > MM-4 || p.y < 6 || p.y > MM-2) return;
+    mctx.fillStyle = l.col;
+    mctx.fillText(l.text, p.x, p.y);
+  });
+
+  // ── NPCs ────────────────────────────────────────────────
+  NPCS.forEach(npc => {
+    const p = worldToMap(npc.x, npc.z);
+    if (p.x < 3 || p.x > MM-3 || p.y < 3 || p.y > MM-3) return;
+    if (npc.done) {
+      mctx.fillStyle = 'rgba(0,220,60,0.5)';
+      mctx.beginPath(); mctx.arc(p.x, p.y, 3, 0, Math.PI*2); mctx.fill();
+    } else {
+      // Pulsing ring
+      mctx.strokeStyle = '#ffff00';
+      mctx.lineWidth = 1.5;
+      mctx.beginPath(); mctx.arc(p.x, p.y, 5, 0, Math.PI*2); mctx.stroke();
+      mctx.fillStyle = '#ffee00';
+      mctx.beginPath(); mctx.arc(p.x, p.y, 2.5, 0, Math.PI*2); mctx.fill();
+      // Name label
+      mctx.font = '5px monospace';
+      mctx.fillStyle = '#ffff88';
+      mctx.textAlign = 'left';
+      mctx.fillText(npc.name, p.x + 6, p.y + 2);
+      mctx.textAlign = 'center';
+      mctx.font = 'bold 6px monospace';
+    }
+  });
+
+  // ── PLAYER ──────────────────────────────────────────────
+  // Direction triangle
+  const a = player.rotation.y;
+  const px = MM/2, py = MM/2;
+  mctx.fillStyle = '#00ff41';
+  mctx.beginPath();
+  mctx.moveTo(px + Math.sin(-a)*8, py - Math.cos(-a)*8);
+  mctx.lineTo(px + Math.sin(-a + 2.4)*4, py - Math.cos(-a + 2.4)*4);
+  mctx.lineTo(px + Math.sin(-a - 2.4)*4, py - Math.cos(-a - 2.4)*4);
+  mctx.closePath(); mctx.fill();
+  // Center dot
+  mctx.fillStyle = '#ffffff';
+  mctx.beginPath(); mctx.arc(px, py, 2, 0, Math.PI*2); mctx.fill();
+
+  // ── BORDER ──────────────────────────────────────────────
+  mctx.strokeStyle = '#ff6eb4';
+  mctx.lineWidth = 1.5;
+  mctx.strokeRect(0.75, 0.75, MM-1.5, MM-1.5);
+
+  // Compass
+  mctx.fillStyle = 'rgba(255,110,180,0.7)';
+  mctx.font = 'bold 7px monospace';
+  mctx.textAlign = 'center';
+  mctx.fillText('N', MM/2, 8);
+  mctx.fillText('S', MM/2, MM-2);
+  mctx.fillText('W', 5, MM/2+3);
+  mctx.fillText('E', MM-5, MM/2+3);
+
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════
+
+function animate(t) {
+  requestAnimationFrame(animate);
+  frame++;
+
+  if (gameStarted) {
+    updatePlayer();
+    checkProximity();
+
+    // NPC idle (boss doesn't slow-rotate)
+    NPCS.forEach((npc, i) => {
+      if (!npc.done && npc.mesh) {
+        if (!npc.isBoss) {
+          npc.mesh.children[0].position.y = 0.55 + Math.sin(t * 0.001 + i * 1.3) * 0.025;
+          npc.mesh.rotation.y += 0.004;
+        }
+      }
+    });
+
+    // Convention walkers
+    WALKERS.forEach((w, i) => {
+      w.angle += w.spd * w.dir;
+      const wx = 0 + Math.cos(w.angle) * w.r;
+      const wz = -90 + Math.sin(w.angle) * w.r;
+      w.mesh.position.set(wx, 0, wz);
+      // Face direction of travel
+      w.mesh.rotation.y = w.dir > 0 ? -w.angle - Math.PI / 2 : -w.angle + Math.PI / 2;
+      // Subtle walk bob
+      w.mesh.children[0].position.y = 0.55 + Math.abs(Math.sin(t * 0.005 + i)) * 0.06;
+    });
+
+    // Convention building label visibility
+    if (frame % 6 === 0) {
+      const cdx = player.position.x - 0, cdz = player.position.z - (-83);
+      const cDist = Math.sqrt(cdx*cdx + cdz*cdz);
+      if (cDist < 35) {
+        const cv = new THREE.Vector3(0, 26, -78);
+        cv.project(camera);
+        const csx = (cv.x * 0.5 + 0.5) * window.innerWidth;
+        const csy = (-cv.y * 0.5 + 0.5) * window.innerHeight;
+        convLabelEl.style.display = cv.z < 1 ? 'block' : 'none';
+        convLabelEl.style.left = csx + 'px';
+        convLabelEl.style.top = (csy - 2) + 'px';
+      } else {
+        convLabelEl.style.display = 'none';
+      }
+    }
+
+    if (frame % 6 === 0) {
+      updateLabels();
+      drawMinimap();
+      zoneEl.textContent = getZone(player.position.x, player.position.z);
+    }
+  }
+
+  updateCamera();
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+function startGame() {
+  document.getElementById('intro-screen').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  NPCS.forEach(npc => { if (npc.labelEl) npc.labelEl.style.display = 'block'; });
+  gameStarted = true;
+
+  initAudio();
+  musicOn = true;
+  setTimeout(playMusicLoop, 300);
+}
+
+animate(0);
+</script>
+</body>
+</html>

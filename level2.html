@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HACK THE PLANET — Level 2: Vulnerability Hunter</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    color: #00ff41;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    border: 1px solid rgba(0,255,65,0.3);
+    box-shadow: 0 0 30px rgba(0,255,65,0.15);
+  }
+  #hud {
+    width: 800px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: rgba(0,5,0,0.9);
+    border: 1px solid rgba(0,255,65,0.3);
+    border-bottom: none;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px #00ff41;
+  }
+  #hud span { color: #00ff41; }
+  #hud .danger { color: #ff3300; text-shadow: 0 0 8px #ff3300; }
+
+  /* Scanlines overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.07) 0px,
+      rgba(0,0,0,0.07) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  #overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    transition: opacity 0.5s;
+  }
+  #overlay h1 {
+    font-size: 36px;
+    letter-spacing: 10px;
+    text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41;
+    animation: glitchTitle 3s infinite;
+    margin-bottom: 10px;
+  }
+  #overlay .subtitle {
+    font-size: 14px;
+    letter-spacing: 4px;
+    color: #ff3300;
+    text-shadow: 0 0 10px #ff3300;
+    margin-bottom: 40px;
+  }
+  #overlay .controls {
+    font-size: 12px;
+    letter-spacing: 2px;
+    line-height: 2;
+    text-align: center;
+    border: 1px solid rgba(0,255,65,0.3);
+    padding: 20px 40px;
+    margin-bottom: 30px;
+  }
+  #overlay .controls .key {
+    color: #ff3300;
+    text-shadow: 0 0 8px #ff3300;
+  }
+  #overlay .start-btn {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 4px;
+    color: #00ff41;
+    background: transparent;
+    border: 1px solid #00ff41;
+    padding: 12px 40px;
+    cursor: pointer;
+    text-shadow: 0 0 8px #00ff41;
+    box-shadow: 0 0 15px rgba(0,255,65,0.2);
+    transition: all 0.2s;
+  }
+  #overlay .start-btn:hover {
+    background: rgba(0,255,65,0.1);
+    box-shadow: 0 0 25px rgba(0,255,65,0.4);
+  }
+  @keyframes glitchTitle {
+    0%,95%,100% { transform: skewX(0); color: #00ff41; }
+    96% { transform: skewX(-4deg); color: #ff3300; }
+    97% { transform: skewX(4deg); color: #00ff41; }
+    98% { transform: skewX(0); color: #ff3300; }
+  }
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .blink { animation: blink 0.7s infinite; }
+</style>
+</head>
+<body>
+
+<!-- HUD -->
+<div id="hud">
+  <span>AGENT: <span id="hud-name">CIPHER</span></span>
+  <span>VULNS PATCHED: <span id="hud-caught">0</span> / <span id="hud-total">6</span></span>
+  <span>INTEGRITY: <span id="hud-hp">██████████</span></span>
+  <span class="danger">THREAT LEVEL: <span id="hud-threat">LOW</span></span>
+</div>
+<canvas id="c" width="800" height="560"></canvas>
+
+<!-- Start overlay -->
+<div id="overlay">
+  <h1>VULNERABILITY HUNTER</h1>
+  <div class="subtitle">// HACK THE PLANET — LEVEL 2 //</div>
+  <div class="controls">
+    <div><span class="key">W A S D</span> &nbsp;·&nbsp; MOVE AGENT</div>
+    <div><span class="key">ARROW KEYS</span> &nbsp;·&nbsp; ALSO MOVE</div>
+    <div><span class="key">1 2 3 4</span> &nbsp;·&nbsp; SELECT ANSWER IN BATTLE</div>
+    <div><span class="key">ENTER</span> &nbsp;·&nbsp; CONFIRM SELECTION</div>
+    <div style="margin-top:12px; color: rgba(0,255,65,0.6); font-size:11px;">
+      Approach rogue AI robots to trigger a <span style="color:#ff3300">VULNERABILITY SCAN.</span><br>
+      Identify the correct patch to neutralize each threat.
+    </div>
+  </div>
+  <button class="start-btn" onclick="startGame()">[ INITIALIZE MISSION ]</button>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  VULNERABILITY DATABASE
+// ─────────────────────────────────────────────
+const VULN_DB = [
+  {
+    id: 0,
+    robotName: "INJECTOR-9",
+    color: "#ff3300",
+    vulnerability: "PROMPT INJECTION",
+    flavorText: [
+      "> SCANNING UNIT INJECTOR-9...",
+      "> CRITICAL FLAW DETECTED",
+      "> This AI executes arbitrary instructions",
+      "> embedded in unvalidated user input.",
+      "> Attacker can override system directives.",
+    ],
+    options: [
+      "Increase the model's parameter count",
+      "Sanitize inputs & enforce strict instruction boundaries",
+      "Add more examples to training data",
+      "Disable the model's logging system"
+    ],
+    correct: 1,
+    explanation: "Input sanitization + instruction boundary enforcement prevents injected prompts from overriding system behavior."
+  },
+  {
+    id: 1,
+    robotName: "POISONER-X",
+    color: "#ff6600",
+    vulnerability: "DATA POISONING",
+    flavorText: [
+      "> SCANNING UNIT POISONER-X...",
+      "> INTEGRITY COMPROMISE DETECTED",
+      "> Adversary has injected malicious samples",
+      "> into the training pipeline.",
+      "> Model behavior is being manipulated.",
+    ],
+    options: [
+      "Use a larger neural network architecture",
+      "Encrypt all model weights at rest",
+      "Validate, curate & audit training data sources",
+      "Reduce the learning rate"
+    ],
+    correct: 2,
+    explanation: "Rigorous data validation and provenance tracking prevents adversarial samples from corrupting the model."
+  },
+  {
+    id: 2,
+    robotName: "INVERTOR-Z",
+    color: "#cc00ff",
+    vulnerability: "MODEL INVERSION",
+    flavorText: [
+      "> SCANNING UNIT INVERTOR-Z...",
+      "> PRIVACY BREACH DETECTED",
+      "> Through repeated API queries,",
+      "> attacker reconstructs private training data.",
+      "> Sensitive records are being extracted.",
+    ],
+    options: [
+      "Apply differential privacy during training",
+      "Increase inference batch size",
+      "Remove all data augmentation",
+      "Switch to a transformer architecture"
+    ],
+    correct: 0,
+    explanation: "Differential privacy adds calibrated noise during training, bounding how much any single record can influence model outputs."
+  },
+  {
+    id: 3,
+    robotName: "ADVERSAR-1",
+    color: "#ffcc00",
+    vulnerability: "ADVERSARIAL EXAMPLES",
+    flavorText: [
+      "> SCANNING UNIT ADVERSAR-1...",
+      "> EVASION ATTACK DETECTED",
+      "> Imperceptible perturbations to input",
+      "> cause catastrophic misclassification.",
+      "> Model confidence is being spoofed.",
+    ],
+    options: [
+      "Use a smaller training dataset",
+      "Disable gradient computation",
+      "Include adversarial samples in training (adversarial training)",
+      "Switch to greedy decoding"
+    ],
+    correct: 2,
+    explanation: "Adversarial training exposes the model to crafted attack samples, improving its robustness against perturbation-based evasion."
+  },
+  {
+    id: 4,
+    robotName: "BIASBOT-7",
+    color: "#00ccff",
+    vulnerability: "TRAINING DATA BIAS",
+    flavorText: [
+      "> SCANNING UNIT BIASBOT-7...",
+      "> SYSTEMIC BIAS DETECTED",
+      "> Model perpetuates demographic disparities",
+      "> learned from unbalanced training corpus.",
+      "> Fairness metrics are critically low.",
+    ],
+    options: [
+      "Deploy model faster to collect more feedback",
+      "Audit, balance & diversify the training dataset",
+      "Increase dropout regularization",
+      "Add more hidden layers to the network"
+    ],
+    correct: 1,
+    explanation: "Dataset auditing and diversity ensure the model learns from representative samples, reducing learned bias."
+  },
+  {
+    id: 5,
+    robotName: "HALLUCIN-8",
+    color: "#00ff99",
+    vulnerability: "HALLUCINATION",
+    flavorText: [
+      "> SCANNING UNIT HALLUCIN-8...",
+      "> FACTUAL INTEGRITY FAILURE",
+      "> Model generates confident but fabricated",
+      "> outputs unsupported by any ground truth.",
+      "> Users are receiving false information.",
+    ],
+    options: [
+      "Increase temperature for more creativity",
+      "Remove the system prompt entirely",
+      "Ground outputs with RAG + verifiable citations",
+      "Train on synthetic data only"
+    ],
+    correct: 2,
+    explanation: "Retrieval-Augmented Generation (RAG) anchors responses to verified sources, drastically reducing hallucinated content."
+  }
+];
+
+// ─────────────────────────────────────────────
+//  MAP DEFINITION  (0=floor, 1=wall, 2=obstacle)
+//  25 cols × 17 rows  — each tile = 32px
+// ─────────────────────────────────────────────
+const COLS = 25, ROWS = 17, TILE = 32;
+const MAP = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+  [1,0,2,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,0,1],
+  [1,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,1,0,0,0,1],
+  [1,0,0,0,1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,1,0,0,0,1],
+  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+  [1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1],
+  [1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,1],
+  [1,0,2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,2,0,1],
+  [1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,1],
+  [1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1],
+  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+  [1,0,0,0,1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,1,0,0,0,1],
+  [1,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,1,0,0,0,1],
+  [1,0,2,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,0,1],
+  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+
+// Robot spawn positions (tile col, tile row)
+const ROBOT_SPAWNS = [
+  {col:3,  row:2},
+  {col:21, row:2},
+  {col:6,  row:7},
+  {col:18, row:7},
+  {col:3,  row:14},
+  {col:21, row:14},
+];
+
+// ─────────────────────────────────────────────
+//  GAME STATE
+// ─────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let gamePhase = 'menu'; // menu | playing | battle | victory
+let playerHP = 100;
+let caughtCount = 0;
+
+const player = {
+  x: 12 * TILE + TILE/2,
+  y: 8  * TILE + TILE/2,
+  size: 14,
+  speed: 120,
+  dir: 0,   // 0=down,1=up,2=left,3=right
+  walkFrame: 0,
+  walkTimer: 0,
+};
+
+// Build robot list from spawns + vuln db
+const robots = VULN_DB.map((v, i) => ({
+  ...v,
+  x: ROBOT_SPAWNS[i].col * TILE + TILE/2,
+  y: ROBOT_SPAWNS[i].row * TILE + TILE/2,
+  alive: true,
+  // patrol
+  moveTimer: Math.random() * 2,
+  moveDir: { dx: 0, dy: 0 },
+  moveDuration: 0,
+  walkFrame: 0,
+  walkTimer: 0,
+}));
+
+// Battle state
+const battle = {
+  robot: null,
+  textLines: [],
+  textIndex: 0,
+  textTimer: 0,
+  phase: 'intro',   // intro | select | result
+  selected: 0,
+  confirmed: false,
+  resultText: '',
+  resultOk: false,
+  resultTimer: 0,
+  wrongAttempts: 0,
+};
+
+// Camera (world offset)
+const cam = { x: 0, y: 0 };
+
+// Input
+const keys = {};
+document.addEventListener('keydown', e => {
+  if (!keys[e.code]) {
+    keys[e.code] = true;
+    handleKeyDown(e.code);
+  }
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+let lastTime = 0;
+
+// ─────────────────────────────────────────────
+//  INPUT HANDLER
+// ─────────────────────────────────────────────
+function handleKeyDown(code) {
+  if (gamePhase === 'battle') {
+    if (battle.phase === 'select') {
+      if (code === 'Digit1' || code === 'Numpad1') battle.selected = 0;
+      if (code === 'Digit2' || code === 'Numpad2') battle.selected = 1;
+      if (code === 'Digit3' || code === 'Numpad3') battle.selected = 2;
+      if (code === 'Digit4' || code === 'Numpad4') battle.selected = 3;
+      if (code === 'ArrowUp')   battle.selected = Math.max(0, battle.selected - 1);
+      if (code === 'ArrowDown') battle.selected = Math.min(3, battle.selected + 1);
+      if (code === 'Enter' || code === 'Space') confirmBattleAnswer();
+    } else if (battle.phase === 'result') {
+      if (code === 'Enter' || code === 'Space') endBattle();
+    } else if (battle.phase === 'intro') {
+      // Skip text with Enter
+      if (code === 'Enter' || code === 'Space') {
+        battle.textIndex = battle.textLines.length;
+      }
+    }
+  }
+  if (gamePhase === 'victory' && (code === 'Enter' || code === 'Space')) {
+    window.location.href = 'index.html';
+  }
+}
+
+// ─────────────────────────────────────────────
+//  COLLISION HELPERS
+// ─────────────────────────────────────────────
+function tileAt(wx, wy) {
+  const col = Math.floor(wx / TILE);
+  const row = Math.floor(wy / TILE);
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return 1;
+  return MAP[row][col];
+}
+
+function solidAt(wx, wy) {
+  return tileAt(wx, wy) !== 0;
+}
+
+function moveWithCollision(obj, dx, dy, radius) {
+  const nx = obj.x + dx;
+  const ny = obj.y + dy;
+
+  const canX = !solidAt(nx - radius, obj.y) && !solidAt(nx + radius, obj.y) &&
+               !solidAt(nx - radius, obj.y - radius) && !solidAt(nx + radius, obj.y - radius) &&
+               !solidAt(nx - radius, obj.y + radius) && !solidAt(nx + radius, obj.y + radius);
+
+  const canY = !solidAt(obj.x, ny - radius) && !solidAt(obj.x, ny + radius) &&
+               !solidAt(obj.x - radius, ny - radius) && !solidAt(obj.x + radius, ny - radius) &&
+               !solidAt(obj.x - radius, ny + radius) && !solidAt(obj.x + radius, ny + radius);
+
+  if (canX) obj.x = nx;
+  if (canY) obj.y = ny;
+}
+
+// ─────────────────────────────────────────────
+//  UPDATE
+// ─────────────────────────────────────────────
+function update(dt) {
+  if (gamePhase === 'playing') {
+    updatePlayer(dt);
+    updateRobots(dt);
+    updateCamera();
+    checkBattleTrigger();
+    updateHUD();
+  } else if (gamePhase === 'battle') {
+    updateBattle(dt);
+  }
+}
+
+function updatePlayer(dt) {
+  let dx = 0, dy = 0;
+  if (keys['ArrowUp']    || keys['KeyW']) dy = -1;
+  if (keys['ArrowDown']  || keys['KeyS']) dy =  1;
+  if (keys['ArrowLeft']  || keys['KeyA']) dx = -1;
+  if (keys['ArrowRight'] || keys['KeyD']) dx =  1;
+
+  if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
+
+  const moving = dx !== 0 || dy !== 0;
+  if (moving) {
+    if      (dy < 0) player.dir = 1;
+    else if (dy > 0) player.dir = 0;
+    else if (dx < 0) player.dir = 2;
+    else             player.dir = 3;
+
+    player.walkTimer += dt;
+    if (player.walkTimer > 0.18) {
+      player.walkFrame = (player.walkFrame + 1) % 4;
+      player.walkTimer = 0;
+    }
+    moveWithCollision(player, dx * player.speed * dt, dy * player.speed * dt, player.size * 0.5);
+  }
+}
+
+function updateRobots(dt) {
+  robots.forEach(r => {
+    if (!r.alive) return;
+    r.moveTimer -= dt;
+    if (r.moveTimer <= 0) {
+      // Pick new random direction
+      const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0},{dx:0,dy:0}];
+      const pick = dirs[Math.floor(Math.random() * dirs.length)];
+      r.moveDir = pick;
+      r.moveDuration = 0.4 + Math.random() * 1.2;
+      r.moveTimer = r.moveDuration + 0.3 + Math.random();
+    }
+    const speed = 40;
+    const rdx = r.moveDir.dx * speed * dt;
+    const rdy = r.moveDir.dy * speed * dt;
+    if (rdx !== 0 || rdy !== 0) {
+      r.walkTimer += dt;
+      if (r.walkTimer > 0.2) { r.walkFrame = (r.walkFrame + 1) % 4; r.walkTimer = 0; }
+      moveWithCollision(r, rdx, rdy, 10);
+    }
+  });
+}
+
+function updateCamera() {
+  const targetX = player.x - canvas.width / 2;
+  const targetY = player.y - canvas.height / 2;
+  const maxX = COLS * TILE - canvas.width;
+  const maxY = ROWS * TILE - canvas.height;
+  cam.x = Math.max(0, Math.min(maxX, targetX));
+  cam.y = Math.max(0, Math.min(maxY, targetY));
+}
+
+function checkBattleTrigger() {
+  robots.forEach(r => {
+    if (!r.alive) return;
+    const dist = Math.hypot(player.x - r.x, player.y - r.y);
+    if (dist < 28) {
+      startBattle(r);
+    }
+  });
+}
+
+function updateHUD() {
+  document.getElementById('hud-caught').textContent = caughtCount;
+  const bars = Math.round(playerHP / 10);
+  document.getElementById('hud-hp').textContent = '█'.repeat(bars) + '░'.repeat(10 - bars);
+  const threat = caughtCount >= 4 ? 'CRITICAL' : caughtCount >= 2 ? 'HIGH' : 'LOW';
+  document.getElementById('hud-threat').textContent = threat;
+}
+
+// ─────────────────────────────────────────────
+//  BATTLE SYSTEM
+// ─────────────────────────────────────────────
+function startBattle(robot) {
+  gamePhase = 'battle';
+  battle.robot = robot;
+  battle.textLines = robot.flavorText.slice();
+  battle.textIndex = 0;
+  battle.textTimer = 0;
+  battle.phase = 'intro';
+  battle.selected = 0;
+  battle.confirmed = false;
+  battle.wrongAttempts = 0;
+  playBattleMusic();
+}
+
+function updateBattle(dt) {
+  if (battle.phase === 'intro') {
+    battle.textTimer -= dt;
+    if (battle.textTimer <= 0) {
+      battle.textIndex++;
+      battle.textTimer = 0.08;
+      if (battle.textIndex >= battle.textLines.length) {
+        battle.phase = 'select';
+      }
+    }
+  } else if (battle.phase === 'result') {
+    battle.resultTimer -= dt;
+    if (battle.resultTimer <= 0 && (keys['Enter'] || keys['Space'])) {
+      endBattle();
+    }
+  }
+}
+
+function confirmBattleAnswer() {
+  const correct = battle.robot.correct === battle.selected;
+  if (correct) {
+    battle.resultText = '✓ VULNERABILITY PATCHED!';
+    battle.resultOk = true;
+    battle.phase = 'result';
+    battle.resultTimer = 1.5;
+    playPatchSound();
+  } else {
+    battle.wrongAttempts++;
+    const penalty = 10;
+    playerHP = Math.max(0, playerHP - penalty);
+    battle.resultText = `✗ WRONG PATCH — INTEGRITY -${penalty}%\n  ${battle.robot.options[battle.selected].substring(3)}\n  ...is not the correct fix.`;
+    battle.resultOk = false;
+    battle.phase = 'result';
+    battle.resultTimer = 2.0;
+    playErrorSound();
+    setTimeout(() => {
+      if (gamePhase === 'battle') {
+        battle.phase = 'select';
+        battle.resultText = '';
+      }
+    }, 2000);
+  }
+}
+
+function endBattle() {
+  if (battle.resultOk) {
+    battle.robot.alive = false;
+    caughtCount++;
+    updateHUD();
+    if (caughtCount >= VULN_DB.length) {
+      setTimeout(() => { gamePhase = 'victory'; }, 400);
+      return;
+    }
+  }
+  gamePhase = 'playing';
+  stopBattleMusic();
+  playMapMusic();
+  // Push player away from robot to avoid re-trigger
+  const angle = Math.atan2(player.y - battle.robot.y, player.x - battle.robot.x);
+  player.x += Math.cos(angle) * 40;
+  player.y += Math.sin(angle) * 40;
+}
+
+// ─────────────────────────────────────────────
+//  DRAW
+// ─────────────────────────────────────────────
+function draw() {
+  ctx.fillStyle = '#000500';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (gamePhase === 'playing' || gamePhase === 'battle') {
+    drawWorld();
+    drawRobots();
+    drawPlayer();
+    if (gamePhase === 'battle') drawBattle();
+  } else if (gamePhase === 'victory') {
+    drawVictory();
+  }
+}
+
+// ── WORLD ──
+function drawWorld() {
+  ctx.save();
+  ctx.translate(-cam.x, -cam.y);
+
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const t = MAP[row][col];
+      const wx = col * TILE;
+      const wy = row * TILE;
+      if (t === 0) {
+        // Floor tile
+        ctx.fillStyle = '#000800';
+        ctx.fillRect(wx, wy, TILE, TILE);
+        // Grid lines
+        ctx.strokeStyle = 'rgba(0,255,65,0.07)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(wx, wy, TILE, TILE);
+      } else if (t === 1) {
+        // Wall
+        ctx.fillStyle = '#001200';
+        ctx.fillRect(wx, wy, TILE, TILE);
+        ctx.fillStyle = 'rgba(0,255,65,0.6)';
+        ctx.fillRect(wx, wy, TILE, 2);
+        ctx.fillRect(wx, wy + TILE - 2, TILE, 2);
+        ctx.fillRect(wx, wy, 2, TILE);
+        ctx.fillRect(wx + TILE - 2, wy, 2, TILE);
+        // Wall inner glow
+        ctx.fillStyle = 'rgba(0,255,65,0.05)';
+        ctx.fillRect(wx + 2, wy + 2, TILE - 4, TILE - 4);
+      } else if (t === 2) {
+        // Obstacle — server terminal
+        ctx.fillStyle = '#000a00';
+        ctx.fillRect(wx, wy, TILE, TILE);
+        // Terminal box
+        ctx.fillStyle = '#001800';
+        ctx.fillRect(wx + 4, wy + 4, TILE - 8, TILE - 8);
+        ctx.strokeStyle = '#00ff41';
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = '#00ff41';
+        ctx.strokeRect(wx + 4, wy + 4, TILE - 8, TILE - 8);
+        ctx.shadowBlur = 0;
+        // LED dot
+        ctx.fillStyle = '#00ff41';
+        ctx.beginPath();
+        ctx.arc(wx + TILE/2, wy + TILE/2, 2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+// ── PLAYER ──
+function drawPlayer() {
+  ctx.save();
+  ctx.translate(-cam.x, -cam.y);
+  const px = player.x, py = player.y;
+  const s = player.size;
+  const bob = Math.sin(player.walkFrame * Math.PI / 2) * 1.5;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,255,65,0.1)';
+  ctx.beginPath();
+  ctx.ellipse(px, py + s * 0.8, s * 0.7, s * 0.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body glow
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = '#00ff41';
+
+  // Legs (walking)
+  const legOffset = Math.sin(player.walkFrame * Math.PI / 2) * 3;
+  ctx.fillStyle = '#005500';
+  ctx.fillRect(px - s*0.4, py + s*0.3 + bob, s*0.3, s*0.6 + legOffset);
+  ctx.fillRect(px + s*0.1, py + s*0.3 + bob, s*0.3, s*0.6 - legOffset);
+
+  // Body
+  ctx.fillStyle = '#002200';
+  ctx.fillRect(px - s*0.5, py - s*0.3 + bob, s, s*0.7);
+  ctx.fillStyle = '#00ff41';
+  ctx.strokeStyle = '#00ff41';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(px - s*0.5, py - s*0.3 + bob, s, s*0.7);
+
+  // Head
+  ctx.fillStyle = '#001500';
+  ctx.fillRect(px - s*0.4, py - s*1.1 + bob, s*0.8, s*0.8);
+  ctx.strokeStyle = '#00ff41';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(px - s*0.4, py - s*1.1 + bob, s*0.8, s*0.8);
+
+  // Eyes (direction-dependent)
+  ctx.fillStyle = '#00ff41';
+  ctx.shadowBlur = 8;
+  if (player.dir === 0) { // down
+    ctx.fillRect(px - s*0.25, py - s*0.8 + bob, 3, 3);
+    ctx.fillRect(px + s*0.1,  py - s*0.8 + bob, 3, 3);
+  } else if (player.dir === 1) { // up
+    ctx.fillRect(px - s*0.2, py - s*0.95 + bob, 3, 2);
+    ctx.fillRect(px + s*0.05, py - s*0.95 + bob, 3, 2);
+  } else if (player.dir === 2) { // left
+    ctx.fillRect(px - s*0.35, py - s*0.85 + bob, 2, 3);
+  } else { // right
+    ctx.fillRect(px + s*0.25, py - s*0.85 + bob, 2, 3);
+  }
+
+  // Chest stripe
+  ctx.fillStyle = 'rgba(0,255,65,0.3)';
+  ctx.fillRect(px - s*0.4, py - s*0.05 + bob, s*0.8, 2);
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+// ── ROBOTS ──
+function drawRobots() {
+  ctx.save();
+  ctx.translate(-cam.x, -cam.y);
+  robots.forEach(r => {
+    if (!r.alive) return;
+    drawRobot(r);
+  });
+  ctx.restore();
+}
+
+function drawRobot(r) {
+  const x = r.x, y = r.y;
+  const s = 14;
+  const bob = Math.sin(r.walkFrame * Math.PI / 2) * 1.5;
+  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
+  const col = r.color;
+
+  ctx.shadowBlur = 14 + pulse * 8;
+  ctx.shadowColor = col;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(255,51,0,0.08)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + s * 0.9, s * 0.8, s * 0.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs
+  ctx.fillStyle = adjustAlpha(col, 0.7);
+  ctx.fillRect(x - s*0.4, y + s*0.4 + bob, s*0.3, s*0.5 + Math.sin(r.walkFrame*Math.PI/2)*3);
+  ctx.fillRect(x + s*0.1,  y + s*0.4 + bob, s*0.3, s*0.5 - Math.sin(r.walkFrame*Math.PI/2)*3);
+
+  // Body
+  ctx.fillStyle = '#050005';
+  ctx.fillRect(x - s*0.55, y - s*0.2 + bob, s*1.1, s*0.7);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x - s*0.55, y - s*0.2 + bob, s*1.1, s*0.7);
+
+  // Warning stripes on body
+  ctx.fillStyle = adjustAlpha(col, 0.15);
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(x - s*0.55 + i * s*0.38, y - s*0.2 + bob, s*0.18, s*0.7);
+  }
+
+  // Head
+  ctx.fillStyle = '#020002';
+  ctx.fillRect(x - s*0.5, y - s*1.1 + bob, s, s*0.9);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x - s*0.5, y - s*1.1 + bob, s, s*0.9);
+
+  // Visor / eye bar
+  ctx.fillStyle = adjustAlpha(col, 0.2 + pulse * 0.3);
+  ctx.fillRect(x - s*0.45, y - s*0.9 + bob, s*0.9, s*0.3);
+  ctx.fillStyle = col;
+  ctx.fillRect(x - s*0.3, y - s*0.82 + bob, s*0.25, s*0.15);
+  ctx.fillRect(x + s*0.05, y - s*0.82 + bob, s*0.25, s*0.15);
+
+  // Antenna
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y - s*1.1 + bob);
+  ctx.lineTo(x, y - s*1.5 + bob);
+  ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.arc(x, y - s*1.55 + bob, 2.5, 0, Math.PI*2);
+  ctx.fill();
+
+  // Name tag
+  ctx.shadowBlur = 6;
+  ctx.shadowColor = col;
+  ctx.fillStyle = col;
+  ctx.font = 'bold 8px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(r.robotName, x, y - s*1.8 + bob);
+  ctx.fillStyle = adjustAlpha(col, 0.7);
+  ctx.font = '7px Courier New';
+  ctx.fillText(r.vulnerability, x, y - s*1.65 + bob);
+
+  ctx.shadowBlur = 0;
+  ctx.textAlign = 'left';
+
+  // Proximity warning ring
+  const dist = Math.hypot(player.x - r.x, player.y - r.y);
+  if (dist < 60) {
+    const alpha = (1 - dist / 60) * 0.4;
+    ctx.strokeStyle = `rgba(255,51,0,${alpha})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(x, y, 28, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function adjustAlpha(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ── BATTLE SCREEN ──
+function drawBattle() {
+  const W = canvas.width, H = canvas.height;
+  const robot = battle.robot;
+
+  // Dark overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.88)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Battle scene BG
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#000800');
+  bgGrad.addColorStop(1, '#000200');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H * 0.6);
+
+  // Grid floor in battle
+  ctx.strokeStyle = 'rgba(0,255,65,0.06)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < W; i += 32) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, H*0.6); ctx.stroke(); }
+  for (let j = 0; j < H*0.6; j += 32) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(W,j); ctx.stroke(); }
+
+  // Corner lights
+  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
+  drawCornerGlow(ctx, 0, 0, '#00ff41', 0.3 + pulse * 0.2);
+  drawCornerGlow(ctx, W, 0, '#ff3300', 0.2 + pulse * 0.15);
+
+  // Dividing line
+  ctx.strokeStyle = 'rgba(0,255,65,0.5)';
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#00ff41';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.58);
+  ctx.lineTo(W, H * 0.58);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Draw player sprite (bottom-left, large)
+  drawBattlePlayer(W * 0.2, H * 0.45);
+
+  // Draw robot sprite (top-right, large)
+  drawBattleRobot(robot, W * 0.72, H * 0.22);
+
+  // HP bars
+  drawBattleHPBar(ctx, 30, H * 0.04, 'AGENT: CIPHER', playerHP, '#00ff41');
+  drawBattleHPBar(ctx, W - 230, H * 0.04, robot.robotName, 100 - (battle.wrongAttempts * 20), robot.color);
+
+  // Bottom panel
+  ctx.fillStyle = '#000500';
+  ctx.fillRect(0, H * 0.58, W, H * 0.42);
+  ctx.strokeStyle = 'rgba(0,255,65,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, H * 0.58, W, H * 0.42);
+
+  if (battle.phase === 'intro') {
+    drawBattleIntro(W, H);
+  } else if (battle.phase === 'select') {
+    drawBattleSelect(W, H);
+  } else if (battle.phase === 'result') {
+    drawBattleResult(W, H);
+  }
+}
+
+function drawCornerGlow(ctx, x, y, color, alpha) {
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, 120);
+  grad.addColorStop(0, color + Math.round(alpha * 255).toString(16).padStart(2,'0'));
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.fillRect(x - 120, y - 120, 240, 240);
+}
+
+function drawBattlePlayer(cx, cy) {
+  const s = 28;
+  const bob = Math.sin(Date.now() * 0.004) * 3;
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = '#00ff41';
+  ctx.fillStyle = '#002200';
+  ctx.fillRect(cx - s, cy - s + bob, s*2, s*1.5);
+  ctx.strokeStyle = '#00ff41';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx - s, cy - s + bob, s*2, s*1.5);
+  ctx.fillStyle = '#001500';
+  ctx.fillRect(cx - s*0.8, cy - s*2.2 + bob, s*1.6, s*1.2);
+  ctx.strokeRect(cx - s*0.8, cy - s*2.2 + bob, s*1.6, s*1.2);
+  ctx.fillStyle = '#00ff41';
+  ctx.shadowBlur = 12;
+  ctx.fillRect(cx - s*0.5, cy - s*1.9 + bob, 6, 6);
+  ctx.fillRect(cx + s*0.2, cy - s*1.9 + bob, 6, 6);
+  ctx.fillStyle = 'rgba(0,255,65,0.4)';
+  ctx.fillRect(cx - s*0.8, cy - s*0.2 + bob, s*1.6, 3);
+  // Legs
+  ctx.fillStyle = '#005500';
+  ctx.fillRect(cx - s*0.7, cy + s*0.5 + bob, s*0.6, s);
+  ctx.fillRect(cx + s*0.1, cy + s*0.5 + bob, s*0.6, s);
+  ctx.shadowBlur = 0;
+}
+
+function drawBattleRobot(robot, cx, cy) {
+  const s = 32;
+  const bob = Math.sin(Date.now() * 0.003 + 1) * 4;
+  const col = robot.color;
+  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
+  ctx.shadowBlur = 20 + pulse * 15;
+  ctx.shadowColor = col;
+  // Body
+  ctx.fillStyle = '#050005';
+  ctx.fillRect(cx - s*1.1, cy - s*0.5 + bob, s*2.2, s*1.4);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx - s*1.1, cy - s*0.5 + bob, s*2.2, s*1.4);
+  // Warning stripes
+  ctx.fillStyle = adjustAlpha(col, 0.12);
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(cx - s*1.1 + i * s*0.45, cy - s*0.5 + bob, s*0.22, s*1.4);
+  }
+  // Head
+  ctx.fillStyle = '#020002';
+  ctx.fillRect(cx - s, cy - s*2.1 + bob, s*2, s*1.6);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx - s, cy - s*2.1 + bob, s*2, s*1.6);
+  // Visor
+  ctx.fillStyle = adjustAlpha(col, 0.2 + pulse*0.3);
+  ctx.fillRect(cx - s*0.9, cy - s*1.8 + bob, s*1.8, s*0.6);
+  ctx.fillStyle = col;
+  ctx.fillRect(cx - s*0.6, cy - s*1.65 + bob, s*0.4, s*0.3);
+  ctx.fillRect(cx + s*0.2, cy - s*1.65 + bob, s*0.4, s*0.3);
+  // Antenna
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - s*2.1 + bob);
+  ctx.lineTo(cx, cy - s*3 + bob);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy - s*3 + bob, 5, 0, Math.PI*2);
+  ctx.fillStyle = col;
+  ctx.fill();
+  // Legs
+  ctx.fillStyle = adjustAlpha(col, 0.8);
+  ctx.fillRect(cx - s*0.8, cy + s*0.9 + bob, s*0.6, s);
+  ctx.fillRect(cx + s*0.2, cy + s*0.9 + bob, s*0.6, s);
+  // Name
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = col;
+  ctx.font = 'bold 14px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(robot.robotName, cx, cy - s*3.4 + bob);
+  ctx.shadowBlur = 0;
+  ctx.textAlign = 'left';
+}
+
+function drawBattleHPBar(ctx, x, y, label, hp, color) {
+  const W = 200, H = 36;
+  ctx.fillStyle = 'rgba(0,5,0,0.8)';
+  ctx.fillRect(x, y, W, H);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, W, H);
+  ctx.fillStyle = color;
+  ctx.font = '9px Courier New';
+  ctx.shadowBlur = 6;
+  ctx.shadowColor = color;
+  ctx.fillText(label, x + 6, y + 12);
+  ctx.shadowBlur = 0;
+  // Bar
+  const barW = W - 12;
+  const fill = Math.max(0, hp / 100);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(x + 6, y + 18, barW, 10);
+  const barColor = fill > 0.5 ? color : fill > 0.25 ? '#ffcc00' : '#ff3300';
+  ctx.fillStyle = barColor;
+  ctx.shadowBlur = 6;
+  ctx.shadowColor = barColor;
+  ctx.fillRect(x + 6, y + 18, barW * fill, 10);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '8px Courier New';
+  ctx.fillText(`${Math.round(hp)}/100`, x + 6, y + 34);
+}
+
+function drawBattleIntro(W, H) {
+  const panelY = H * 0.6;
+  const lineH = 22;
+  const visibleLines = battle.textLines.slice(0, battle.textIndex);
+  ctx.font = '13px Courier New';
+  ctx.fillStyle = '#00ff41';
+  ctx.shadowBlur = 6;
+  ctx.shadowColor = '#00ff41';
+  visibleLines.forEach((line, i) => {
+    ctx.fillText(line, 30, panelY + 30 + i * lineH);
+  });
+  // Blinking cursor
+  if (battle.textIndex < battle.textLines.length) {
+    const curX = 30 + ctx.measureText(visibleLines[visibleLines.length - 1] || '').width;
+    if (Math.floor(Date.now() / 400) % 2 === 0) {
+      ctx.fillRect(curX + 4, panelY + 30 + (visibleLines.length - 1) * lineH - 12, 8, 14);
+    }
+  } else {
+    ctx.fillStyle = 'rgba(0,255,65,0.5)';
+    ctx.font = '11px Courier New';
+    ctx.fillText('[ PRESS ENTER TO CONTINUE ]', W/2 - 100, panelY + H*0.35);
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawBattleSelect(W, H) {
+  const panelY = H * 0.6;
+  const robot = battle.robot;
+  // Title
+  ctx.font = 'bold 13px Courier New';
+  ctx.fillStyle = '#ff3300';
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#ff3300';
+  ctx.fillText(`> SELECT PATCH FOR: ${robot.vulnerability}`, 30, panelY + 25);
+  ctx.shadowBlur = 0;
+
+  // Options
+  const optY = panelY + 50;
+  robot.options.forEach((opt, i) => {
+    const selected = i === battle.selected;
+    const optLabel = `${i+1}. ${opt}`;
+    const oy = optY + i * 46;
+
+    if (selected) {
+      ctx.fillStyle = 'rgba(0,255,65,0.1)';
+      ctx.fillRect(20, oy - 16, W - 40, 38);
+      ctx.strokeStyle = '#00ff41';
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#00ff41';
+      ctx.strokeRect(20, oy - 16, W - 40, 38);
+    }
+
+    ctx.font = selected ? 'bold 12px Courier New' : '12px Courier New';
+    ctx.fillStyle = selected ? '#00ff41' : 'rgba(0,255,65,0.55)';
+    ctx.shadowBlur = selected ? 8 : 0;
+    ctx.shadowColor = '#00ff41';
+    ctx.fillText(optLabel, 36, oy + 6);
+
+    if (selected) {
+      ctx.fillStyle = '#ff3300';
+      ctx.shadowColor = '#ff3300';
+      ctx.shadowBlur = 6;
+      ctx.fillText('▶', 24, oy + 6);
+    }
+    ctx.shadowBlur = 0;
+  });
+
+  // Hint
+  ctx.fillStyle = 'rgba(0,255,65,0.35)';
+  ctx.font = '10px Courier New';
+  ctx.fillText('[ 1-4 or ↑↓ to select  ·  ENTER to confirm ]', W/2 - 130, panelY + H*0.41);
+
+  if (battle.wrongAttempts > 0) {
+    ctx.fillStyle = '#ff3300';
+    ctx.font = '10px Courier New';
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#ff3300';
+    ctx.fillText(`WARNING: ${battle.wrongAttempts} incorrect attempt(s) — integrity penalized`, 30, panelY + H*0.38);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawBattleResult(W, H) {
+  const panelY = H * 0.6;
+  const ok = battle.resultOk;
+
+  ctx.fillStyle = ok ? 'rgba(0,255,65,0.07)' : 'rgba(255,51,0,0.07)';
+  ctx.fillRect(0, panelY, W, H - panelY);
+
+  const lines = battle.resultText.split('\n');
+  lines.forEach((line, i) => {
+    ctx.font = i === 0 ? 'bold 16px Courier New' : '12px Courier New';
+    ctx.fillStyle = ok ? '#00ff41' : '#ff3300';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = ok ? '#00ff41' : '#ff3300';
+    ctx.fillText(line, 30, panelY + 35 + i * 26);
+  });
+
+  if (ok) {
+    ctx.font = '11px Courier New';
+    ctx.fillStyle = 'rgba(0,255,65,0.7)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(`> FIX APPLIED: ${battle.robot.explanation}`, 30, panelY + 100);
+    ctx.fillStyle = 'rgba(0,255,65,0.4)';
+    ctx.fillText('[ PRESS ENTER TO CONTINUE ]', W/2 - 100, panelY + H*0.38);
+  } else {
+    ctx.fillStyle = 'rgba(255,51,0,0.4)';
+    ctx.font = '11px Courier New';
+    ctx.fillText('Try again — select a different patch.', 30, panelY + 100);
+  }
+  ctx.shadowBlur = 0;
+}
+
+// ── VICTORY SCREEN ──
+function drawVictory() {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#000500';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid bg
+  ctx.strokeStyle = 'rgba(0,255,65,0.05)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < W; i += 32) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+  for (let j = 0; j < H; j += 32) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(W,j); ctx.stroke(); }
+
+  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.002);
+  ctx.shadowBlur = 30 + pulse * 20;
+  ctx.shadowColor = '#00ff41';
+  ctx.fillStyle = '#00ff41';
+  ctx.font = 'bold 52px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('MISSION COMPLETE', W/2, H/2 - 80);
+  ctx.shadowBlur = 0;
+
+  ctx.font = '16px Courier New';
+  ctx.fillStyle = 'rgba(0,255,65,0.8)';
+  ctx.fillText('ALL AI VULNERABILITIES NEUTRALIZED', W/2, H/2 - 30);
+
+  ctx.font = '12px Courier New';
+  ctx.fillStyle = 'rgba(0,255,65,0.55)';
+  VULN_DB.forEach((v, i) => {
+    ctx.fillText(`✓  ${v.vulnerability}  —  ${v.robotName}`, W/2, H/2 + 20 + i * 22);
+  });
+
+  ctx.font = '13px Courier New';
+  ctx.fillStyle = '#ff3300';
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#ff3300';
+  if (Math.floor(Date.now() / 600) % 2 === 0) {
+    ctx.fillText('[ PRESS ENTER TO RETURN TO LEVEL 1 ]', W/2, H/2 + 200);
+  }
+  ctx.shadowBlur = 0;
+  ctx.textAlign = 'left';
+}
+
+// ─────────────────────────────────────────────
+//  AUDIO ENGINE — 8-BIT LINKIN PARK STYLE
+//  Map music:    "In The End" motif — A minor, 126 BPM
+//  Battle music: "One Step Closer" feel — aggressive, 168 BPM
+// ─────────────────────────────────────────────
+let audioCtx = null;
+let mapMusicTimer = null;
+let battleMusicTimer = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// ── Note frequency table ──
+const N = {
+  B2:123.47, C3:130.81, D3:146.83, E3:164.81, F3:174.61, G3:196,   A3:220,
+  B3:246.94, C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392,   A4:440,
+  B4:493.88, C5:523.25, D5:587.33, E5:659.25, F5:698.46, G5:783.99,A5:880,
+  _:0
+};
+
+// ── Shared compressor bus ──
+function makeCompressor(ac) {
+  const c = ac.createDynamicsCompressor();
+  c.threshold.value = -16; c.knee.value = 8;
+  c.ratio.value = 5; c.attack.value = 0.003; c.release.value = 0.12;
+  c.connect(ac.destination);
+  return c;
+}
+
+// ── Generic drum hit (noise + optional tone) ──
+function drumHit(ac, bus, t, type) {
+  const dur  = type === 'kick' ? 0.14 : type === 'snare' ? 0.09 : 0.025;
+  const buf  = ac.createBuffer(1, Math.ceil(ac.sampleRate * dur), ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+
+  const src  = ac.createBufferSource(); src.buffer = buf;
+  const filt = ac.createBiquadFilter();
+  const g    = ac.createGain();
+
+  if (type === 'kick') {
+    filt.type = 'lowpass'; filt.frequency.value = 200;
+    g.gain.setValueAtTime(0.9, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    // tonal thump
+    const osc = ac.createOscillator(), og = ac.createGain();
+    osc.frequency.setValueAtTime(130, t);
+    osc.frequency.exponentialRampToValueAtTime(38, t + dur);
+    og.gain.setValueAtTime(0.7, t);
+    og.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(og); og.connect(bus);
+    osc.start(t); osc.stop(t + dur);
+  } else if (type === 'snare') {
+    filt.type = 'bandpass'; filt.frequency.value = 2200; filt.Q.value = 0.6;
+    g.gain.setValueAtTime(0.55, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  } else { // hihat
+    filt.type = 'highpass'; filt.frequency.value = 7000;
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  }
+  src.connect(filt); filt.connect(g); g.connect(bus);
+  src.start(t); src.stop(t + dur + 0.01);
+}
+
+// ── Square-wave note helper ──
+function chipNote(ac, bus, freq, t, dur, vol, detune=0, waveform='square') {
+  if (!freq) return;
+  const osc = ac.createOscillator();
+  const g   = ac.createGain();
+  osc.type = waveform;
+  osc.frequency.value = freq;
+  osc.detune.value = detune;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.006);
+  g.gain.setValueAtTime(vol * 0.85, t + dur * 0.55);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur * 1.15);
+  osc.connect(g); g.connect(bus);
+  osc.start(t); osc.stop(t + dur * 1.2 + 0.02);
+}
+
+// ══════════════════════════════════════════════
+//  MAP MUSIC  —  "In The End" 8-bit, A minor
+//  4 channels: lead | arp | bass | drums
+//  BPM 126, 2-bar loop (32 sixteenth notes)
+// ══════════════════════════════════════════════
+function playMapMusic() {
+  stopMapMusic();
+  const ac  = getAudioCtx();
+  const bus = makeCompressor(ac);
+  const master = ac.createGain();
+  master.gain.value = 0.13;
+  master.connect(bus);
+
+  const BPM = 126;
+  const S16 = (60 / BPM) / 4;   // one sixteenth note
+
+  // Lead melody  — descending A-minor motif inspired by "In The End"
+  // 32 slots = 2 bars × 16 sixteenth notes
+  const LEAD = [
+    N.E5, 0,    N.D5, 0,    N.A4, 0,    N.C5, 0,
+    N.B4, 0,    N.A4, 0,    N.G4, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+    N.E5, 0,    N.D5, 0,    N.C5, 0,    N.B4, 0,
+    N.A4, 0,    N.G4, 0,    N.A4, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+  ].slice(0, 32);
+
+  // Harmony — 5th below, adds that LP layered guitar feeling
+  const HARM = [
+    N.A4, 0,    N.G4, 0,    N.E4, 0,    N.F4, 0,
+    N.E4, 0,    N.D4, 0,    N.B3, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+    N.A4, 0,    N.G4, 0,    N.F4, 0,    N.E4, 0,
+    N.D4, 0,    N.B3, 0,    N.D4, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+  ].slice(0, 32);
+
+  // Arpeggio — chord tones in 16th-note triplet feel (Am G F Em)
+  const CHORDS = [
+    [N.A3,N.C4,N.E4], [N.A3,N.C4,N.E4], [N.G3,N.B3,N.D4], [N.G3,N.B3,N.D4],
+    [N.F3,N.A3,N.C4], [N.F3,N.A3,N.C4], [N.E3,N.G3,N.B3], [N.E3,N.G3,N.B3],
+  ];
+
+  // Bass — quarter notes (every 4 steps): A G F E / A G F E
+  const BASS_Q = [N.A3, N.G3, N.F3, N.E3, N.A3, N.G3, N.F3, N.E3];
+
+  // Drum pattern (per 16th step, 0–31):
+  //   kick  : 0, 12, 16, 28
+  //   snare : 8, 24
+  //   hihat : every even step except kicks/snare (open on 4,20)
+  const KICKS  = new Set([0,12,16,28]);
+  const SNARES = new Set([8,24]);
+  const OHATS  = new Set([4,20]);   // open hihat accent
+
+  const STEPS = 32;
+  let scheduledUpTo = ac.currentTime + 0.05;
+  let mapStep = 0;
+
+  function scheduleStep(i, t) {
+    // Lead
+    chipNote(ac, master, LEAD[i], t, S16 * 1.7, 0.28, -10);
+    // Harmony (slightly quieter, detuned up)
+    chipNote(ac, master, HARM[i], t, S16 * 1.5, 0.13, 12);
+    // Arpeggio (cycles through chord tones each 16th)
+    const chordIdx = Math.floor(i / 4) % CHORDS.length;
+    const noteIdx  = (i % 4 < 3) ? (i % 4) : 2;
+    chipNote(ac, master, CHORDS[chordIdx][noteIdx], t, S16 * 0.8, 0.1, 0, 'square');
+    // Bass (quarter note = every 4 steps)
+    if (i % 4 === 0) {
+      chipNote(ac, master, BASS_Q[Math.floor(i / 4) % BASS_Q.length],
+               t, S16 * 3.6, 0.42, 0, 'triangle');
+    }
+    // Drums
+    if (KICKS.has(i))       drumHit(ac, master, t, 'kick');
+    if (SNARES.has(i))      drumHit(ac, master, t, 'snare');
+    if (i % 2 === 0 && !KICKS.has(i) && !SNARES.has(i)) {
+      drumHit(ac, master, t, OHATS.has(i) ? 'snare' : 'hihat');
+    }
+  }
+
+  function schedule() {
+    const lookahead = 0.28;
+    while (scheduledUpTo < ac.currentTime + lookahead) {
+      scheduleStep(mapStep % STEPS, scheduledUpTo);
+      mapStep++;
+      scheduledUpTo += S16;
+    }
+    mapMusicTimer = setTimeout(schedule, 50);
+  }
+  schedule();
+}
+
+function stopMapMusic() {
+  if (mapMusicTimer) { clearTimeout(mapMusicTimer); mapMusicTimer = null; }
+}
+
+// ══════════════════════════════════════════════
+//  BATTLE MUSIC  —  "One Step Closer" feel
+//  Heavy minor, 168 BPM, aggressive 8-bit
+// ══════════════════════════════════════════════
+function playBattleMusic() {
+  stopBattleMusic();
+  stopMapMusic();
+  const ac  = getAudioCtx();
+  const bus = makeCompressor(ac);
+  const master = ac.createGain();
+  master.gain.value = 0.15;
+  master.connect(bus);
+
+  const BPM = 168;
+  const S16 = (60 / BPM) / 4;
+
+  // Heavy riff: Am power-chord descend — E D A C / B A G -
+  const RIFF = [
+    N.E4,  0,     N.E4,  N.D4,  N.A3,  0,     N.C4,  0,
+    N.B3,  0,     N.A3,  0,     N.G3,  0,     0,     0,
+    N.E4,  0,     N.E4,  N.D4,  N.C4,  0,     N.B3,  0,
+    N.A3,  0,     N.G3,  0,     N.A3,  N.E4,  0,     0,
+  ];
+
+  // Octave doubling (dirty square, higher)
+  const RIFF_HI = RIFF.map(f => f ? f * 2 : 0);
+
+  // Bass (8th notes) — root + low fifth grind
+  const BASS_B = [N.A3,N.A3, N.G3,N.G3, N.F3,N.F3, N.E3,N.E3,
+                  N.A3,N.A3, N.G3,N.G3, N.F3,N.F3, N.E3,N.A3];
+
+  // Aggressive drum pattern — double kick feel
+  const KICKS_B  = new Set([0,3,8,11,16,19,24,27]);
+  const SNARES_B = new Set([4,12,20,28]);
+
+  const STEPS = 32;
+  let scheduledUpTo = ac.currentTime + 0.05;
+  let battleStep = 0;
+
+  function scheduleStep(i, t) {
+    // Lead riff (hard square)
+    chipNote(ac, master, RIFF[i], t, S16 * 1.4, 0.32, -15);
+    // Octave double (adds LP "guitar wall" feel)
+    chipNote(ac, master, RIFF_HI[i], t, S16 * 1.2, 0.12, 8, 'sawtooth');
+    // Bass (every 2 steps = 8th notes)
+    if (i % 2 === 0) {
+      const bi = Math.floor(i / 2) % BASS_B.length;
+      chipNote(ac, master, BASS_B[bi], t, S16 * 1.8, 0.5, 0, 'triangle');
+    }
+    // Drums
+    if (KICKS_B.has(i))       drumHit(ac, master, t, 'kick');
+    if (SNARES_B.has(i))      drumHit(ac, master, t, 'snare');
+    if (i % 2 === 0 && !KICKS_B.has(i)) drumHit(ac, master, t, 'hihat');
+  }
+
+  function schedule() {
+    const lookahead = 0.28;
+    while (scheduledUpTo < ac.currentTime + lookahead) {
+      scheduleStep(battleStep % STEPS, scheduledUpTo);
+      battleStep++;
+      scheduledUpTo += S16;
+    }
+    battleMusicTimer = setTimeout(schedule, 50);
+  }
+  schedule();
+}
+
+function stopBattleMusic() {
+  if (battleMusicTimer) { clearTimeout(battleMusicTimer); battleMusicTimer = null; }
+}
+
+// ── SFX ──
+function playPatchSound() {
+  const ac = getAudioCtx();
+  const now = ac.currentTime;
+  // Victory arpeggio: Am chord ascending
+  [N.A4, N.C5, N.E5, N.A5].forEach((freq, i) => {
+    chipNote(ac, ac.destination, freq, now + i * 0.08, 0.18, 0.18, 0);
+  });
+}
+
+function playErrorSound() {
+  const ac  = getAudioCtx();
+  const now = ac.currentTime;
+  const osc = ac.createOscillator();
+  const g   = ac.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(233, now);
+  osc.frequency.exponentialRampToValueAtTime(78, now + 0.28);
+  g.gain.setValueAtTime(0.18, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+  osc.connect(g); g.connect(ac.destination);
+  osc.start(now); osc.stop(now + 0.3);
+}
+
+// ─────────────────────────────────────────────
+//  GAME LOOP
+// ─────────────────────────────────────────────
+function gameLoop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  document.getElementById('overlay').style.opacity = '0';
+  setTimeout(() => {
+    document.getElementById('overlay').style.display = 'none';
+  }, 500);
+  gamePhase = 'playing';
+  playMapMusic();
+  lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
+}
+
+// Prevent default for game keys
+document.addEventListener('keydown', e => {
+  const gameCodes = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+                     'Space','Enter','KeyW','KeyA','KeyS','KeyD',
+                     'Digit1','Digit2','Digit3','Digit4'];
+  if (gameCodes.includes(e.code)) e.preventDefault();
+}, {passive: false});
+</script>
+</body>
+</html>
