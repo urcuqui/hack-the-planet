@@ -1005,6 +1005,7 @@ document.getElementById('pre-intro').addEventListener('click', () => {
 let audioCtx = null;
 let musicEnabled = true;
 let musicStarted = false;
+let musicBus = null;     // master gain of the loop currently playing
 let loopTimeoutId = null;
 
 const NOTE = {
@@ -1129,6 +1130,7 @@ function playMusic() {
   if (!audioCtx || !musicEnabled) return;
   const st = audioCtx.currentTime + 0.05;
   const master = audioCtx.createGain(); master.gain.value = 0.13; master.connect(audioCtx.destination);
+  musicBus = master;
   const lG = audioCtx.createGain(); lG.gain.value = 0.9; lG.connect(master);
   const hG = audioCtx.createGain(); hG.gain.value = 0.4; hG.connect(master);
   const bG = audioCtx.createGain(); bG.gain.value = 0.7; bG.connect(master);
@@ -1144,7 +1146,7 @@ function playMusic() {
 
 function initMusic() {
   if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-  if (!musicStarted) { musicStarted = true; playMusic(); }
+  if (!musicStarted && musicEnabled) { musicStarted = true; playMusic(); }
 }
 
 function toggleMusic() {
@@ -1154,7 +1156,9 @@ function toggleMusic() {
   else {
     if (loopTimeoutId) clearTimeout(loopTimeoutId);
     musicStarted = false;
-    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    // Silence the already-scheduled loop but keep the context, so shots, hits
+    // and kills still have sound with BGM off.
+    if (musicBus) { musicBus.disconnect(); musicBus = null; }
   }
 }
 
@@ -1283,7 +1287,8 @@ document.addEventListener('keyup', e => { keys[e.code] = false; });
 
 let mouseShootQueued = false;
 document.addEventListener('mousedown', e => {
-  if (e.button === 0 && phase === 'playing') mouseShootQueued = true;
+  // Clicking the BGM button is not a shot.
+  if (e.button === 0 && phase === 'playing' && !e.target.closest('button')) mouseShootQueued = true;
 });
 
 let phase = 'start';

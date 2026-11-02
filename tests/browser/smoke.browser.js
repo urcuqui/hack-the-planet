@@ -7,151 +7,8 @@
 // cdnjs for three.js. Skips itself when no browser is found.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { spawn } = require('node:child_process');
 const { createServer } = require('../../tools/serve.js');
-
-const CHROME_CANDIDATES = [
-  process.env.CHROME_PATH,
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
-].filter(Boolean);
-const CHROME = CHROME_CANDIDATES.find(p => fs.existsSync(p));
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// ── Minimal CDP client ────────────────────────────────────────────────
-class Page {
-  constructor(ws, sessionId, send) {
-    this.ws = ws;
-    this.sessionId = sessionId;
-    this.send = (method, params = {}) => send(method, params, sessionId);
-    this.errors = [];
-    this.listeners = new Set();
-  }
-
-  onEvent(msg) {
-    const { method, params } = msg;
-    if (method === 'Runtime.exceptionThrown') {
-      const d = params.exceptionDetails;
-      this.errors.push('exception: ' + (d.exception && d.exception.description || d.text));
-    } else if (method === 'Runtime.consoleAPICalled' && params.type === 'error') {
-      this.errors.push('console.error: ' + params.args.map(a => a.value || a.description).join(' '));
-    } else if (method === 'Log.entryAdded' && params.entry.level === 'error') {
-      // The dev server has no favicon; browsers request one automatically.
-      if (!/favicon\.ico/.test(params.entry.url || '')) this.errors.push('log: ' + params.entry.text + ' ' + (params.entry.url || ''));
-    }
-    this.listeners.forEach(fn => fn(msg));
-  }
-
-  async goto(url) {
-    const loaded = new Promise(resolve => {
-      const fn = msg => { if (msg.method === 'Page.loadEventFired') { this.listeners.delete(fn); resolve(); } };
-      this.listeners.add(fn);
-    });
-    await this.send('Page.navigate', { url });
-    await loaded;
-  }
-
-  async eval(expression) {
-    const res = await this.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
-    if (res.exceptionDetails) {
-      throw new Error('eval failed: ' + expression + '\n' + (res.exceptionDetails.exception || {}).description);
-    }
-    return res.result.value;
-  }
-
-  async waitFor(expression, timeout = 10000) {
-    const end = Date.now() + timeout;
-    while (Date.now() < end) {
-      if (await this.eval(`!!(${expression})`)) return;
-      await sleep(100);
-    }
-    throw new Error('Timed out waiting for: ' + expression);
-  }
-
-  // Real input events count as user activation (needed for the audio policy).
-  async click(selector) {
-    const box = await this.eval(`(() => {
-      const el = document.querySelector(${JSON.stringify(selector)});
-      el.scrollIntoView({ block: 'center' });
-      const r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    })()`);
-    for (const type of ['mousePressed', 'mouseReleased']) {
-      await this.send('Input.dispatchMouseEvent', { type, x: box.x, y: box.y, button: 'left', clickCount: 1 });
-    }
-  }
-
-  async key(code, key = code) {
-    const keyCode = { Enter: 13, Escape: 27, KeyH: 72 }[code] || 0;
-    for (const type of ['keyDown', 'keyUp']) {
-      await this.send('Input.dispatchKeyEvent', { type, code, key, windowsVirtualKeyCode: keyCode });
-    }
-  }
-
-  assertNoErrors(label) {
-    assert.deepEqual(this.errors, [], `${label}: browser errors`);
-  }
-}
-
-async function launch() {
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'htp-chrome-'));
-  const proc = spawn(CHROME, [
-    '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
-    '--no-first-run', '--no-default-browser-check', '--mute-audio',
-    '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
-    '--window-size=1280,800', 'about:blank',
-  ], { stdio: 'ignore' });
-
-  const portFile = path.join(profile, 'DevToolsActivePort');
-  for (let i = 0; i < 100 && !fs.existsSync(portFile); i++) await sleep(100);
-  const [port, wsPath] = fs.readFileSync(portFile, 'utf8').trim().split('\n');
-  const ws = new WebSocket(`ws://127.0.0.1:${port}${wsPath}`);
-  await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
-
-  let id = 0;
-  const pending = new Map();
-  const pages = new Map();
-  ws.onmessage = ev => {
-    const msg = JSON.parse(ev.data);
-    if (msg.id && pending.has(msg.id)) {
-      const { resolve, reject } = pending.get(msg.id);
-      pending.delete(msg.id);
-      msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result);
-    } else if (msg.sessionId && pages.has(msg.sessionId)) {
-      pages.get(msg.sessionId).onEvent(msg);
-    }
-  };
-  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
-    const msgId = ++id;
-    pending.set(msgId, { resolve, reject });
-    ws.send(JSON.stringify({ id: msgId, method, params, ...(sessionId ? { sessionId } : {}) }));
-  });
-
-  async function newPage() {
-    const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
-    const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
-    const page = new Page(ws, sessionId, send);
-    pages.set(sessionId, page);
-    await Promise.all(['Page.enable', 'Runtime.enable', 'Log.enable'].map(m => page.send(m)));
-    return page;
-  }
-
-  async function close() {
-    try { await send('Browser.close'); } catch (e) { /* already gone */ }
-    ws.close();
-    proc.kill();
-    await sleep(200);
-    fs.rmSync(profile, { recursive: true, force: true });
-  }
-  return { newPage, close };
-}
+const { CHROME, launch, sleep } = require('./cdp.js');
 
 // ── Scenario ──────────────────────────────────────────────────────────
 test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not found (set CHROME_PATH)', timeout: 180000 }, async (t) => {
@@ -229,6 +86,13 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       await page.waitFor('gamePhase === "playing"');
       assert.deepEqual(await page.eval('[playerHP, caughtCount, robots.every(r => r.alive)]'), [100, 0, true]);
       assert.equal(await progress(page).then(p => p.levels[2]), undefined, 'defeat does not complete the level');
+
+      // Patching a robot with an obstacle behind the player must not push the
+      // player into it (previously a softlock). Obstacle tile (2,2), robot at (3,2).
+      await page.eval(`robots[0].x = 112; robots[0].y = 80; player.x = 104; player.y = 80;
+        startBattle(robots[0]); battle.phase = 'select'; battle.selected = robots[0].correct; confirmBattleAnswer(); endBattle();`);
+      assert.equal(await page.eval('[[0,0],[7,0],[-7,0],[0,7],[0,-7]].some(([dx, dy]) => solidAt(player.x + dx, player.y + dy))'), false);
+      await page.eval('restartLevel()');
 
       // Patch all six; extra endBattle calls must not double count.
       await page.eval(`robots.forEach(r => {

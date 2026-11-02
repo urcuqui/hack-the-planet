@@ -1037,7 +1037,17 @@ function musicLoop() {
 function toggleMusic() {
   musicOn = !musicOn;
   if (musicOn) musicLoop();
-  else clearTimeout(musicTimer);
+  else {
+    clearTimeout(musicTimer);
+    // Drop the bus carrying the notes already scheduled for this loop (up to
+    // ~7.5 s) so M silences the music at once; the next loop gets a fresh bus.
+    if (masterGain) {
+      masterGain.disconnect();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.72;
+      masterGain.connect(audioCtx.destination);
+    }
+  }
 }
 
 function draw(t) {

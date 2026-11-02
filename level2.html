@@ -11,8 +11,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    justify-content: safe center;   /* scrolls instead of clipping on short windows */
     height: 100vh;
-    overflow: hidden;
+    overflow-y: auto;
     font-family: 'Courier New', monospace;
     color: #00ff41;
   }
@@ -598,7 +599,8 @@ function updateBattle(dt) {
 }
 
 function retryBattleAnswer() {
-  if (gamePhase === 'battle' && battle.phase === 'result' && !battle.resultOk) {
+  if (gamePhase === 'battle' && battle.phase === 'result' && !battle.resultOk && playerHP > 0) {
+    battle.token++;   // an earlier result's auto-retry timer must not fire into a later result
     battle.phase = 'select';
     battle.resultText = '';
   }
@@ -649,10 +651,12 @@ function endBattle() {
   gamePhase = 'playing';
   stopBattleMusic();
   playMapMusic();
-  // Push player away from robot to avoid re-trigger
+  // Push player away from robot to avoid re-trigger. Step through collision so
+  // the push can never leave the player inside a wall or obstacle (softlock).
   const angle = Math.atan2(player.y - battle.robot.y, player.x - battle.robot.x);
-  player.x += Math.cos(angle) * 40;
-  player.y += Math.sin(angle) * 40;
+  for (let i = 0; i < 10; i++) {
+    moveWithCollision(player, Math.cos(angle) * 4, Math.sin(angle) * 4, player.size * 0.5);
+  }
 }
 
 // ─────────────────────────────────────────────

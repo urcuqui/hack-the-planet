@@ -34,8 +34,13 @@
     background: #000;
     z-index: 500;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
+    align-items: center;
   }
+  /* Full-screen panels: centred when they fit, scrollable on short windows so
+     their buttons stay reachable. */
+  #intro-screen, #win-screen, #boss-win-screen { overflow-y: auto; padding: 24px 16px; }
+  #intro-screen > :first-child, #win-screen > :first-child, #boss-win-screen > :first-child { margin-top: auto; }
+  #intro-screen > :last-child, #win-screen > :last-child, #boss-win-screen > :last-child { margin-bottom: auto; }
   .intro-badge {
     font-size: 10px; letter-spacing: 10px;
     color: rgba(255,110,180,0.5); margin-bottom: 20px;
@@ -223,7 +228,7 @@
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.95);
     z-index: 201; display: none;
-    flex-direction: column; align-items: center; justify-content: center;
+    flex-direction: column; align-items: center;
     animation: fadeIn 0.8s ease;
   }
   .bw-badge {
@@ -257,7 +262,7 @@
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.92);
     z-index: 200; display: none;
-    flex-direction: column; align-items: center; justify-content: center;
+    flex-direction: column; align-items: center;
   }
   .win-title {
     font-size: 52px; letter-spacing: 8px; color: #ff6eb4;
@@ -393,10 +398,16 @@
 //  AUDIO ENGINE — 8-BIT VICE CITY CHIPTUNE
 // ═══════════════════════════════════════════════════════════
 let audioCtx = null, musicOn = true, loopTimer = null;
+let musicBus = null;   // all music notes route through here so M can cut them at once
 
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  newMusicBus();
+}
+function newMusicBus() {
+  musicBus = audioCtx.createGain();
+  musicBus.connect(audioCtx.destination);
 }
 
 function osc(freq, type, t0, dur, vol = 0.12) {
@@ -405,7 +416,7 @@ function osc(freq, type, t0, dur, vol = 0.12) {
   o.type = type; o.frequency.value = freq;
   g.gain.setValueAtTime(vol, t0);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.88);
-  o.connect(g); g.connect(audioCtx.destination);
+  o.connect(g); g.connect(musicBus);
   o.start(t0); o.stop(t0 + dur);
 }
 
@@ -418,7 +429,7 @@ function noise(t0, dur, vol = 0.14) {
   s.buffer = buf;
   g.gain.setValueAtTime(vol, t0);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  s.connect(g); g.connect(audioCtx.destination);
+  s.connect(g); g.connect(musicBus);
   s.start(t0);
 }
 
@@ -461,7 +472,11 @@ function toggleMusic() {
   musicOn = !musicOn;
   document.getElementById('music-toggle').textContent = '♪ MUSIC: ' + (musicOn ? 'ON' : 'OFF');
   if (musicOn) playMusicLoop();
-  else clearTimeout(loopTimer);
+  else {
+    clearTimeout(loopTimer);
+    // Cut notes already scheduled for this loop so they don't overlap the next one.
+    if (audioCtx) { musicBus.disconnect(); newMusicBus(); }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2201,6 +2216,7 @@ function startGame() {
 
   initAudio();
   musicOn = true;
+  document.getElementById('music-toggle').textContent = '♪ MUSIC: ON';
   setTimeout(playMusicLoop, 300);
 }
 
