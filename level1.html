@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HACK THE PLANET</title>
+<title>HACK THE PLANET - Level 1: FSOCIETY Arena</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; cursor: crosshair; }
@@ -268,7 +268,14 @@
     box-shadow: 0 0 16px rgba(0,255,65,0.2), inset 0 0 16px rgba(0,255,65,0.05);
     transition: all 0.2s;
   }
-  .btn:hover { background: rgba(0,255,65,0.12); box-shadow: 0 0 30px rgba(0,255,65,0.4), inset 0 0 20px rgba(0,255,65,0.1); }
+  .btn:hover, .btn:focus-visible { background: rgba(0,255,65,0.12); box-shadow: 0 0 30px rgba(0,255,65,0.4), inset 0 0 20px rgba(0,255,65,0.1); outline: none; }
+  #overlay .btn-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .btn.alt { color: #ff6eb4; border-color: rgba(255,110,180,0.6); text-shadow: 0 0 8px #ff6eb4; }
+  .hub-link {
+    margin-top: 18px; font-size: 11px; letter-spacing: 3px;
+    color: rgba(0,255,65,0.55); text-decoration: none;
+  }
+  .hub-link:hover, .hub-link:focus-visible { color: #00ff41; text-shadow: 0 0 8px #00ff41; outline: none; }
   #overlay .prompt { font-size: 11px; color: rgba(0,255,65,0.35); letter-spacing: 2px; margin-top: 20px; animation: blink 1.2s step-end infinite; }
   @keyframes blink { 50% { opacity: 0; } }
 </style>
@@ -352,10 +359,12 @@
     <span class="k">GOAL</span>&nbsp;&nbsp;FIRST TO 3 KILLS
   </div>
   <button class="btn" onclick="startGame()">./RUN_EXPLOIT.SH</button>
+  <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
   <div class="prompt">&gt; _</div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="js/progress.js"></script>
 <script>
 // ═══════════════════════════════════════════════════
 // 0-A. INTRO CINEMATIC
@@ -799,6 +808,7 @@ let waveAlpha    = 0;
 let shatterRunning = false;
 
 function beginIntro() {
+  if (introRunning || introFinished) return;
   document.getElementById('pre-intro').style.display = 'none';
   document.getElementById('skip-intro-btn').style.opacity = '1';
   introRunning = true;
@@ -946,7 +956,13 @@ function introLoop(ts) {
   introAnimId = requestAnimationFrame(introLoop);
 }
 
+// Set once the intro has handed over to the menu (finished or skipped), so the
+// 68 s timeline and late key presses cannot reopen the menu mid-match.
+let introFinished = false;
+
 function endIntro() {
+  if (introFinished) return;
+  introFinished = true;
   introRunning = false;
   if (introAnimId) cancelAnimationFrame(introAnimId);
   // Fade to black then show menu
@@ -961,6 +977,9 @@ function endIntro() {
 }
 
 function skipIntro() {
+  if (introFinished) return;
+  introFinished = true;
+  document.removeEventListener('keydown', onFirstInteraction);
   introRunning = false;
   if (introAnimId) cancelAnimationFrame(introAnimId);
   if (introACtx) { introACtx.close(); introACtx = null; }
@@ -1526,22 +1545,47 @@ function hitEnemy(dmg) {
     playSFX('kill'); updateHUD(); checkWinCondition();
   }
 }
+// The first side to reach WIN_KILLS decides the match; later hits during the
+// 800 ms hand-off are ignored so the result (and progress) is recorded once.
+let matchOver = false;
 function checkWinCondition() {
-  if (playerKills>=WIN_KILLS) setTimeout(()=>showGameOver('HACK_COMPLETE'),800);
-  else if (enemyKills>=WIN_KILLS) setTimeout(()=>showGameOver('SYSTEM_BREACH'),800);
+  if (matchOver) return;
+  if (playerKills>=WIN_KILLS) { matchOver = true; setTimeout(()=>showGameOver('HACK_COMPLETE'),800); }
+  else if (enemyKills>=WIN_KILLS) { matchOver = true; setTimeout(()=>showGameOver('SYSTEM_BREACH'),800); }
 }
 function showGameOver(msg) {
   phase='gameOver';
   const win = msg==='HACK_COMPLETE';
+  if (win) HTPProgress.recordCompletion(1);
   const ov  = document.getElementById('overlay');
-  ov.innerHTML = `
-    <div class="pre-title">&gt; MISSION ${win?'SUCCESS':'FAILED'}</div>
-    <h1>${msg}</h1>
-    <div class="result" style="color:${win?'#00ff41':'#ff3300'}">${win?'> ROOT ACCESS GRANTED':'> CONNECTION TERMINATED'}</div>
-    <div class="final-score">KUKY ${playerKills} // PANDECORP ${enemyKills}</div>
-    <button class="btn" onclick="startGame()">./RETRY.SH</button>
-    <div class="prompt">&gt; _</div>`;
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    n.textContent = text;
+    return n;
+  };
+  const result = el('div', 'result', win ? '> ROOT ACCESS GRANTED' : '> CONNECTION TERMINATED');
+  result.style.color = win ? '#00ff41' : '#ff3300';
+  const retry = el('button', 'btn', './RETRY.SH');
+  retry.onclick = startGame;
+  const row = el('div', 'btn-row', '');
+  row.appendChild(retry);
+  if (win) {
+    const next = el('button', 'btn alt', 'LEVEL 02 >');
+    next.onclick = () => { location.href = HTPProgress.nextLevel(1).url; };
+    row.appendChild(next);
+  }
+  const hub = el('a', 'hub-link', '< MISSION HUB');
+  hub.href = HTPProgress.HUB_URL;
+  ov.replaceChildren(
+    el('div', 'pre-title', '> MISSION ' + (win ? 'SUCCESS' : 'FAILED')),
+    el('h1', '', msg),
+    result,
+    el('div', 'final-score', 'KUKY ' + playerKills + ' // PANDECORP ' + enemyKills),
+    row, hub,
+    el('div', 'prompt', '> _'));
   ov.style.display='flex';
+  (win ? row.lastChild : retry).focus();
 }
 function resetPlayer() {
   player.position.copy(PLAYER_START); player.position.y=0;
@@ -1559,7 +1603,7 @@ function startGame() {
   for (let i=projectiles.length-1;i>=0;i--) scene.remove(projectiles[i].mesh);
   projectiles.length=0;
   impactLights.forEach(il=>scene.remove(il.light)); impactLights.length=0;
-  playerKills=0; enemyKills=0; lastPlayerShot=0; mouseShootQueued=false;
+  playerKills=0; enemyKills=0; lastPlayerShot=0; mouseShootQueued=false; matchOver=false;
   resetPlayer(); resetEnemy();
   document.getElementById('overlay').style.display='none';
   phase='playing';

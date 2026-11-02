@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HACK THE PLANET — Level 3: Social Engineer</title>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="js/progress.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -279,7 +280,14 @@
     font-size: 11px; letter-spacing: 4px; padding: 10px 28px;
     cursor: pointer; transition: all 0.2s;
   }
-  .win-nav:hover { background: rgba(255,110,180,0.1); color: #ff6eb4; }
+  .win-nav:hover, .win-nav:focus-visible { background: rgba(255,110,180,0.1); color: #ff6eb4; outline: none; }
+  .win-nav.primary { border-color: rgba(0,255,255,0.6); color: #00ffff; }
+  .win-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .hub-link {
+    display: block; margin-top: 16px; font-size: 11px; letter-spacing: 3px;
+    color: rgba(255,110,180,0.6); text-decoration: none; text-align: center;
+  }
+  .hub-link:hover, .hub-link:focus-visible { color: #ff6eb4; outline: none; }
 
   /* ── ANIMATIONS ── */
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
@@ -305,10 +313,12 @@
     Five targets hold critical intelligence scattered across the city.<br>
     Weapons are useless here. Your only tool: <span class="cyan">the human mind.</span><br><br>
     Apply the right <span class="hi">social engineering technique</span> to each target.<br>
-    Extract all five intel files without raising suspicion.<br><br>
+    Extract all five intel files without raising suspicion.<br>
+    Then face <span class="hi">CIPHER</span> at the Hacker Convention — the boss only talks to agents with all five files.<br><br>
     <span style="color:rgba(255,255,255,0.35)">WASD · MOVE &nbsp;|&nbsp; MOUSE DRAG · CAMERA &nbsp;|&nbsp; E · INTERACT &nbsp;|&nbsp; M · MUSIC</span>
   </div>
   <button class="intro-start" onclick="startGame()">[ ENTER VICE CITY ]</button>
+  <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
 </div>
 
 <!-- HUD (hidden until game starts) -->
@@ -353,24 +363,29 @@
   <div class="bw-title">MISSION COMPLETE</div>
   <div class="bw-sub">AI THREAT INTELLIGENCE — MASTER</div>
   <div class="bw-items">
-    <div class="bw-item">✓ AI processes billions of threat indicators in real-time to predict attacks</div>
-    <div class="bw-item">✓ Behavioral anomaly detection identifies zero-day threats without prior signatures</div>
-    <div class="bw-item">✓ Adversarial AI is used to blind, deceive, and poison detection models</div>
-    <div class="bw-item">✓ LLMs enable autonomous vulnerability research and attacks at scale</div>
+    <div class="bw-item">✓ AI helps correlate huge volumes of threat indicators so analysts can spot attacks earlier</div>
+    <div class="bw-item">✓ Behavioral anomaly detection can flag never-seen threats without a signature (with false positives to triage)</div>
+    <div class="bw-item">✓ Adversarial AI tries to evade, deceive, or poison detection models</div>
+    <div class="bw-item">✓ Attackers use LLMs to scale phishing, recon, and exploit development — defenders use them too</div>
   </div>
   <div class="bw-quote">"The most dangerous weapon is knowledge." — CIPHER</div>
-  <button class="win-nav" onclick="location.href='level4.html'">[ LEVEL 04 · NEON GRAND PRIX ]</button>
-  <button class="win-nav" onclick="location.href='index.html'">[ RETURN TO BASE ]</button>
+  <div class="win-row">
+    <button class="win-nav primary" id="boss-next-btn" onclick="location.href='level4.html'">[ LEVEL 04 · NEON GRAND PRIX ]</button>
+    <button class="win-nav" onclick="location.reload()">[ REPLAY MISSION ]</button>
+    <button class="win-nav" onclick="location.href='index.html'">[ MISSION HUB ]</button>
+  </div>
 </div>
 
-<!-- WIN -->
+<!-- ALL INTEL ACQUIRED (boss now unlocked) -->
 <div id="win-screen">
-  <div class="win-title">MISSION COMPLETE</div>
-  <div class="win-sub">ALL INTEL ACQUIRED &nbsp;·&nbsp; GHOST OUT</div>
+  <div class="win-title">INTEL COMPLETE</div>
+  <div class="win-sub">ALL FIVE FILES ACQUIRED &nbsp;·&nbsp; CIPHER IS WAITING</div>
   <ul class="intel-log" id="intel-log"></ul>
-  <div class="win-footer">SOCIAL ENGINEERING MASTERY UNLOCKED</div>
-  <button class="win-nav" onclick="location.href='level4.html'">[ LEVEL 04 · NEON GRAND PRIX ]</button>
-  <button class="win-nav" onclick="location.href='index.html'">[ RETURN TO BASE ]</button>
+  <div class="win-footer">FINAL OBJECTIVE: CONFRONT CIPHER AT THE HACKER CONVENTION</div>
+  <div class="win-row">
+    <button class="win-nav primary" id="intel-continue-btn" onclick="closeIntelScreen()">[ CONTINUE · FIND CIPHER ]</button>
+    <button class="win-nav" onclick="location.href='index.html'">[ MISSION HUB ]</button>
+  </div>
 </div>
 
 <script>
@@ -465,7 +480,7 @@ const NPCS = [
         { t: 'C) "I\'m a journalist for TechCrunch — can I quote you on that?"', ok: false }
       ],
       tech: 'BAITING',
-      okMsg: '✓ TECHNIQUE: BAITING\nYou offered something she wanted (exclusive Miami access) to create a reciprocal exchange. She opened up completely.\n\n📡 INTEL: Synapse Corp Q4 launch Nov 15. All C-suite present. Product: next-gen AI security chip. Conference hotel: Fontainebleau.',
+      okMsg: '✓ TECHNIQUE: BAITING\nYou dangled something she wanted (exclusive Miami access) as bait. She took it and opened up.\n\n📡 INTEL: Synapse Corp Q4 launch Nov 15. All C-suite present. Product: next-gen AI security chip. Conference hotel: Fontainebleau.',
       badMsg: '✗ Too direct — she\'s guarded now. Offer her something she WANTS before asking for what you need.',
       intel: 'Synapse Corp Q4 launch: Nov 15. All executives at Fontainebleau. Product: AI security chip.'
     }
@@ -482,7 +497,7 @@ const NPCS = [
         { t: 'C) "Just wait for someone to exit and slip through the door behind them."', ok: false }
       ],
       tech: 'IMPERSONATION',
-      okMsg: '✓ TECHNIQUE: IMPERSONATION\nYou created a shared problem to build instant trust. He walked you straight through security.\n\n📡 INTEL: Board meeting 3 PM, QuantumTech HQ. CEO Harrington attending. Single guard on entrance. Badge-only access.',
+      okMsg: '✓ TECHNIQUE: IMPERSONATION\nYou posed as a trusted IT security contractor and shared his problem to build instant trust. He walked you straight through security.\n\n📡 INTEL: Board meeting 3 PM, QuantumTech HQ. CEO Harrington attending. Single guard on entrance. Badge-only access.',
       badMsg: '✗ He won\'t give personal info to a stranger. Create a SHARED situation where you both benefit.',
       intel: 'Board meeting 3 PM at QuantumTech HQ. CEO Harrington present. Security: single badge-only checkpoint.'
     }
@@ -545,18 +560,18 @@ const NPCS = [
     isBoss: true,
     rounds: [
       {
-        text: '"Welcome to the HACKER CONVENTION, GHOST. You\'ve been running social engineering ops all over my city — bold. Now prove you understand the REAL threat: AI.\n\nQuestion 1/4 — What is the PRIMARY capability AI brings to modern Threat Intelligence platforms?"',
+        text: '"Welcome to the HACKER CONVENTION, GHOST. You\'ve been running social engineering ops all over my city — bold. Now prove you understand the REAL threat: AI.\n\nQuestion 1/4 — What is the MAIN value AI brings to modern Threat Intelligence platforms?"',
         choices: [
           { t: 'A) It automates report writing and incident documentation.' },
-          { t: 'B) It processes billions of indicators in real-time, correlating patterns across global threat feeds to predict attacks before they happen.' },
+          { t: 'B) It correlates huge volumes of indicators across threat feeds at machine speed, helping analysts spot emerging attacks earlier.' },
           { t: 'C) It replaces all human security analysts with autonomous chatbots.' }
         ], correct: 1
       },
       {
-        text: '"Correct. You know your theory.\n\nQuestion 2/4 — Which AI approach is most effective at detecting ZERO-DAY malware that has never been seen before?"',
+        text: '"Correct. You know your theory.\n\nQuestion 2/4 — Which AI approach can catch ZERO-DAY malware that no signature has ever seen?"',
         choices: [
           { t: 'A) Signature-based matching with the latest up-to-date virus definitions.' },
-          { t: 'B) Behavioral anomaly detection — models trained on baseline system patterns that flag any deviating activity.' },
+          { t: 'B) Behavioral anomaly detection — models learn a baseline of normal activity and flag suspicious deviations.' },
           { t: 'C) Deep packet inspection combined with continuously updated IP blacklists.' }
         ], correct: 1
       },
@@ -564,15 +579,15 @@ const NPCS = [
         text: '"Impressive. Third question.\n\nQuestion 3/4 — What is ADVERSARIAL AI as a threat vector in cybersecurity?"',
         choices: [
           { t: 'A) When two AI companies aggressively compete for the same enterprise market.' },
-          { t: 'B) Crafting inputs specifically designed to deceive and blind AI detection models — making malware invisible, bypassing recognition systems, poisoning training data.' },
+          { t: 'B) Crafting inputs or training data designed to deceive AI detection models — helping malware evade recognition or corrupting what the model learns.' },
           { t: 'C) AI used exclusively in controlled red team penetration testing exercises.' }
         ], correct: 1
       },
       {
-        text: '"Last question, GHOST. And this one matters.\n\nQuestion 4/4 — How are threat actors weaponizing Large Language Models RIGHT NOW?"',
+        text: '"Last question, GHOST. And this one matters.\n\nQuestion 4/4 — How are threat actors misusing Large Language Models?"',
         choices: [
-          { t: 'A) Primarily for writing phishing emails with better grammar and fewer typos.' },
-          { t: 'B) Autonomous vulnerability research, polymorphic malware that rewrites itself to evade detection, deepfake social engineering at scale, and poisoning AI-based defenses.' },
+          { t: 'A) Only to fix grammar and typos in phishing emails — nothing more.' },
+          { t: 'B) Across the attack chain: convincing phishing and pretexting at scale, reconnaissance, help writing or modifying malware, and attempts to manipulate AI-based defenses.' },
           { t: 'C) LLMs cannot be weaponized — they have safety guardrails that prevent all malicious use.' }
         ], correct: 1
       }
@@ -587,6 +602,9 @@ let intelCount = 0, collectedIntel = [];
 let camAngle = 0, mouseDown = false, lastMX = 0;
 let frame = 0;
 let bossActive = false, bossRound = 0;
+let dlgSession = 0;          // bumped on every open/close so stale dialogue timers do nothing
+let bossWinShown = false;
+const INTEL_REQUIRED = 5;
 let carSpeed = 0;
 
 // ═══════════════════════════════════════════════════════════
@@ -1413,7 +1431,7 @@ gymBarbell(78, 1.85, 31, 3.0);
 // ── CONVENTION BUILDING LABEL ──────────────────────────────
 const convLabelEl = document.createElement('div');
 convLabelEl.className = 'npc-label';
-convLabelEl.innerHTML = '🖥️ HACKER CONVENTION';
+convLabelEl.textContent = '🖥️ HACKER CONVENTION';
 convLabelEl.style.cssText += 'color:#00ffff;font-size:13px;letter-spacing:2px;text-shadow:0 0 12px #00ffff;border-color:rgba(0,255,255,0.5);';
 convLabelEl.style.display = 'none';
 labelsContainer.appendChild(convLabelEl);
@@ -1474,6 +1492,7 @@ const dlgCloseBtn    = document.getElementById('dialogue-close');
 
 // ── BOSS DIALOGUE ────────────────────────────────────────
 function openBossDialogue(round) {
+  dlgSession++;
   bossActive = true;
   bossRound = round;
   const q = NPCS[5].rounds[round];
@@ -1486,7 +1505,7 @@ function openBossDialogue(round) {
   dlgText.textContent = q.text;
   dlgFeedback.style.display = 'none';
   dlgCloseBtn.style.display = 'none';
-  dlgChoices.innerHTML = '';
+  dlgChoices.replaceChildren();
   q.choices.forEach((c, i) => {
     const btn = document.createElement('button');
     btn.className = 'd-choice';
@@ -1505,7 +1524,9 @@ function handleBossChoice(round, choiceIdx, btn) {
     dlgFeedback.style.display = 'block';
     if (round < 3) {
       dlgFeedback.textContent = '✓ CORRECT.\n"...Impressive. Let\'s continue."';
+      const session = dlgSession;
       setTimeout(() => {
+        if (session !== dlgSession) return;   // dialogue was closed (Esc) meanwhile
         dlgFeedback.style.display = 'none';
         openBossDialogue(round + 1);
       }, 2200);
@@ -1515,14 +1536,17 @@ function handleBossChoice(round, choiceIdx, btn) {
       NPCS[5].done = true;
       NPCS[5].ring.visible = false;
       if (NPCS[5].labelEl) NPCS[5].labelEl.className = 'npc-label done';
-      dlgCloseBtn.onclick = () => { closeDialogue(); showBossWin(); };
+      // closeDialogue() shows the win screen once the boss is done, whether the
+      // player clicks CLOSE or presses Esc.
     }
   } else {
     btn.className = 'd-choice wrong'; btn.style.opacity = '1';
     dlgFeedback.className = 'bad';
     dlgFeedback.style.display = 'block';
     dlgFeedback.textContent = '✗ Wrong. "You\'re not even close. Try again, little ghost."';
+    const session = dlgSession;
     setTimeout(() => {
+      if (session !== dlgSession) return;
       document.querySelectorAll('.d-choice').forEach(b => {
         b.disabled = false; b.style.opacity = '1'; b.className = 'd-choice';
       });
@@ -1532,13 +1556,38 @@ function handleBossChoice(round, choiceIdx, btn) {
 }
 
 function showBossWin() {
+  if (bossWinShown) return;
+  bossWinShown = true;
+  HTPProgress.recordCompletion(3);
   document.getElementById('boss-win-screen').style.display = 'flex';
+  document.getElementById('boss-next-btn').focus();
+}
+
+// CIPHER refuses to engage until all five intel missions are done.
+function openBossLocked() {
+  dlgSession++;
+  dlgOpen = true;
+  dlgBox.classList.add('boss-mode');
+  dlgBox.style.display = 'block';
+  promptEl.style.display = 'none';
+  dlgNpc.textContent = '⚠ CIPHER  —  FINAL BOSS  [LOCKED]';
+  dlgTag.textContent = 'INTEL REQUIRED: ' + intelCount + ' / ' + INTEL_REQUIRED;
+  dlgText.textContent = '"Not yet, GHOST. You walk in here with ' + intelCount + ' of ' + INTEL_REQUIRED +
+    ' intel files? Work the city first — come back when you have all five."';
+  dlgChoices.replaceChildren();
+  dlgFeedback.style.display = 'none';
+  dlgCloseBtn.style.display = 'inline-block';
 }
 
 function openDialogue(idx) {
   const npc = NPCS[idx];
   if (npc.done) return;
-  if (npc.isBoss) { openBossDialogue(0); return; }
+  if (npc.isBoss) {
+    if (intelCount < INTEL_REQUIRED) openBossLocked();
+    else openBossDialogue(0);
+    return;
+  }
+  dlgSession++;
   dlgOpen = true;
   dlgBox.style.display = 'block';
   promptEl.style.display = 'none';
@@ -1548,7 +1597,7 @@ function openDialogue(idx) {
   dlgFeedback.style.display = 'none';
   dlgCloseBtn.style.display = 'none';
 
-  dlgChoices.innerHTML = '';
+  dlgChoices.replaceChildren();
   npc.dlg.choices.forEach((c, i) => {
     const btn = document.createElement('button');
     btn.className = 'd-choice';
@@ -1584,14 +1633,16 @@ function handleChoice(npcIdx, choiceIdx, btn) {
     npc.ring.visible = false;
     if (npc.labelEl) npc.labelEl.className = 'npc-label done';
 
-    if (intelCount >= 5) setTimeout(showWin, 2500);
+    if (intelCount >= INTEL_REQUIRED) setTimeout(showWin, 2500);
   } else {
     btn.className = 'd-choice wrong'; btn.style.opacity = '1';
     dlgFeedback.className = 'bad';
     dlgFeedback.style.display = 'block';
     dlgFeedback.textContent = npc.dlg.badMsg;
 
+    const session = dlgSession;
     setTimeout(() => {
+      if (session !== dlgSession) return;
       document.querySelectorAll('.d-choice').forEach(b => {
         b.disabled = false; b.style.opacity = '1'; b.className = 'd-choice';
       });
@@ -1601,22 +1652,35 @@ function handleChoice(npcIdx, choiceIdx, btn) {
 }
 
 function closeDialogue() {
+  dlgSession++;
   dlgOpen = false;
   bossActive = false;
   dlgBox.classList.remove('boss-mode');
   dlgBox.style.display = 'none';
   dlgCloseBtn.onclick = closeDialogue;
+  if (NPCS[5].done) showBossWin();
 }
 
+// Intel summary shown once all five files are in; the level itself is only
+// complete after CIPHER is beaten.
 function showWin() {
   document.getElementById('win-screen').style.display = 'flex';
   const log = document.getElementById('intel-log');
   const techs = ['BAITING','IMPERSONATION','PRETEXTING','QUID PRO QUO','ELICITATION'];
-  collectedIntel.forEach((npc, i) => {
+  log.replaceChildren();
+  collectedIntel.forEach(npc => {
     const li = document.createElement('li');
-    li.innerHTML = `<span class="tag">[${techs[npc.id]}] ${npc.name}</span><br>${npc.dlg.intel}`;
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = '[' + techs[npc.id] + '] ' + npc.name;
+    li.append(tag, document.createElement('br'), npc.dlg.intel);
     log.appendChild(li);
   });
+  document.getElementById('intel-continue-btn').focus();
+}
+
+function closeIntelScreen() {
+  document.getElementById('win-screen').style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1765,7 +1829,9 @@ function checkProximity() {
     promptEl.textContent = '[ E ] DRIVE ' + nearCar.userData.name;
   } else if (closest !== null && !dlgOpen) {
     promptEl.style.display = 'block';
-    promptEl.textContent = '[ E ] APPROACH ' + NPCS[closest].name;
+    promptEl.textContent = NPCS[closest].isBoss && intelCount < INTEL_REQUIRED
+      ? '[ E ] CIPHER — LOCKED (' + intelCount + '/' + INTEL_REQUIRED + ' INTEL)'
+      : '[ E ] APPROACH ' + NPCS[closest].name;
   } else if (!dlgOpen) {
     promptEl.style.display = 'none';
   }

@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
-"""Generate a Hack The Planet level trailer GIF."""
+"""Generate a Hack The Planet level trailer GIF.
+
+Usage: python3 gen_gif.py [OUTPUT]
+Output defaults to trailer.gif in the repository root; HTP_GIF_OUTPUT also works.
+"""
 import os
+import sys
 import random
 import shutil
 import subprocess
@@ -10,7 +15,9 @@ W, H = 640, 360
 FPS_DELAY = 7
 TMPDIR = tempfile.mkdtemp(prefix="htp_trailer_")
 ROOT = os.path.dirname(os.path.abspath(__file__))
-OUTPUT = os.path.join(ROOT, "trailer.gif")
+OUTPUT = os.path.abspath(
+    sys.argv[1] if len(sys.argv) > 1 else os.environ.get("HTP_GIF_OUTPUT", os.path.join(ROOT, "trailer.gif"))
+)
 random.seed(2600)
 
 BG = (0, 2, 8)
@@ -488,7 +495,7 @@ def main():
         "optimize",
         OUTPUT,
     ]
-    print("Building trailer.gif with ImageMagick...")
+    print(f"Building {os.path.basename(OUTPUT)} with ImageMagick...")
     result = subprocess.run(cmd, capture_output=True)
     if result.returncode != 0:
         raise SystemExit(result.stderr.decode())

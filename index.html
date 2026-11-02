@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HACK THE PLANET - Mission Hub</title>
+<meta name="description" content="HACK THE PLANET mission hub: choose a level, track campaign progress.">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #000300;
+    --green: #00ff41;
+    --green-dim: rgba(0,255,65,0.55);
+    --green-faint: rgba(0,255,65,0.18);
+    --cyan: #00ffff;
+    --pink: #ff6eb4;
+    --red: #ff3300;
+  }
+  html, body { min-height: 100%; background: var(--bg); }
+  body {
+    font-family: 'Courier New', monospace;
+    color: var(--green);
+    overflow-x: hidden;
+  }
+
+  /* matrix rain + scanlines, same language as the Level 1 intro */
+  #rain { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.35; }
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px);
+  }
+
+  main {
+    position: relative; z-index: 1;
+    max-width: 1080px; margin: 0 auto;
+    padding: 40px 16px 48px;
+  }
+
+  header { text-align: center; margin-bottom: 30px; }
+  .pre { font-size: 11px; letter-spacing: 4px; color: var(--green-dim); margin-bottom: 10px; }
+  h1 {
+    font-size: clamp(34px, 8vw, 68px); letter-spacing: clamp(4px, 1.5vw, 12px);
+    text-shadow: 0 0 20px var(--green), 0 0 40px rgba(0,255,65,0.4);
+    animation: glitch 6s infinite;
+  }
+  .tagline { margin-top: 10px; font-size: 12px; letter-spacing: 3px; color: var(--green-dim); }
+
+  /* campaign summary */
+  #campaign {
+    border: 1px solid var(--green-faint); background: rgba(0,12,3,0.8);
+    padding: 16px 18px; margin-bottom: 26px;
+    display: grid; grid-template-columns: 1fr auto; gap: 10px 18px; align-items: center;
+  }
+  #campaign .label { font-size: 11px; letter-spacing: 3px; color: var(--green-dim); }
+  #campaign-count { font-size: 22px; letter-spacing: 4px; text-shadow: 0 0 10px var(--green); }
+  .meter { grid-column: 1 / -1; height: 8px; border: 1px solid var(--green-faint); }
+  .meter span { display: block; height: 100%; background: var(--green); box-shadow: 0 0 12px var(--green); transition: width 0.4s; }
+  #next-objective { grid-column: 1 / -1; font-size: 12px; letter-spacing: 1px; color: rgba(160,255,170,0.85); }
+  #storage-warning { grid-column: 1 / -1; font-size: 11px; color: var(--pink); display: none; }
+
+  /* mission cards */
+  #missions { list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .mission {
+    --accent: var(--green);
+    position: relative; display: flex; flex-direction: column;
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    background: rgba(0,8,2,0.88);
+    padding: 18px 18px 16px;
+    box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  .mission[data-status="locked"] { --accent: #3d4a3f; filter: saturate(0.4); }
+  .mission .code { font-size: 11px; letter-spacing: 4px; color: var(--accent); opacity: 0.85; }
+  .mission h2 {
+    font-size: 21px; letter-spacing: 3px; margin: 6px 0 4px;
+    color: var(--accent); text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .mission .theme { font-size: 11px; letter-spacing: 2px; color: rgba(234,255,240,0.6); margin-bottom: 12px; }
+  .mission .objective { font-size: 12px; line-height: 1.6; color: rgba(210,255,215,0.85); margin-bottom: 10px; }
+  .mission .objective b { color: var(--accent); font-weight: normal; letter-spacing: 2px; }
+  .mission .meta { font-size: 11px; color: rgba(210,255,215,0.55); line-height: 1.6; min-height: 18px; margin-bottom: 14px; }
+  .status {
+    position: absolute; top: 16px; right: 16px;
+    font-size: 10px; letter-spacing: 3px; padding: 4px 8px;
+    border: 1px solid currentColor;
+  }
+  .status.available { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+  .status.completed { color: var(--green); text-shadow: 0 0 8px var(--green); }
+  .status.locked { color: #6c7a6e; }
+
+  .actions { margin-top: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    font-family: inherit; font-size: 12px; letter-spacing: 4px;
+    color: var(--accent, var(--green)); background: transparent;
+    border: 1px solid var(--accent, var(--green));
+    padding: 10px 18px; cursor: pointer; text-decoration: none; display: inline-block;
+    text-shadow: 0 0 8px color-mix(in srgb, var(--accent, var(--green)) 70%, transparent);
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .btn:hover, .btn:focus-visible {
+    background: color-mix(in srgb, var(--accent, var(--green)) 14%, transparent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--accent, var(--green)) 45%, transparent);
+    outline: 2px solid var(--accent, var(--green)); outline-offset: 2px;
+  }
+  .btn[aria-disabled="true"] { cursor: not-allowed; opacity: 0.6; }
+  .btn.danger { --accent: var(--red); }
+
+  footer {
+    margin-top: 30px; display: flex; justify-content: space-between; align-items: center;
+    gap: 14px; flex-wrap: wrap; font-size: 11px; letter-spacing: 2px; color: var(--green-dim);
+  }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* reset confirmation */
+  dialog {
+    margin: auto; max-width: 440px; width: calc(100% - 32px);
+    background: #050000; color: #ffd0c4; border: 1px solid var(--red);
+    padding: 22px; font-family: inherit; box-shadow: 0 0 40px rgba(255,51,0,0.35);
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.75); }
+  dialog h2 { font-size: 16px; letter-spacing: 4px; color: var(--red); margin-bottom: 12px; }
+  dialog p { font-size: 12px; line-height: 1.7; margin-bottom: 18px; }
+  dialog .actions { justify-content: flex-end; }
+
+  @keyframes glitch {
+    0%, 94%, 100% { transform: none; color: var(--green); }
+    95% { transform: skewX(-4deg); color: var(--red); }
+    96% { transform: skewX(4deg); color: var(--cyan); }
+    97% { transform: none; color: var(--pink); }
+  }
+
+  @media (max-width: 720px) {
+    #missions { grid-template-columns: 1fr; }
+    main { padding-top: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    h1 { animation: none; }
+    #rain { display: none; }
+    .meter span { transition: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+
+<main>
+  <header>
+    <div class="pre">&gt; FSOCIETY // MISSION CONTROL</div>
+    <h1>HACK THE PLANET</h1>
+    <div class="tagline">FOUR OPERATIONS. ONE CORPORATION. PANDECORP IS WATCHING.</div>
+  </header>
+
+  <section id="campaign" aria-labelledby="campaign-label">
+    <div>
+      <div class="label" id="campaign-label">CAMPAIGN PROGRESS</div>
+      <div id="next-objective"></div>
+    </div>
+    <div id="campaign-count">0 / 4</div>
+    <div class="meter" role="progressbar" aria-label="Missions completed" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0"><span style="width:0%"></span></div>
+    <div id="storage-warning">Progress cannot be saved in this browser mode — it will reset when you close the page.</div>
+  </section>
+
+  <ol id="missions" aria-label="Missions"></ol>
+
+  <footer>
+    <span>Arrow keys move between missions · Enter launches</span>
+    <button class="btn danger" id="reset-btn" type="button">RESET PROGRESS</button>
+  </footer>
+  <div class="sr-only" role="status" aria-live="polite" id="announce"></div>
+</main>
+
+<dialog id="reset-dialog" aria-labelledby="reset-title">
+  <h2 id="reset-title">WIPE CAMPAIGN DATA?</h2>
+  <p>This erases completed missions, unlocks and best results stored in this browser. Level 1 stays available. This cannot be undone.</p>
+  <form method="dialog" class="actions">
+    <button class="btn" value="cancel" autofocus>CANCEL</button>
+    <button class="btn danger" value="confirm">WIPE DATA</button>
+  </form>
+</dialog>
+
+<script src="js/progress.js"></script>
+<script>
+// Mission copy shown on the hub. Campaign order and URLs come from HTPProgress.LEVELS.
+const MISSIONS = {
+  1: {
+    accent: '#00ff41',
+    theme: '3D FIRST-PERSON ARENA · CINEMATIC INTRO',
+    objective: 'Break into the PandeCorp arena as KUKY and beat its security drone. First to 3 kills wins.',
+  },
+  2: {
+    accent: '#ff3300',
+    theme: '2D EXPLORATION · AI SECURITY BATTLES',
+    objective: 'Hunt six rogue AI robots and pick the right patch for each flaw. Patch all 6 before your integrity hits 0%.',
+  },
+  3: {
+    accent: '#ff6eb4',
+    theme: '3D MIAMI CITY · SOCIAL ENGINEERING',
+    objective: 'Work five targets for intel as GHOST, then outsmart CIPHER at the Hacker Convention.',
+  },
+  4: {
+    accent: '#00ffff',
+    theme: 'RETRO RACING · 8 AI RIVALS',
+    objective: 'Finish all 3 laps of the Miami circuit. Bonus objective: take P1.',
+  },
+};
+
+function formatTime(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function formatDate(iso) {
+  try { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch (e) { return ''; }
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function metaText(level, entry) {
+  if (!entry || !entry.completed) return '';
+  const parts = [];
+  if (entry.lastCompletedAt) parts.push('Last cleared ' + formatDate(entry.lastCompletedAt));
+  const best = entry.best || {};
+  if (level.id === 2 && Number.isFinite(best.integrity)) parts.push('Best integrity ' + best.integrity + '%');
+  if (level.id === 4 && Number.isFinite(best.position)) parts.push('Best finish P' + best.position);
+  if (level.id === 4 && Number.isFinite(best.timeMs)) parts.push('Best time ' + formatTime(best.timeMs));
+  return parts.join(' · ');
+}
+
+function render() {
+  const state = HTPProgress.load();
+  const list = document.getElementById('missions');
+  list.replaceChildren();
+
+  HTPProgress.LEVELS.forEach(level => {
+    const info = MISSIONS[level.id];
+    const status = HTPProgress.statusOf(state, level.id);
+    const item = el('li', 'mission');
+    item.dataset.status = status;
+    if (status !== 'locked') item.style.setProperty('--accent', info.accent);
+
+    const titleId = 'mission-' + level.id + '-title';
+    item.setAttribute('aria-labelledby', titleId);
+    item.append(el('div', 'code', level.code));
+    const h2 = el('h2', '', level.name);
+    h2.id = titleId;
+    item.append(h2);
+    item.append(el('div', 'status ' + status, status.toUpperCase()));
+    item.append(el('div', 'theme', info.theme));
+
+    const objective = el('p', 'objective');
+    objective.append(el('b', '', 'OBJECTIVE '), info.objective);
+    item.append(objective);
+
+    const prev = HTPProgress.getLevel(level.id - 1);
+    item.append(el('div', 'meta', status === 'locked'
+      ? 'Complete ' + prev.code + ' · ' + prev.name + ' to unlock.'
+      : metaText(level, state.levels[level.id])));
+
+    const actions = el('div', 'actions');
+    let action;
+    if (status === 'locked') {
+      // Stays focusable so keyboard users can reach the card and hear why.
+      action = el('button', 'btn', 'LOCKED');
+      action.type = 'button';
+      action.setAttribute('aria-disabled', 'true');
+      action.setAttribute('aria-label', level.name + ' is locked. Complete ' + prev.name + ' first.');
+    } else {
+      action = el('a', 'btn', status === 'completed' ? 'REPLAY >' : 'PLAY >');
+      action.href = level.url;
+      action.setAttribute('aria-label', (status === 'completed' ? 'Replay ' : 'Play ') + level.code + ' ' + level.name);
+    }
+    action.classList.add('mission-action');
+    actions.append(action);
+    item.append(actions);
+    list.append(item);
+  });
+
+  const done = HTPProgress.LEVELS.filter(l => HTPProgress.statusOf(state, l.id) === 'completed').length;
+  const total = HTPProgress.LEVELS.length;
+  document.getElementById('campaign-count').textContent = done + ' / ' + total;
+  const meter = document.querySelector('.meter');
+  meter.setAttribute('aria-valuenow', String(done));
+  meter.firstElementChild.style.width = (done / total * 100) + '%';
+
+  const next = HTPProgress.LEVELS.find(l => HTPProgress.statusOf(state, l.id) === 'available');
+  document.getElementById('next-objective').textContent = HTPProgress.isCampaignComplete(state)
+    ? '> CAMPAIGN COMPLETE. THE PLANET IS HACKED. Replay any mission to beat your best.'
+    : '> NEXT: ' + next.code + ' · ' + next.name;
+}
+
+// Arrow keys move focus between mission actions (Tab still works as usual).
+document.getElementById('missions').addEventListener('keydown', e => {
+  const keys = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];
+  if (!keys.includes(e.key)) return;
+  const actions = [...document.querySelectorAll('.mission-action')];
+  const i = actions.indexOf(document.activeElement);
+  if (i < 0) return;
+  e.preventDefault();
+  const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+  actions[(i + step + actions.length) % actions.length].focus();
+});
+
+// Locked missions explain themselves instead of doing nothing.
+document.getElementById('missions').addEventListener('click', e => {
+  const btn = e.target.closest('.btn[aria-disabled="true"]');
+  if (btn) document.getElementById('announce').textContent = btn.getAttribute('aria-label');
+});
+
+function resetProgress() {
+  HTPProgress.reset();
+  render();
+  document.getElementById('announce').textContent = 'Campaign progress reset.';
+  document.querySelector('.mission-action').focus();
+}
+
+const dialog = document.getElementById('reset-dialog');
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else if (window.confirm('Wipe all campaign progress stored in this browser?')) resetProgress();
+});
+dialog.addEventListener('close', () => {
+  if (dialog.returnValue === 'confirm') resetProgress();
+  dialog.returnValue = '';
+});
+
+if (!HTPProgress.isPersistent()) document.getElementById('storage-warning').style.display = 'block';
+
+// Returning via the back button can restore a cached page; re-read progress.
+window.addEventListener('pageshow', render);
+render();
+
+// ── Matrix rain backdrop (skipped entirely for reduced-motion users) ──
+(function rain() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const canvas = document.getElementById('rain');
+  const ctx = canvas.getContext('2d');
+  const glyphs = '01アイウエオカキクケコサシスセソ<>/{}$#';
+  const size = 16;
+  let drops = [];
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    drops = Array.from({ length: Math.ceil(canvas.width / size) }, () => Math.random() * -50);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  let last = 0;
+  function tick(t) {
+    requestAnimationFrame(tick);
+    if (document.hidden || t - last < 60) return;   // ~16 fps is plenty for a backdrop
+    last = t;
+    ctx.fillStyle = 'rgba(0,3,0,0.12)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = size + 'px Courier New';
+    ctx.fillStyle = '#00ff41';
+    drops.forEach((y, i) => {
+      ctx.fillText(glyphs[Math.floor(Math.random() * glyphs.length)], i * size, y * size);
+      drops[i] = y * size > canvas.height && Math.random() > 0.975 ? 0 : y + 1;
+    });
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
