@@ -4,6 +4,9 @@
 //
 //   npm run test:gameplay      (about 5 minutes)
 //
+// Level 4 goes further: its driver reads only the rendered pixels (where the
+// asphalt is) and the HUD text, the way a player does.
+//
 // Needs Chrome/Chromium (CHROME_PATH to override) and network access to cdnjs.
 // Level 3's full five-target walk takes several minutes under software WebGL,
 // so here it covers the start screen, one target, the locked boss, a car and
@@ -59,6 +62,9 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
   // software WebGL where there is none (much slower, but still correct).
   const browser = await launch({ args: ['--autoplay-policy=user-gesture-required'], windowSize: '960,600', gpu: true });
   const progress = page => page.eval('JSON.parse(localStorage.getItem("htp.progress") || "null")');
+  // HTP_ONLY="level 2" (a regex) runs matching subtests; HTP_DEBUG=1 logs progress.
+  const sub = (name, fn) => t.test(name, { skip: !!process.env.HTP_ONLY && !new RegExp(process.env.HTP_ONLY).test(name) }, fn);
+  const debug = process.env.HTP_DEBUG ? (...a) => console.log('  ·', ...a) : () => {};
 
   try {
     const page = await browser.newPage();
@@ -66,7 +72,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
     await page.goto(base + '/');
     await page.eval('localStorage.clear()');
 
-    await t.test('hub: keyboard navigation and reduced motion', async () => {
+    await sub('hub: keyboard navigation and reduced motion', async () => {
       await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
       await page.goto(base + '/');
       assert.equal(await page.eval('getComputedStyle(document.getElementById("rain")).display'), 'none');
@@ -91,7 +97,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('hub');
     });
 
-    await t.test('level 1: full intro without skipping hands over to the menu', async () => {
+    await sub('level 1: full intro without skipping hands over to the menu', async () => {
       if (await page.eval('location.pathname') !== '/level1.html') await page.goto(base + '/level1.html');
       assert.equal(await page.eval('introACtx === null && audioCtx === null'), true, 'no audio before a gesture');
       await page.key('Enter');                       // any key starts the intro
@@ -113,7 +119,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('level1 intro');
     });
 
-    await t.test('level 1: skip, win 3 kills with arrows + mouse, BGM toggle keeps SFX', async () => {
+    await sub('level 1: skip, win 3 kills with arrows + mouse, BGM toggle keeps SFX', async () => {
       await page.goto(base + '/level1.html');
       await page.click('#pre-intro');
       await page.waitFor('introRunning === true');
@@ -168,7 +174,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('level1');
     });
 
-    await t.test('level 2: defeat by wrong patches, restart, then patch all six by walking', async () => {
+    await sub('level 2: defeat by wrong patches, restart, then patch all six by walking', async () => {
       if (await page.eval('location.pathname') !== '/level2.html') await page.goto(base + '/level2.html');
       const MAP = await page.eval('MAP');
       const free = (c, r) => MAP[r] && MAP[r][c] === 0;
@@ -230,6 +236,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       // Ten wrong patches, retrying early with Enter; the last one leaves a gap
       // so an earlier auto-retry timer would fire before the defeat timer.
       await walkToBattle();
+      debug('first battle');
       const correct = await page.eval('battle.robot.correct');
       const wrong = (correct + 1) % 4 + 1;
       for (let i = 0; i < 10; i++) {
@@ -248,8 +255,10 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       await page.waitFor('gamePhase === "playing"');
       assert.deepEqual(await page.eval('[playerHP, caughtCount, robots.every(r => r.alive)]'), [100, 0, true]);
 
+      debug('defeated and restarted');
       for (let n = 1; n <= 6; n++) {
         await walkToBattle();
+        debug('battle', n);
         await answer(await page.eval('battle.robot.correct') + 1);
         assert.match(await page.eval('battle.resultText'), /PATCHED/);
         await page.key('Enter');
@@ -269,7 +278,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('level2');
     });
 
-    await t.test('level 3: start on a short window, one target, locked boss, car, music', async () => {
+    await sub('level 3: start on a short window, one target, locked boss, car, music', async () => {
       if (await page.eval('location.pathname') !== '/level3.html') await page.goto(base + '/level3.html');
       const keys = keyboard(page);
       // A player walks with W and turns the camera with A/D.
@@ -342,9 +351,13 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('level3');
     });
 
-    await t.test('level 4: three laps with the keyboard, music toggle', async () => {
+    await sub('level 4: drive from the screen alone, pause, decide, report', async () => {
+      // A standard desktop viewport: the one-row pixel driver is too coarse for
+      // 960×600 (short-window layout is covered separately).
+      await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
       await page.goto(base + '/level4.html');
       await page.click('#car-options .car-card:nth-child(2)');
+      assert.equal(await page.eval('document.querySelector("#car-options .car-card:nth-child(2)").getAttribute("aria-pressed")'), 'true');
       await page.click('#start-btn');
       assert.equal(await page.eval('audioCtx.state'), 'running');
       await page.waitFor('__audibleAfter(audioCtx, 0.3) > 0', 3000);
@@ -353,25 +366,82 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       await page.key('KeyM');
       assert.ok(await page.eval('__audibleAfter(audioCtx, 0.3)') > 0);
 
+      // The driver sees only what a player sees: the asphalt in the rendered
+      // pixels (longest run of neutral grey in a row ahead of the car), the
+      // HUD's curve callout, speed and warnings, and the decision text.
+      const LOOK = `(() => {
+        const c = document.getElementById('game'), g = c.getContext('2d');
+        const row = f => {
+          const d = g.getImageData(0, Math.floor(c.height * f), c.width, 1).data;
+          let best = [0, 0], start = -1;
+          for (let x = 0; x <= c.width; x++) {
+            const r = d[x * 4], gg = d[x * 4 + 1], b = d[x * 4 + 2];
+            const grey = x < c.width && Math.max(r, gg, b) - Math.min(r, gg, b) < 22 && r > 28 && r < 110;
+            if (grey && start < 0) start = x;
+            if (!grey && start >= 0) { if (x - start > best[1] - best[0]) best = [start, x]; start = -1; }
+          }
+          return (best[0] + best[1]) / 2 / c.width - 0.5;
+        };
+        const warn = document.getElementById('warning');
+        return { near: row(0.74), far: row(0.6), curve: document.getElementById('curve-val').textContent,
+          mph: Number(document.getElementById('speed-val').textContent),
+          warn: warn.style.display === 'block' ? warn.textContent : '',
+          panel: document.getElementById('decision-screen').classList.contains('open') ? document.getElementById('decision-panel').textContent : '',
+          options: [...document.querySelectorAll('#decision-panel .option')].map(b => b.textContent),
+          done: document.getElementById('finish-screen').classList.contains('open') };
+      })()`;
       const keys = keyboard(page);
-      await keys.set('KeyW', true);
-      const end = Date.now() + 240000;
-      let samples = 0, offroad = 0;
-      while (!(await page.eval('finished'))) {
-        assert.ok(Date.now() < end, 'finish three laps within 4 minutes');
-        const s = await page.eval('({ live: raceLive, x: player.x, c: curveAt(player.distance), ahead: curveAt(player.distance + 600), boost: player.boost })');
-        if (s.live) { samples++; if (Math.abs(s.x) > 1) offroad++; }
-        const err = s.x + 0.35 * s.ahead;
-        await keys.set('KeyA', err > 0.08); await keys.set('KeyD', err < -0.08);
-        await keys.set('Space', s.live && Math.abs(s.c) < 0.5 && s.boost > 0.3 && Math.abs(err) < 0.3);
-        await sleep(30);
+      const end = Date.now() + 300000;
+      let samples = 0, offTrack = 0, decisions = 0, paused = false;
+      const picks = [/untrusted data/, /Cross-check/, /only the in-role/];
+      for (;;) {
+        const s = await page.eval(LOOK);
+        if (s.done) break;
+        assert.ok(Date.now() < end, 'finish three laps within 5 minutes');
+        if (s.options.length) {
+          await keys.releaseAll();
+          const i = s.options.findIndex(o => picks[decisions].test(o));
+          assert.ok(i >= 0, 'the mitigation is offered: ' + s.options.join(' | '));
+          await page.key('Digit' + (i + 1));
+          assert.match(await page.eval('document.getElementById("decision-panel").textContent'), /MITIGATED/);
+          await page.key('Enter');                     // resume
+          decisions++;
+          continue;
+        }
+        if (s.panel) { await page.key('Enter'); continue; }
+        if (!paused && samples > 300) {
+          paused = true;
+          await keys.releaseAll();
+          await page.key('Escape');
+          assert.equal(await page.eval('phase'), 'paused');
+          const t1 = await page.eval('raceTime');
+          await sleep(700);
+          assert.equal(await page.eval('raceTime'), t1, 'race time stops while paused');
+          await page.key('Escape');
+          assert.equal(await page.eval('phase'), 'racing');
+          continue;
+        }
+        samples++;
+        if (/OFF TRACK|BARRIER/.test(s.warn)) offTrack++;
+        const aim = s.near * 0.6 + s.far * 0.4;
+        await keys.set('KeyD', aim > 0.02); await keys.set('KeyA', aim < -0.02);
+        const m = /(\d+) m/.exec(s.curve), dist = m ? Number(m[1]) : /NOW/.test(s.curve) ? 0 : 999;
+        const sharp = /SHARP/.test(s.curve), medium = /MEDIUM/.test(s.curve);
+        const lift = /GRIP LIMIT/.test(s.warn) || (sharp && dist === 0 && s.mph > 120) || (medium && dist === 0 && s.mph > 172);
+        const brake = sharp && dist < 120 && s.mph > 135;
+        await keys.set('KeyW', !lift && !brake); await keys.set('KeyS', brake);
+        await sleep(25);
       }
       await keys.releaseAll();
-      assert.ok(offroad / samples < 0.05, 'the steering kept the car on the road');
+      assert.equal(decisions, 3, 'one decision per lap');
+      assert.ok(offTrack / samples < 0.05, `driving from the screen stays on the road (${(100 * offTrack / samples).toFixed(1)}% off)`);
       const p = await progress(page);
       assert.equal(p.levels[4].completed, true);
-      assert.match(await page.eval('document.getElementById("finish-copy").textContent'), /BONUS OBJECTIVE/);
+      assert.equal(p.levels[4].best.securityScore, 3);
+      assert.match(await page.eval('document.getElementById("report-score").textContent'), /3 \/ 3/);
+      assert.equal(await page.eval('document.querySelectorAll("#knowledge li").length'), 3);
       assert.equal(await page.eval('document.activeElement.id'), 'race-again-btn');
+      await page.send('Emulation.clearDeviceMetricsOverride');
       page.assertNoErrors('level4');
     });
   } finally {

@@ -48,9 +48,10 @@ class Page {
     this.listeners.forEach(fn => fn(msg));
   }
 
-  waitForEvent(name) {
-    return new Promise(resolve => {
-      const fn = msg => { if (msg.method === name) { this.listeners.delete(fn); resolve(msg.params); } };
+  waitForEvent(name, timeout = 30000) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { this.listeners.delete(fn); reject(new Error(`No ${name} within ${timeout} ms`)); }, timeout);
+      const fn = msg => { if (msg.method === name) { clearTimeout(timer); this.listeners.delete(fn); resolve(msg.params); } };
       this.listeners.add(fn);
     });
   }

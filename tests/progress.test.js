@@ -58,6 +58,14 @@ test('level 4 tracks best position and best time independently', () => {
   assert.deepEqual(s.levels[4].best, { position: 2, timeMs: 95000 });
 });
 
+test('level 4 keeps the best AI security score, separate from the race result', () => {
+  let s = P.applyCompletion(P.defaultState(), 4, { position: 6, timeMs: 100000, securityScore: 2 }, T0);
+  s = P.applyCompletion(s, 4, { position: 1, timeMs: 90000, securityScore: 0 }, T1);
+  assert.deepEqual(s.levels[4].best, { position: 1, timeMs: 90000, securityScore: 2 });
+  assert.equal(s.levels[4].completed, true, 'a low security score still completes the level');
+  assert.equal(P.normalize({ version: 1, levels: { 4: { completed: true, best: { securityScore: 'max' } } } }).levels[4].best, undefined);
+});
+
 test('replaying an earlier level never re-locks later ones', () => {
   let s = P.defaultState();
   for (const id of [1, 2, 3]) s = P.applyCompletion(s, id, null, T0);

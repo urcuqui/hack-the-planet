@@ -150,17 +150,21 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       page.assertNoErrors('level3');
     });
 
-    await t.test('level 4: finishing three laps records position and time', async () => {
+    await t.test('level 4: finishing three laps records position, time and security score', async () => {
       await page.goto(base + '/level4.html');
       await page.click('#start-btn');
-      await page.waitFor('raceLive === true', 6000);
-      await page.eval('player.distance = trackLength * lapsTotal - 1; player.speed = 300;');
-      await page.waitFor('finished === true', 3000);
+      await page.waitFor('phase === "racing"', 20000);   // game-time countdown; slow under software GL
+      // Settle the three decisions, then jump to just before the line.
+      await page.eval(`security.events.forEach(ev => { ev.phase = 'resolved'; ev.choice = 0; ev.resolvedAt = 0; });
+        player.s = RACE_LENGTH - 100; player.speed = Physics.MAX_SPEED;`);
+      await page.waitFor('phase === "finished"', 10000);
       const p = await progress(page);
       assert.equal(p.levels[4].completed, true);
       assert.ok(p.levels[4].best.position >= 1 && p.levels[4].best.position <= 9);
       assert.ok(p.levels[4].best.timeMs < 4000, 'race time excludes the countdown');
-      assert.match(await page.eval('document.getElementById("finish-copy").textContent'), /ALL FOUR MISSIONS COMPLETE/);
+      assert.ok(Number.isFinite(p.levels[4].best.securityScore));
+      assert.match(await page.eval('document.getElementById("bonus-line").textContent'), /ALL FOUR MISSIONS COMPLETE/);
+      assert.equal(await page.eval('document.querySelectorAll("#report-rows details").length'), 3);
       page.assertNoErrors('level4');
     });
 

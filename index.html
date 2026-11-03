@@ -198,8 +198,8 @@ const MISSIONS = {
   },
   4: {
     accent: '#00ffff',
-    theme: 'RETRO RACING · 8 AI RIVALS',
-    objective: 'Finish all 3 laps of the Miami circuit. Bonus objective: take P1.',
+    theme: 'RETRO RACING · DEFEND AI SYSTEMS IN MOTION',
+    objective: 'Finish 3 laps of the Miami smart circuit and make one AI security decision per lap. Bonus: take P1.',
   },
 };
 
@@ -228,6 +228,7 @@ function metaText(level, entry) {
   if (level.id === 2 && Number.isFinite(best.integrity)) parts.push('Best integrity ' + best.integrity + '%');
   if (level.id === 4 && Number.isFinite(best.position)) parts.push('Best finish P' + best.position);
   if (level.id === 4 && Number.isFinite(best.timeMs)) parts.push('Best time ' + formatTime(best.timeMs));
+  if (level.id === 4 && Number.isFinite(best.securityScore)) parts.push('Best AI security ' + best.securityScore + '/3');
   return parts.join(' · ');
 }
 

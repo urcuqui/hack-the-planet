@@ -10,8 +10,10 @@ const ROOT = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const LEVEL_PAGES = PAGES.filter(p => p !== 'index.html');
 
-test('inline scripts in the hub and all four levels parse', () => {
-  assert.equal(checkAll().length, PAGES.length + 1);
+test('inline scripts in the hub and all four levels parse, plus every module', () => {
+  const modules = ['js', 'js/racer'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.js')));
+  assert.equal(checkAll().length, PAGES.length + modules.length);
+  assert.ok(modules.length >= 6, 'progress + racer modules');
 });
 
 test('every local href/src/location target exists', () => {

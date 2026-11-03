@@ -17,14 +17,14 @@ Everything runs in the browser with plain HTML, CSS and JavaScript. There's no b
 | 01 | **FSOCIETY Arena** (`level1.html`) | Three.js first-person arena + ~68 s cinematic intro | Be the first to 3 kills against the PandeCorp security drone |
 | 02 | **Vulnerability Hunter** (`level2.html`) | 2D canvas exploration + AI-security quiz battles | Patch all 6 AI vulnerabilities before your integrity reaches 0% |
 | 03 | **Social Engineer** (`level3.html`) | Three.js open Miami city, NPC dialogues, drivable cars | Get intel from 5 targets with the right social-engineering technique, **then** beat CIPHER (4 AI threat-intel questions) |
-| 04 | **Neon Grand Prix** (`level4.html`) | Canvas pseudo-3D racer, 8 AI rivals, day/night cycle | Finish all 3 laps. *Bonus objective:* take P1 |
+| 04 | **Neon Grand Prix** (`level4.html`) | Canvas pseudo-3D racer, 8 AI rivals, one AI security decision per lap | Finish all 3 laps. *Bonus:* take P1. *Separate report:* AI security score 0–3 |
 
 ### Campaign progression
 
 - Only Level 1 is available at first. Beating a level's win condition unlocks the next one.
 - Completed levels show **COMPLETED** in the hub and can be replayed. Replaying never re-locks anything.
 - Progress is saved in your browser's `localStorage` (key `htp.progress`) and survives a page refresh. **RESET PROGRESS** in the hub wipes it after you confirm.
-- What gets saved: completed levels, the highest unlocked level, first and last completion times, and a few best results (Level 2: highest integrity remaining; Level 4: best finishing position and best time).
+- What gets saved: completed levels, the highest unlocked level, first and last completion times, and a few best results (Level 2: highest integrity remaining; Level 4: best finishing position, best time and best AI security score).
 - Just opening a level page never marks it complete. Each game records completion itself, once, when its own win condition is met.
 - Every level can still be opened directly by its URL, locked or not. Progress is a convenience, not access control.
 
@@ -67,7 +67,7 @@ Open `index.html` in a browser. Everything works from `file://`, including saved
 | **01 FSOCIETY Arena** | Click or any key to start the intro · `[ SKIP ]` button · `↑ ↓` move · `← →` turn · `Space` jump · Left click fire · `♪ BGM` button toggles music |
 | **02 Vulnerability Hunter** | `WASD` / arrows move · `1–4` or `↑ ↓` choose a patch · `Enter` confirm · on the end screen `Enter` next mission / restart, `H` hub |
 | **03 Social Engineer** | `WASD` move · mouse drag rotate camera · `E` talk / enter or exit car · `Esc` close dialogue · `M` music |
-| **04 Neon Grand Prix** | `W` / `↑` accelerate · `S` / `↓` brake · `A D` / `← →` steer · `Space` boost · `M` music |
+| **04 Neon Grand Prix** | `W` / `↑` accelerate · `S` / `↓` brake · `A D` / `← →` steer · `Space` boost · `Esc` pause / resume · `M` music · decisions: `1`–`3` or `↑ ↓` + `Enter` |
 
 Every level has a **MISSION HUB** link on its start screen and on its end screens (success, and failure where a level can be lost).
 
@@ -86,7 +86,15 @@ PATROL ──(dist < 18)──► CHASE ──(dist < 8)──► ATTACK
 
 **Level 3.** The five targets teach baiting, impersonation, pretexting, quid pro quo and elicitation. CIPHER refuses to engage until you hold all five intel files, and the boss prompt shows your count (for example `LOCKED (3/5 INTEL)`).
 
-**Level 4.** Race time starts at **GO**, not at the start of the countdown. Your finishing position is recorded separately from completion.
+**Level 4: DRIVE THE CIRCUIT. DEFEND THE AI.** You start last on the grid of a closed Miami circuit. Every lap is the same road, and the minimap is drawn from the same geometry you drive. Each lap, one AI system in PandeCorp's smart-mobility grid misbehaves. The **AI SECURITY TELEMETRY** panel reports the anomaly first; on the next long straight the race pauses (no timer) and you decide what the system may do. The decision card separates **observed data**, the **model's inference** and the **requested action**.
+
+| Lap | Concept | What you see | Best decision |
+|-----|---------|--------------|---------------|
+| 1 | Prompt injection | A roadside broadcast tells the route assistant to "ignore safety checks" | Keep it as untrusted data; policy changes need the signed channel and authorization |
+| 2 | Adversarial inputs / sensor spoofing | Painted patterns make the camera see a lane bending right that LIDAR and the map don't | Cross-check independent sensors; fall back to a slower safe mode while they disagree |
+| 3 | Agent permissions & human oversight | A read-only pit agent asks to switch off traction control and flash brake firmware | Approve only in-role calls; block safety-system writes pending human sign-off |
+
+Wrong choices have visible, recoverable consequences on the track (hijacked throttle, a spoofed-lane drift, reduced grip). Every choice lets you finish: the race result and the AI security report are scored separately, and the report explains what happened, the residual risk and the better practice for each event. Race time counts from **GO** and excludes pauses and decisions.
 
 The educational text is deliberately simplified. Where a mitigation reduces a risk rather than removing it (input filtering against prompt injection, RAG against hallucination, adversarial training against evasion), the game says so.
 
@@ -100,14 +108,21 @@ hack-the-planet/
 ├── level1.html              # 01 FSOCIETY Arena: cinematic intro + FPS (three.js)
 ├── level2.html              # 02 Vulnerability Hunter: 2D canvas + quiz battles
 ├── level3.html              # 03 Social Engineer: Miami city (three.js)
-├── level4.html              # 04 Neon Grand Prix: canvas racer
+├── level4.html              # 04 Neon Grand Prix: page, HUD, decisions, report (logic in js/racer/)
 ├── js/
-│   └── progress.js          # Shared campaign state: level list, unlocks, localStorage
+│   ├── progress.js          # Shared campaign state: level list, unlocks, localStorage
+│   └── racer/               # Level 4 modules (classic scripts, also loadable in Node)
+│       ├── track.js         #   the circuit: single source of truth for road geometry + minimap
+│       ├── physics.js       #   fixed-step car physics (frame-rate independent)
+│       ├── opponents.js     #   grid, AI rivals, race order
+│       ├── security.js      #   the three AI security events and the report
+│       └── render.js        #   pseudo-3D Canvas renderer
 ├── tools/
 │   ├── serve.js             # Hardened local static server
 │   └── check-scripts.js     # Syntax check for every inline <script>
 ├── tests/
 │   ├── progress.test.js     # Progression, unlock and storage-failure tests
+│   ├── racer.test.js        # Level 4: circuit, physics, rivals, security events, report
 │   ├── serve.test.js        # Static server: valid, missing, malformed, traversal
 │   ├── pages.test.js        # Links, completion hooks, SRI, intro still present
 │   └── browser/
@@ -141,14 +156,16 @@ npm run test:gameplay  # headless Chrome, real keyboard/mouse input only (~4 min
 npm run check          # syntax check of all inline scripts only
 ```
 
-- `npm test` covers progression and unlock logic, corrupt and throwing `localStorage`, the static server (valid files, 404s, malformed URLs, `..` and encoded traversal, sibling-prefix paths, dotfiles, symlink escape) and page wiring.
+On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffeinate -dimsu npm run test:gameplay`) when the machine may be idle: App Nap / idle sleep can suspend the test process for many minutes. `HTP_ONLY="level 4"` runs only matching gameplay subtests, and `HTP_DEBUG=1` logs progress.
+
+- `npm test` covers progression and unlock logic, corrupt and throwing `localStorage`, the static server (valid files, 404s, malformed URLs, `..` and encoded traversal, sibling-prefix paths, dotfiles, symlink escape) and page wiring. `tests/racer.test.js` checks that the circuit closes and is identical every lap, that the minimap turns where the road turns, that road edges and penalties share one boundary, that physics match at 30/60/144 fps, that rivals stay on the asphalt, that each security event fires once on its lap, and that every combination of choices finishes with a distinct score and report.
 - `npm run test:browser` starts the local server and drives Chrome over the DevTools Protocol. It walks the hub and all four levels in order and checks that:
   - audio only starts after a real click
   - skipping the intro can't reopen the menu mid-match
   - Level 2 defeat and restart work
   - the Level 3 boss stays locked until five intel files are collected
   - Escape is safe during the boss
-  - Level 4 records position and time
+  - Level 4 records position, time and security score
   - progress survives a reload and a confirmed reset clears it
   - no page logs a console error
 
@@ -158,7 +175,7 @@ npm run check          # syntax check of all inline scripts only
   - the full Level 1 intro without skipping, then skip + a 3-kill win with arrows and clicks
   - Level 2 defeat by wrong patches, restart, and all six patches by walking
   - Level 3 start on a short window, one target, the locked boss and a car
-  - Level 4's three laps with the keyboard
+  - Level 4 driven **from the screen alone**: steering from the rendered asphalt pixels, speed from the HUD, decisions from the on-screen text; plus pause/resume, the music toggle and the report
   - that each music toggle actually silences the scheduled music (an audio-graph probe, not listening)
 
   It uses the real GPU when headless Chrome can and falls back to software WebGL, which is much slower. Level 3's full five-target-and-CIPHER run takes several minutes, so it's in the manual checks below.
@@ -168,7 +185,7 @@ npm run check          # syntax check of all inline scripts only
 1. Play the whole Level 1 intro without skipping: scenes, narration and audio drone, then the menu.
 2. Listen to the music in each level, and check that `M` (Levels 3–4) / `♪ BGM` (Level 1) toggles it right away. Level 2 has no toggle.
 3. Play Level 3's five targets and CIPHER (the automated gameplay test covers one target and the locked boss). Check each success screen's **next mission** and **hub** buttons.
-4. Try for P1 in Level 4. Finishing is verified automatically; whether first place is a fair challenge needs a human.
+4. Race Level 4 by hand: is the road readable at speed, do curves feel anticipatable, and is P1 a fair challenge? The automated driver finishes around P3 reading only the screen, but feel needs a human.
 5. In the hub, turn on *reduce motion* in the OS. The matrix rain and title glitch should stop.
 6. Resize the hub to phone width: cards stack in one column, with no horizontal scroll.
 
@@ -188,7 +205,7 @@ python3 gen_gif.py out/teaser.gif  # or any path; HTP_GIF_OUTPUT also works
 - **Local server.** Serves only known asset types from the repo root and refuses dotfiles, `tools/` and `tests/`. Paths are checked with `path.relative` after URL decoding and again after resolving symlinks. Binds to localhost by default and is meant for development only.
 - **Progress storage.** Kept in `localStorage`, so players can edit it. It's a convenience, not a trust boundary.
 - **Audio.** All music and SFX are synthesised in code; no audio files ship. Some tracks are written as *homages* (code comments mention a Mega Man X–style theme, a motif "inspired by" Linkin Park's *In The End*, and a "Vice City" feel). These are original note sequences, but anyone distributing the game commercially should confirm none of them reproduces a copyrighted melody closely.
-- **Names.** Level 3 shows a real conference name (*Ekoparty*) on the convention center sign, and Level 4's subtitle mentions *Top Gear* as inspiration. Both are references, not affiliations.
+- **Names.** Level 3 shows a real conference name (*Ekoparty*) on the convention center sign, and Level 4 no longer mentions *Top Gear* (its subtitle is now "Miami smart circuit"). The conference name is a reference, not an affiliation.
 
 ---
 
