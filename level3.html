@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HACK THE PLANET — Level 3: Social Engineer</title>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="js/progress.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -33,8 +34,13 @@
     background: #000;
     z-index: 500;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
+    align-items: center;
   }
+  /* Full-screen panels: centred when they fit, scrollable on short windows so
+     their buttons stay reachable. */
+  #intro-screen, #win-screen, #boss-win-screen { overflow-y: auto; padding: 24px 16px; }
+  #intro-screen > :first-child, #win-screen > :first-child, #boss-win-screen > :first-child { margin-top: auto; }
+  #intro-screen > :last-child, #win-screen > :last-child, #boss-win-screen > :last-child { margin-bottom: auto; }
   .intro-badge {
     font-size: 10px; letter-spacing: 10px;
     color: rgba(255,110,180,0.5); margin-bottom: 20px;
@@ -222,7 +228,7 @@
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.95);
     z-index: 201; display: none;
-    flex-direction: column; align-items: center; justify-content: center;
+    flex-direction: column; align-items: center;
     animation: fadeIn 0.8s ease;
   }
   .bw-badge {
@@ -256,7 +262,7 @@
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.92);
     z-index: 200; display: none;
-    flex-direction: column; align-items: center; justify-content: center;
+    flex-direction: column; align-items: center;
   }
   .win-title {
     font-size: 52px; letter-spacing: 8px; color: #ff6eb4;
@@ -279,7 +285,14 @@
     font-size: 11px; letter-spacing: 4px; padding: 10px 28px;
     cursor: pointer; transition: all 0.2s;
   }
-  .win-nav:hover { background: rgba(255,110,180,0.1); color: #ff6eb4; }
+  .win-nav:hover, .win-nav:focus-visible { background: rgba(255,110,180,0.1); color: #ff6eb4; outline: none; }
+  .win-nav.primary { border-color: rgba(0,255,255,0.6); color: #00ffff; }
+  .win-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .hub-link {
+    display: block; margin-top: 16px; font-size: 11px; letter-spacing: 3px;
+    color: rgba(255,110,180,0.6); text-decoration: none; text-align: center;
+  }
+  .hub-link:hover, .hub-link:focus-visible { color: #ff6eb4; outline: none; }
 
   /* ── ANIMATIONS ── */
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
@@ -305,10 +318,12 @@
     Five targets hold critical intelligence scattered across the city.<br>
     Weapons are useless here. Your only tool: <span class="cyan">the human mind.</span><br><br>
     Apply the right <span class="hi">social engineering technique</span> to each target.<br>
-    Extract all five intel files without raising suspicion.<br><br>
+    Extract all five intel files without raising suspicion.<br>
+    Then face <span class="hi">CIPHER</span> at the Hacker Convention — the boss only talks to agents with all five files.<br><br>
     <span style="color:rgba(255,255,255,0.35)">WASD · MOVE &nbsp;|&nbsp; MOUSE DRAG · CAMERA &nbsp;|&nbsp; E · INTERACT &nbsp;|&nbsp; M · MUSIC</span>
   </div>
   <button class="intro-start" onclick="startGame()">[ ENTER VICE CITY ]</button>
+  <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
 </div>
 
 <!-- HUD (hidden until game starts) -->
@@ -353,24 +368,29 @@
   <div class="bw-title">MISSION COMPLETE</div>
   <div class="bw-sub">AI THREAT INTELLIGENCE — MASTER</div>
   <div class="bw-items">
-    <div class="bw-item">✓ AI processes billions of threat indicators in real-time to predict attacks</div>
-    <div class="bw-item">✓ Behavioral anomaly detection identifies zero-day threats without prior signatures</div>
-    <div class="bw-item">✓ Adversarial AI is used to blind, deceive, and poison detection models</div>
-    <div class="bw-item">✓ LLMs enable autonomous vulnerability research and attacks at scale</div>
+    <div class="bw-item">✓ AI helps correlate huge volumes of threat indicators so analysts can spot attacks earlier</div>
+    <div class="bw-item">✓ Behavioral anomaly detection can flag never-seen threats without a signature (with false positives to triage)</div>
+    <div class="bw-item">✓ Adversarial AI tries to evade, deceive, or poison detection models</div>
+    <div class="bw-item">✓ Attackers use LLMs to scale phishing, recon, and exploit development — defenders use them too</div>
   </div>
   <div class="bw-quote">"The most dangerous weapon is knowledge." — CIPHER</div>
-  <button class="win-nav" onclick="location.href='level4.html'">[ LEVEL 04 · NEON GRAND PRIX ]</button>
-  <button class="win-nav" onclick="location.href='index.html'">[ RETURN TO BASE ]</button>
+  <div class="win-row">
+    <button class="win-nav primary" id="boss-next-btn" onclick="location.href='level4.html'">[ LEVEL 04 · NEON GRAND PRIX ]</button>
+    <button class="win-nav" onclick="location.reload()">[ REPLAY MISSION ]</button>
+    <button class="win-nav" onclick="location.href='index.html'">[ MISSION HUB ]</button>
+  </div>
 </div>
 
-<!-- WIN -->
+<!-- ALL INTEL ACQUIRED (boss now unlocked) -->
 <div id="win-screen">
-  <div class="win-title">MISSION COMPLETE</div>
-  <div class="win-sub">ALL INTEL ACQUIRED &nbsp;·&nbsp; GHOST OUT</div>
+  <div class="win-title">INTEL COMPLETE</div>
+  <div class="win-sub">ALL FIVE FILES ACQUIRED &nbsp;·&nbsp; CIPHER IS WAITING</div>
   <ul class="intel-log" id="intel-log"></ul>
-  <div class="win-footer">SOCIAL ENGINEERING MASTERY UNLOCKED</div>
-  <button class="win-nav" onclick="location.href='level4.html'">[ LEVEL 04 · NEON GRAND PRIX ]</button>
-  <button class="win-nav" onclick="location.href='index.html'">[ RETURN TO BASE ]</button>
+  <div class="win-footer">FINAL OBJECTIVE: CONFRONT CIPHER AT THE HACKER CONVENTION</div>
+  <div class="win-row">
+    <button class="win-nav primary" id="intel-continue-btn" onclick="closeIntelScreen()">[ CONTINUE · FIND CIPHER ]</button>
+    <button class="win-nav" onclick="location.href='index.html'">[ MISSION HUB ]</button>
+  </div>
 </div>
 
 <script>
@@ -378,10 +398,16 @@
 //  AUDIO ENGINE — 8-BIT VICE CITY CHIPTUNE
 // ═══════════════════════════════════════════════════════════
 let audioCtx = null, musicOn = true, loopTimer = null;
+let musicBus = null;   // all music notes route through here so M can cut them at once
 
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  newMusicBus();
+}
+function newMusicBus() {
+  musicBus = audioCtx.createGain();
+  musicBus.connect(audioCtx.destination);
 }
 
 function osc(freq, type, t0, dur, vol = 0.12) {
@@ -390,7 +416,7 @@ function osc(freq, type, t0, dur, vol = 0.12) {
   o.type = type; o.frequency.value = freq;
   g.gain.setValueAtTime(vol, t0);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.88);
-  o.connect(g); g.connect(audioCtx.destination);
+  o.connect(g); g.connect(musicBus);
   o.start(t0); o.stop(t0 + dur);
 }
 
@@ -403,7 +429,7 @@ function noise(t0, dur, vol = 0.14) {
   s.buffer = buf;
   g.gain.setValueAtTime(vol, t0);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  s.connect(g); g.connect(audioCtx.destination);
+  s.connect(g); g.connect(musicBus);
   s.start(t0);
 }
 
@@ -446,7 +472,11 @@ function toggleMusic() {
   musicOn = !musicOn;
   document.getElementById('music-toggle').textContent = '♪ MUSIC: ' + (musicOn ? 'ON' : 'OFF');
   if (musicOn) playMusicLoop();
-  else clearTimeout(loopTimer);
+  else {
+    clearTimeout(loopTimer);
+    // Cut notes already scheduled for this loop so they don't overlap the next one.
+    if (audioCtx) { musicBus.disconnect(); newMusicBus(); }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -465,7 +495,7 @@ const NPCS = [
         { t: 'C) "I\'m a journalist for TechCrunch — can I quote you on that?"', ok: false }
       ],
       tech: 'BAITING',
-      okMsg: '✓ TECHNIQUE: BAITING\nYou offered something she wanted (exclusive Miami access) to create a reciprocal exchange. She opened up completely.\n\n📡 INTEL: Synapse Corp Q4 launch Nov 15. All C-suite present. Product: next-gen AI security chip. Conference hotel: Fontainebleau.',
+      okMsg: '✓ TECHNIQUE: BAITING\nYou dangled something she wanted (exclusive Miami access) as bait. She took it and opened up.\n\n📡 INTEL: Synapse Corp Q4 launch Nov 15. All C-suite present. Product: next-gen AI security chip. Conference hotel: Fontainebleau.',
       badMsg: '✗ Too direct — she\'s guarded now. Offer her something she WANTS before asking for what you need.',
       intel: 'Synapse Corp Q4 launch: Nov 15. All executives at Fontainebleau. Product: AI security chip.'
     }
@@ -482,7 +512,7 @@ const NPCS = [
         { t: 'C) "Just wait for someone to exit and slip through the door behind them."', ok: false }
       ],
       tech: 'IMPERSONATION',
-      okMsg: '✓ TECHNIQUE: IMPERSONATION\nYou created a shared problem to build instant trust. He walked you straight through security.\n\n📡 INTEL: Board meeting 3 PM, QuantumTech HQ. CEO Harrington attending. Single guard on entrance. Badge-only access.',
+      okMsg: '✓ TECHNIQUE: IMPERSONATION\nYou posed as a trusted IT security contractor and shared his problem to build instant trust. He walked you straight through security.\n\n📡 INTEL: Board meeting 3 PM, QuantumTech HQ. CEO Harrington attending. Single guard on entrance. Badge-only access.',
       badMsg: '✗ He won\'t give personal info to a stranger. Create a SHARED situation where you both benefit.',
       intel: 'Board meeting 3 PM at QuantumTech HQ. CEO Harrington present. Security: single badge-only checkpoint.'
     }
@@ -545,18 +575,18 @@ const NPCS = [
     isBoss: true,
     rounds: [
       {
-        text: '"Welcome to the HACKER CONVENTION, GHOST. You\'ve been running social engineering ops all over my city — bold. Now prove you understand the REAL threat: AI.\n\nQuestion 1/4 — What is the PRIMARY capability AI brings to modern Threat Intelligence platforms?"',
+        text: '"Welcome to the HACKER CONVENTION, GHOST. You\'ve been running social engineering ops all over my city — bold. Now prove you understand the REAL threat: AI.\n\nQuestion 1/4 — What is the MAIN value AI brings to modern Threat Intelligence platforms?"',
         choices: [
           { t: 'A) It automates report writing and incident documentation.' },
-          { t: 'B) It processes billions of indicators in real-time, correlating patterns across global threat feeds to predict attacks before they happen.' },
+          { t: 'B) It correlates huge volumes of indicators across threat feeds at machine speed, helping analysts spot emerging attacks earlier.' },
           { t: 'C) It replaces all human security analysts with autonomous chatbots.' }
         ], correct: 1
       },
       {
-        text: '"Correct. You know your theory.\n\nQuestion 2/4 — Which AI approach is most effective at detecting ZERO-DAY malware that has never been seen before?"',
+        text: '"Correct. You know your theory.\n\nQuestion 2/4 — Which AI approach can catch ZERO-DAY malware that no signature has ever seen?"',
         choices: [
           { t: 'A) Signature-based matching with the latest up-to-date virus definitions.' },
-          { t: 'B) Behavioral anomaly detection — models trained on baseline system patterns that flag any deviating activity.' },
+          { t: 'B) Behavioral anomaly detection — models learn a baseline of normal activity and flag suspicious deviations.' },
           { t: 'C) Deep packet inspection combined with continuously updated IP blacklists.' }
         ], correct: 1
       },
@@ -564,15 +594,15 @@ const NPCS = [
         text: '"Impressive. Third question.\n\nQuestion 3/4 — What is ADVERSARIAL AI as a threat vector in cybersecurity?"',
         choices: [
           { t: 'A) When two AI companies aggressively compete for the same enterprise market.' },
-          { t: 'B) Crafting inputs specifically designed to deceive and blind AI detection models — making malware invisible, bypassing recognition systems, poisoning training data.' },
+          { t: 'B) Crafting inputs or training data designed to deceive AI detection models — helping malware evade recognition or corrupting what the model learns.' },
           { t: 'C) AI used exclusively in controlled red team penetration testing exercises.' }
         ], correct: 1
       },
       {
-        text: '"Last question, GHOST. And this one matters.\n\nQuestion 4/4 — How are threat actors weaponizing Large Language Models RIGHT NOW?"',
+        text: '"Last question, GHOST. And this one matters.\n\nQuestion 4/4 — How are threat actors misusing Large Language Models?"',
         choices: [
-          { t: 'A) Primarily for writing phishing emails with better grammar and fewer typos.' },
-          { t: 'B) Autonomous vulnerability research, polymorphic malware that rewrites itself to evade detection, deepfake social engineering at scale, and poisoning AI-based defenses.' },
+          { t: 'A) Only to fix grammar and typos in phishing emails — nothing more.' },
+          { t: 'B) Across the attack chain: convincing phishing and pretexting at scale, reconnaissance, help writing or modifying malware, and attempts to manipulate AI-based defenses.' },
           { t: 'C) LLMs cannot be weaponized — they have safety guardrails that prevent all malicious use.' }
         ], correct: 1
       }
@@ -587,6 +617,9 @@ let intelCount = 0, collectedIntel = [];
 let camAngle = 0, mouseDown = false, lastMX = 0;
 let frame = 0;
 let bossActive = false, bossRound = 0;
+let dlgSession = 0;          // bumped on every open/close so stale dialogue timers do nothing
+let bossWinShown = false;
+const INTEL_REQUIRED = 5;
 let carSpeed = 0;
 
 // ═══════════════════════════════════════════════════════════
@@ -684,13 +717,13 @@ function sphere(r, col, x, y, z, sx = 1, sy = 1, sz = 1, emissive = 0, emInt = 0
   m.receiveShadow = true;
   scene.add(m); return m;
 }
-function textSign(text, w, h, x, y, z, rotY = 0, bg = '#050010', fg = '#00ffff') {
+function textSign(text, w, h, x, y, z, rotY = 0, bg = '#050010', fg = '#00ffff', fontSize = 44) {
   const c = document.createElement('canvas');
   c.width = 512; c.height = 128;
   const ctx = c.getContext('2d');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, c.width, c.height);
   ctx.strokeStyle = fg; ctx.lineWidth = 8; ctx.strokeRect(8, 8, c.width - 16, c.height - 16);
-  ctx.fillStyle = fg; ctx.font = 'bold 44px Courier New'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = fg; ctx.font = `bold ${fontSize}px Courier New`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.shadowColor = fg; ctx.shadowBlur = 18; ctx.fillText(text, c.width / 2, c.height / 2);
   const tex = new THREE.CanvasTexture(c);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
@@ -726,6 +759,21 @@ function windowGrid(x, z, cols, rows, spacingX, spacingY, y0, color = 0x9be8ff, 
         new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 })
       );
       win.position.set(wx, wy, z);
+      win.rotation.y = rotY;
+      scene.add(win);
+    }
+  }
+}
+function sideWindowGrid(x, z, cols, rows, spacingZ, spacingY, y0, color = 0x9be8ff, rotY = Math.PI / 2) {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const wz = z + (c - (cols - 1) / 2) * spacingZ;
+      const wy = y0 + r * spacingY;
+      const win = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.15, 0.9),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 })
+      );
+      win.position.set(x, wy, wz);
       win.rotation.y = rotY;
       scene.add(win);
     }
@@ -816,11 +864,16 @@ roundedFacade(-66, -32, 20, 42, 14, 0xf7f1d6, 0xff6eb4);
 roundedFacade(-56, -52, 14, 30, 12, 0xfff2c7, 0x00ffff);
 windowGrid(-66, -39.15, 5, 7, 3.1, 4.8, 6.0, 0xbdf2ff);
 windowGrid(-56, -58.15, 4, 5, 2.7, 4.6, 5.2, 0xffe7a8);
+windowGrid(-72, -19.15, 5, 6, 3.0, 4.6, 5.8, 0x9be8ff);
+windowGrid(-46, -41.15, 3, 4, 2.8, 4.2, 5.2, 0xffc6e8);
+windowGrid(-76, -57.15, 3, 4, 2.5, 3.8, 4.6, 0xa6f2ff);
 artDecoCrown(-66, -39.3, 13, 42.5, 0xf7f1d6, 0xff6eb4);
 // Glass tower (office district centrepiece)
 const gMat = new THREE.MeshLambertMaterial({ color: 0x6ab0d8, emissive: 0x226688, emissiveIntensity: 0.2 });
 const gTower = new THREE.Mesh(new THREE.BoxGeometry(14, 55, 14), gMat);
 gTower.position.set(-62, 27.5, -32); scene.add(gTower);
+windowGrid(-62, -39.15, 4, 9, 2.8, 5.0, 7.5, 0xd9fbff);
+sideWindowGrid(-54.85, -32, 4, 8, 2.8, 5.2, 8.0, 0xbdf2ff);
 // Neon strip on tower
 box(14, 1.5, 0.4, 0xff00aa, -62, 50, -25.5, 0xff00aa, 1);
 box(14, 1.5, 0.4, 0x00ffff, -62, 42, -25.5, 0x00ffff, 1);
@@ -836,7 +889,10 @@ box(20, 34, 15, TEAL,    70, 0, -72);
 roundedFacade(50, -68, 28, 16, 22, 0xffd4f0, 0xff00ff);
 roundedFacade(66, -48, 18, 32, 14, 0xfff1c0, 0xff8844);
 windowGrid(50, -79.15, 7, 3, 3.2, 3.7, 4.4, 0xff77dd);
+windowGrid(44, -60.15, 2, 2, 2.6, 2.4, 3.5, 0x00ffff);
 windowGrid(66, -55.15, 4, 5, 3.1, 4.8, 6.0, 0x9be8ff);
+windowGrid(76, -38.15, 3, 4, 2.8, 4.0, 5.0, 0xffe7a8);
+windowGrid(70, -79.65, 5, 5, 3.2, 5.0, 6.0, 0x7cffd4);
 artDecoCrown(50, -79.4, 19, 16.5, 0xffd4f0, 0xff00ff);
 // Velvet rope posts
 for (let i = -2; i <= 2; i++) { box(0.3, 1.2, 0.3, 0xccaa00, 42 + i*3, 0, -55); }
@@ -849,6 +905,7 @@ roundedFacade(-55, 48, 22, 30, 16, 0xfff6df, 0xff6eb4);
 roundedFacade(-66, 63, 16, 20, 12, 0xffffff, 0x00ffff);
 windowGrid(-55, 39.85, 6, 5, 3.1, 4.5, 5.5, 0xffc6e8);
 windowGrid(-66, 56.85, 4, 3, 3.0, 4.6, 5.4, 0xa6f2ff);
+windowGrid(-46, 50.35, 3, 3, 2.8, 4.0, 5.0, 0xe6d4ff);
 artDecoCrown(-55, 39.7, 14, 30.5, 0xfff6df, 0xff6eb4);
 box(10, 1.2, 6, 0xff6eb4,-52, 5.5, 39.5, 0x661133, 0.4); // awning
 box(10, 0.5, 6, 0x000000,-52, 5.5, 37.5); // awning shadow
@@ -1025,10 +1082,18 @@ addTrafficCar(-32, 74, 0xff55aa, Math.PI, { axis: 'z', direction: -1, speed: 0.1
 addTrafficCar(-32, -56, 0xaaffee, 0, { axis: 'z', direction: 1, speed: 0.09, min: -105, max: 104 });
 
 // Background fill buildings
-for (let [x, z, c] of [
-  [-90,-60,LAVEN],[90,-60,CORAL],[80,20,CYAN],[-80,20,CREAM],
-  [-90,-90,TEAL],[90,-80,PINK],[55,-88,CREAM]
-]) { box(18 + Math.random()*10, 15 + Math.random()*20, 14, c, x, 0, z); }
+for (let [x, z, w, h, d, c, wc] of [
+  [-90, -60, 24, 28, 14, LAVEN, 0xe6d4ff],
+  [ 90, -60, 22, 25, 14, CORAL, 0xffe0aa],
+  [ 80,  20, 20, 22, 14, CYAN,  0xbdf2ff],
+  [-80,  20, 26, 27, 14, CREAM, 0xffe7a8],
+  [-90, -90, 21, 24, 14, TEAL,  0x7cffd4],
+  [ 90, -80, 25, 30, 14, PINK,  0xffc6e8],
+  [ 55, -88, 19, 21, 14, CREAM, 0xffe7a8]
+]) {
+  box(w, h, d, c, x, 0, z);
+  windowGrid(x, z - d * 0.5 - 0.15, Math.max(3, Math.floor(w / 4)), Math.max(3, Math.floor(h / 5)), 3.2, 4.2, 5.0, wc);
+}
 
 // ── CONVENTION AVE (north road to convention) ──────────────
 plane(14, 62, 0xb8b0a0, 0, 0.005, -40);    // sidewalk
@@ -1077,11 +1142,11 @@ box(48, 1.2, 0.5, 0x00d6ff, 0, 11.7, -77.4, 0x00d6ff, 1.0);
 box(48, 0.9, 0.5, 0xffd36e, 0,  7.2, -77.4, 0xffaa22, 0.8);
 box(48, 0.6, 0.5, 0x7cffd4, 0,  3.2, -77.4, 0x7cffd4, 0.6);
 // BIG NEON SIGN backing plate
-box(38, 5.4, 0.8, 0x101525, 0, 22.3, -76.95, 0x070a20, 0.5);
-textSign('MIAMI TECH EXPO', 34, 4.2, 0, 22.4, -76.45, 0, '#101525', '#00ffff');
+box(38, 5.4, 0.8, 0x060014, 0, 20.6, -73.9, 0xff00ff, 0.35);
+textSign('Ekoparty', 36, 4.8, 0, 21.0, -73.35, 0, '#060014', '#fff45c', 64);
 textSign('CONVENTION CENTER', 24, 2.4, 0, 18.6, -75.95, 0, '#ff6eb4', '#ffffff');
 // SIGN glow accents
-box(36, 0.45, 0.35, 0xffd36e, 0, 25.5, -76.35, 0xffaa22, 1.4);
+box(36, 0.45, 0.35, 0xffd36e, 0, 23.9, -73.1, 0xffaa22, 1.4);
 box(36, 0.45, 0.35, 0x00ffff, 0, 19.2, -76.35, 0x00ffff, 1.2);
 // Floor inside (lit internal ground)
 plane(44, 30, 0x0e0830, 0, 0.02, -91);
@@ -1093,6 +1158,12 @@ box(24, 1.25, 3.2, 0x87d9e8, 0, 0, -71.6);
 box(0.6, 20, 0.6, 0x00ffff, -18, 0, -77, 0x00ffff, 0.8);
 box(0.6, 20, 0.6, 0xff6eb4,  18, 0, -77, 0xff6eb4, 0.8);
 windowGrid(0, -76.9, 9, 3, 4.2, 3.7, 5.2, 0xa6f2ff);
+windowGrid(-23, -93.15, 2, 5, 2.6, 4.8, 5.8, 0xbdf2ff);
+windowGrid(23, -93.15, 2, 5, 2.6, 4.8, 5.8, 0xbdf2ff);
+sideWindowGrid(-23 - 4.15, -89, 2, 5, 2.8, 4.8, 5.8, 0xffe7a8, -Math.PI / 2);
+sideWindowGrid(23 + 4.15, -89, 2, 5, 2.8, 4.8, 5.8, 0xffe7a8, Math.PI / 2);
+sideWindowGrid(-23.15, -91, 5, 3, 4.8, 4.0, 6.0, 0x9be8ff, -Math.PI / 2);
+sideWindowGrid(23.15, -91, 5, 3, 4.8, 4.0, 6.0, 0x9be8ff, Math.PI / 2);
 for (let sx of [-32, 32]) {
   cyl(1.4, 1.4, 8, 0xffd36e, sx, 0, -77, 24, 0xffaa22, 0.3);
   sphere(1.8, 0x00ffff, sx, 9.0, -77, 1, 0.55, 1, 0x00ffff, 0.9);
@@ -1375,7 +1446,7 @@ gymBarbell(78, 1.85, 31, 3.0);
 // ── CONVENTION BUILDING LABEL ──────────────────────────────
 const convLabelEl = document.createElement('div');
 convLabelEl.className = 'npc-label';
-convLabelEl.innerHTML = '🖥️ HACKER CONVENTION';
+convLabelEl.textContent = '🖥️ HACKER CONVENTION';
 convLabelEl.style.cssText += 'color:#00ffff;font-size:13px;letter-spacing:2px;text-shadow:0 0 12px #00ffff;border-color:rgba(0,255,255,0.5);';
 convLabelEl.style.display = 'none';
 labelsContainer.appendChild(convLabelEl);
@@ -1436,6 +1507,7 @@ const dlgCloseBtn    = document.getElementById('dialogue-close');
 
 // ── BOSS DIALOGUE ────────────────────────────────────────
 function openBossDialogue(round) {
+  dlgSession++;
   bossActive = true;
   bossRound = round;
   const q = NPCS[5].rounds[round];
@@ -1448,7 +1520,7 @@ function openBossDialogue(round) {
   dlgText.textContent = q.text;
   dlgFeedback.style.display = 'none';
   dlgCloseBtn.style.display = 'none';
-  dlgChoices.innerHTML = '';
+  dlgChoices.replaceChildren();
   q.choices.forEach((c, i) => {
     const btn = document.createElement('button');
     btn.className = 'd-choice';
@@ -1467,7 +1539,9 @@ function handleBossChoice(round, choiceIdx, btn) {
     dlgFeedback.style.display = 'block';
     if (round < 3) {
       dlgFeedback.textContent = '✓ CORRECT.\n"...Impressive. Let\'s continue."';
+      const session = dlgSession;
       setTimeout(() => {
+        if (session !== dlgSession) return;   // dialogue was closed (Esc) meanwhile
         dlgFeedback.style.display = 'none';
         openBossDialogue(round + 1);
       }, 2200);
@@ -1477,14 +1551,17 @@ function handleBossChoice(round, choiceIdx, btn) {
       NPCS[5].done = true;
       NPCS[5].ring.visible = false;
       if (NPCS[5].labelEl) NPCS[5].labelEl.className = 'npc-label done';
-      dlgCloseBtn.onclick = () => { closeDialogue(); showBossWin(); };
+      // closeDialogue() shows the win screen once the boss is done, whether the
+      // player clicks CLOSE or presses Esc.
     }
   } else {
     btn.className = 'd-choice wrong'; btn.style.opacity = '1';
     dlgFeedback.className = 'bad';
     dlgFeedback.style.display = 'block';
     dlgFeedback.textContent = '✗ Wrong. "You\'re not even close. Try again, little ghost."';
+    const session = dlgSession;
     setTimeout(() => {
+      if (session !== dlgSession) return;
       document.querySelectorAll('.d-choice').forEach(b => {
         b.disabled = false; b.style.opacity = '1'; b.className = 'd-choice';
       });
@@ -1494,13 +1571,38 @@ function handleBossChoice(round, choiceIdx, btn) {
 }
 
 function showBossWin() {
+  if (bossWinShown) return;
+  bossWinShown = true;
+  HTPProgress.recordCompletion(3);
   document.getElementById('boss-win-screen').style.display = 'flex';
+  document.getElementById('boss-next-btn').focus();
+}
+
+// CIPHER refuses to engage until all five intel missions are done.
+function openBossLocked() {
+  dlgSession++;
+  dlgOpen = true;
+  dlgBox.classList.add('boss-mode');
+  dlgBox.style.display = 'block';
+  promptEl.style.display = 'none';
+  dlgNpc.textContent = '⚠ CIPHER  —  FINAL BOSS  [LOCKED]';
+  dlgTag.textContent = 'INTEL REQUIRED: ' + intelCount + ' / ' + INTEL_REQUIRED;
+  dlgText.textContent = '"Not yet, GHOST. You walk in here with ' + intelCount + ' of ' + INTEL_REQUIRED +
+    ' intel files? Work the city first — come back when you have all five."';
+  dlgChoices.replaceChildren();
+  dlgFeedback.style.display = 'none';
+  dlgCloseBtn.style.display = 'inline-block';
 }
 
 function openDialogue(idx) {
   const npc = NPCS[idx];
   if (npc.done) return;
-  if (npc.isBoss) { openBossDialogue(0); return; }
+  if (npc.isBoss) {
+    if (intelCount < INTEL_REQUIRED) openBossLocked();
+    else openBossDialogue(0);
+    return;
+  }
+  dlgSession++;
   dlgOpen = true;
   dlgBox.style.display = 'block';
   promptEl.style.display = 'none';
@@ -1510,7 +1612,7 @@ function openDialogue(idx) {
   dlgFeedback.style.display = 'none';
   dlgCloseBtn.style.display = 'none';
 
-  dlgChoices.innerHTML = '';
+  dlgChoices.replaceChildren();
   npc.dlg.choices.forEach((c, i) => {
     const btn = document.createElement('button');
     btn.className = 'd-choice';
@@ -1546,14 +1648,16 @@ function handleChoice(npcIdx, choiceIdx, btn) {
     npc.ring.visible = false;
     if (npc.labelEl) npc.labelEl.className = 'npc-label done';
 
-    if (intelCount >= 5) setTimeout(showWin, 2500);
+    if (intelCount >= INTEL_REQUIRED) setTimeout(showWin, 2500);
   } else {
     btn.className = 'd-choice wrong'; btn.style.opacity = '1';
     dlgFeedback.className = 'bad';
     dlgFeedback.style.display = 'block';
     dlgFeedback.textContent = npc.dlg.badMsg;
 
+    const session = dlgSession;
     setTimeout(() => {
+      if (session !== dlgSession) return;
       document.querySelectorAll('.d-choice').forEach(b => {
         b.disabled = false; b.style.opacity = '1'; b.className = 'd-choice';
       });
@@ -1563,22 +1667,35 @@ function handleChoice(npcIdx, choiceIdx, btn) {
 }
 
 function closeDialogue() {
+  dlgSession++;
   dlgOpen = false;
   bossActive = false;
   dlgBox.classList.remove('boss-mode');
   dlgBox.style.display = 'none';
   dlgCloseBtn.onclick = closeDialogue;
+  if (NPCS[5].done) showBossWin();
 }
 
+// Intel summary shown once all five files are in; the level itself is only
+// complete after CIPHER is beaten.
 function showWin() {
   document.getElementById('win-screen').style.display = 'flex';
   const log = document.getElementById('intel-log');
   const techs = ['BAITING','IMPERSONATION','PRETEXTING','QUID PRO QUO','ELICITATION'];
-  collectedIntel.forEach((npc, i) => {
+  log.replaceChildren();
+  collectedIntel.forEach(npc => {
     const li = document.createElement('li');
-    li.innerHTML = `<span class="tag">[${techs[npc.id]}] ${npc.name}</span><br>${npc.dlg.intel}`;
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = '[' + techs[npc.id] + '] ' + npc.name;
+    li.append(tag, document.createElement('br'), npc.dlg.intel);
     log.appendChild(li);
   });
+  document.getElementById('intel-continue-btn').focus();
+}
+
+function closeIntelScreen() {
+  document.getElementById('win-screen').style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1727,7 +1844,9 @@ function checkProximity() {
     promptEl.textContent = '[ E ] DRIVE ' + nearCar.userData.name;
   } else if (closest !== null && !dlgOpen) {
     promptEl.style.display = 'block';
-    promptEl.textContent = '[ E ] APPROACH ' + NPCS[closest].name;
+    promptEl.textContent = NPCS[closest].isBoss && intelCount < INTEL_REQUIRED
+      ? '[ E ] CIPHER — LOCKED (' + intelCount + '/' + INTEL_REQUIRED + ' INTEL)'
+      : '[ E ] APPROACH ' + NPCS[closest].name;
   } else if (!dlgOpen) {
     promptEl.style.display = 'none';
   }
@@ -2097,6 +2216,7 @@ function startGame() {
 
   initAudio();
   musicOn = true;
+  document.getElementById('music-toggle').textContent = '♪ MUSIC: ON';
   setTimeout(playMusicLoop, 300);
 }
 

@@ -11,8 +11,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    justify-content: safe center;   /* scrolls instead of clipping on short windows */
     height: 100vh;
-    overflow: hidden;
+    overflow-y: auto;
     font-family: 'Courier New', monospace;
     color: #00ff41;
   }
@@ -122,7 +123,23 @@
     50% { opacity: 0; }
   }
   .blink { animation: blink 0.7s infinite; }
+  #end-nav {
+    width: 800px; display: none; justify-content: center; gap: 14px;
+    padding: 10px 0;
+  }
+  #end-nav button {
+    font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: 3px;
+    color: #00ff41; background: transparent; border: 1px solid rgba(0,255,65,0.6);
+    padding: 8px 18px; cursor: pointer; text-shadow: 0 0 6px #00ff41;
+  }
+  #end-nav button:hover, #end-nav button:focus-visible { background: rgba(0,255,65,0.12); outline: none; }
+  .hub-link {
+    display: block; margin-top: 16px; font-size: 11px; letter-spacing: 3px;
+    color: rgba(0,255,65,0.55); text-decoration: none;
+  }
+  .hub-link:hover, .hub-link:focus-visible { color: #00ff41; outline: none; }
 </style>
+<script src="js/progress.js"></script>
 </head>
 <body>
 
@@ -150,6 +167,13 @@
     </div>
   </div>
   <button class="start-btn" onclick="startGame()">[ INITIALIZE MISSION ]</button>
+  <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
+</div>
+
+<!-- Victory / defeat navigation (shown under the canvas) -->
+<div id="end-nav">
+  <button id="end-primary"></button>
+  <button id="end-hub" onclick="location.href = HTPProgress.HUB_URL">[ H ] MISSION HUB</button>
 </div>
 
 <script>
@@ -171,12 +195,12 @@ const VULN_DB = [
     ],
     options: [
       "Increase the model's parameter count",
-      "Sanitize inputs & enforce strict instruction boundaries",
+      "Separate instructions from untrusted input & limit privileges",
       "Add more examples to training data",
       "Disable the model's logging system"
     ],
     correct: 1,
-    explanation: "Input sanitization + instruction boundary enforcement prevents injected prompts from overriding system behavior."
+    explanation: "Input filtering and clear instruction boundaries make injection harder; no single control fully stops it, so also limit what the model is allowed to do."
   },
   {
     id: 1,
@@ -197,7 +221,7 @@ const VULN_DB = [
       "Reduce the learning rate"
     ],
     correct: 2,
-    explanation: "Rigorous data validation and provenance tracking prevents adversarial samples from corrupting the model."
+    explanation: "Validating data and tracking where it came from reduces the chance that poisoned samples reach training."
   },
   {
     id: 2,
@@ -239,7 +263,7 @@ const VULN_DB = [
       "Switch to greedy decoding"
     ],
     correct: 2,
-    explanation: "Adversarial training exposes the model to crafted attack samples, improving its robustness against perturbation-based evasion."
+    explanation: "Adversarial training adds crafted attack samples to training, improving robustness mainly against the kinds of perturbation it was trained on."
   },
   {
     id: 4,
@@ -260,7 +284,7 @@ const VULN_DB = [
       "Add more hidden layers to the network"
     ],
     correct: 1,
-    explanation: "Dataset auditing and diversity ensure the model learns from representative samples, reducing learned bias."
+    explanation: "Auditing and rebalancing the dataset makes it more representative, which reduces (but does not eliminate) learned bias."
   },
   {
     id: 5,
@@ -281,7 +305,7 @@ const VULN_DB = [
       "Train on synthetic data only"
     ],
     correct: 2,
-    explanation: "Retrieval-Augmented Generation (RAG) anchors responses to verified sources, drastically reducing hallucinated content."
+    explanation: "Retrieval-Augmented Generation (RAG) grounds answers in retrieved sources; citations let users check them. It reduces, not removes, hallucination."
   }
 ];
 
@@ -326,13 +350,15 @@ const ROBOT_SPAWNS = [
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
-let gamePhase = 'menu'; // menu | playing | battle | victory
+let gamePhase = 'menu'; // menu | playing | battle | victory | defeat
 let playerHP = 100;
 let caughtCount = 0;
+let completionRecorded = false;
 
+const PLAYER_START = { col: 12, row: 8 };
 const player = {
-  x: 12 * TILE + TILE/2,
-  y: 8  * TILE + TILE/2,
+  x: PLAYER_START.col * TILE + TILE/2,
+  y: PLAYER_START.row * TILE + TILE/2,
   size: 14,
   speed: 120,
   dir: 0,   // 0=down,1=up,2=left,3=right
@@ -367,6 +393,7 @@ const battle = {
   resultOk: false,
   resultTimer: 0,
   wrongAttempts: 0,
+  token: 0,          // bumped whenever a battle starts/ends so stale timers do nothing
 };
 
 // Camera (world offset)
@@ -379,7 +406,6 @@ document.addEventListener('keydown', e => {
     keys[e.code] = true;
     handleKeyDown(e.code);
   }
-  e.preventDefault();
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 
@@ -399,7 +425,11 @@ function handleKeyDown(code) {
       if (code === 'ArrowDown') battle.selected = Math.min(3, battle.selected + 1);
       if (code === 'Enter' || code === 'Space') confirmBattleAnswer();
     } else if (battle.phase === 'result') {
-      if (code === 'Enter' || code === 'Space') endBattle();
+      if (code === 'Enter' || code === 'Space') {
+        // A wrong patch keeps the battle going ("Try again"); only a fix ends it.
+        if (battle.resultOk) endBattle();
+        else if (playerHP > 0) retryBattleAnswer();
+      }
     } else if (battle.phase === 'intro') {
       // Skip text with Enter
       if (code === 'Enter' || code === 'Space') {
@@ -407,8 +437,9 @@ function handleKeyDown(code) {
       }
     }
   }
-  if (gamePhase === 'victory' && (code === 'Enter' || code === 'Space')) {
-    window.location.href = 'index.html';
+  if (gamePhase === 'victory' || gamePhase === 'defeat') {
+    if (code === 'Enter' || code === 'Space') endPrimaryAction();
+    if (code === 'KeyH') window.location.href = HTPProgress.HUB_URL;
   }
 }
 
@@ -537,6 +568,7 @@ function updateHUD() {
 // ─────────────────────────────────────────────
 function startBattle(robot) {
   gamePhase = 'battle';
+  battle.token++;
   battle.robot = robot;
   battle.textLines = robot.flavorText.slice();
   battle.textIndex = 0;
@@ -560,9 +592,17 @@ function updateBattle(dt) {
     }
   } else if (battle.phase === 'result') {
     battle.resultTimer -= dt;
-    if (battle.resultTimer <= 0 && (keys['Enter'] || keys['Space'])) {
+    if (battle.resultOk && battle.resultTimer <= 0 && (keys['Enter'] || keys['Space'])) {
       endBattle();
     }
+  }
+}
+
+function retryBattleAnswer() {
+  if (gamePhase === 'battle' && battle.phase === 'result' && !battle.resultOk && playerHP > 0) {
+    battle.token++;   // an earlier result's auto-retry timer must not fire into a later result
+    battle.phase = 'select';
+    battle.resultText = '';
   }
 }
 
@@ -578,37 +618,103 @@ function confirmBattleAnswer() {
     battle.wrongAttempts++;
     const penalty = 10;
     playerHP = Math.max(0, playerHP - penalty);
-    battle.resultText = `✗ WRONG PATCH — INTEGRITY -${penalty}%\n  ${battle.robot.options[battle.selected].substring(3)}\n  ...is not the correct fix.`;
+    battle.resultText = `✗ WRONG PATCH — INTEGRITY -${penalty}%\n  ${battle.robot.options[battle.selected]}\n  ...is not the correct fix.`;
     battle.resultOk = false;
     battle.phase = 'result';
     battle.resultTimer = 2.0;
     playErrorSound();
-    setTimeout(() => {
-      if (gamePhase === 'battle') {
-        battle.phase = 'select';
-        battle.resultText = '';
-      }
-    }, 2000);
+    const token = battle.token;
+    if (playerHP <= 0) {
+      setTimeout(() => { if (battle.token === token) showDefeat(); }, 1600);
+      return;
+    }
+    setTimeout(() => { if (battle.token === token) retryBattleAnswer(); }, 2000);
   }
 }
 
 function endBattle() {
+  // Guard against a second Enter/held key during the hand-off to the map or
+  // victory screen, which previously counted the same robot twice.
+  if (gamePhase !== 'battle' || battle.phase !== 'result') return;
+  battle.phase = 'done';
+  battle.token++;
   if (battle.resultOk) {
     battle.robot.alive = false;
     caughtCount++;
     updateHUD();
     if (caughtCount >= VULN_DB.length) {
-      setTimeout(() => { gamePhase = 'victory'; }, 400);
+      const token = battle.token;
+      setTimeout(() => { if (battle.token === token) showVictory(); }, 400);
       return;
     }
   }
   gamePhase = 'playing';
   stopBattleMusic();
   playMapMusic();
-  // Push player away from robot to avoid re-trigger
+  // Push player away from robot to avoid re-trigger. Step through collision so
+  // the push can never leave the player inside a wall or obstacle (softlock).
   const angle = Math.atan2(player.y - battle.robot.y, player.x - battle.robot.x);
-  player.x += Math.cos(angle) * 40;
-  player.y += Math.sin(angle) * 40;
+  for (let i = 0; i < 10; i++) {
+    moveWithCollision(player, Math.cos(angle) * 4, Math.sin(angle) * 4, player.size * 0.5);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  END STATES & RESTART
+// ─────────────────────────────────────────────
+function showEndNav(primaryLabel) {
+  document.getElementById('end-primary').textContent = primaryLabel;
+  document.getElementById('end-nav').style.display = 'flex';
+}
+
+function showVictory() {
+  gamePhase = 'victory';
+  stopBattleMusic();
+  playMapMusic();
+  if (!completionRecorded) {
+    completionRecorded = true;
+    HTPProgress.recordCompletion(2, { integrity: playerHP });
+  }
+  showEndNav('[ ENTER ] LEVEL 03 >');
+}
+
+function showDefeat() {
+  gamePhase = 'defeat';
+  battle.token++;
+  stopBattleMusic();
+  stopMapMusic();
+  showEndNav('[ ENTER ] RESTART MISSION');
+}
+
+function endPrimaryAction() {
+  if (gamePhase === 'victory') window.location.href = HTPProgress.nextLevel(2).url;
+  else if (gamePhase === 'defeat') restartLevel();
+}
+
+// Restores the level to its post-briefing state without reloading the page.
+function restartLevel() {
+  battle.token++;
+  battle.robot = null;
+  battle.phase = 'intro';
+  battle.resultText = '';
+  playerHP = 100;
+  caughtCount = 0;
+  completionRecorded = false;
+  player.x = PLAYER_START.col * TILE + TILE/2;
+  player.y = PLAYER_START.row * TILE + TILE/2;
+  player.dir = 0;
+  robots.forEach((r, i) => {
+    r.alive = true;
+    r.x = ROBOT_SPAWNS[i].col * TILE + TILE/2;
+    r.y = ROBOT_SPAWNS[i].row * TILE + TILE/2;
+    r.moveTimer = Math.random() * 2;
+    r.moveDir = { dx: 0, dy: 0 };
+  });
+  document.getElementById('end-nav').style.display = 'none';
+  updateHUD();
+  gamePhase = 'playing';
+  stopBattleMusic();
+  playMapMusic();
 }
 
 // ─────────────────────────────────────────────
@@ -625,6 +731,8 @@ function draw() {
     if (gamePhase === 'battle') drawBattle();
   } else if (gamePhase === 'victory') {
     drawVictory();
+  } else if (gamePhase === 'defeat') {
+    drawDefeat();
   }
 }
 
@@ -1135,15 +1243,30 @@ function drawBattleResult(W, H) {
     ctx.font = '11px Courier New';
     ctx.fillStyle = 'rgba(0,255,65,0.7)';
     ctx.shadowBlur = 4;
-    ctx.fillText(`> FIX APPLIED: ${battle.robot.explanation}`, 30, panelY + 100);
+    wrapText(`> FIX APPLIED: ${battle.robot.explanation}`, W - 60).forEach((line, i) => {
+      ctx.fillText(line, 30, panelY + 100 + i * 16);
+    });
     ctx.fillStyle = 'rgba(0,255,65,0.4)';
     ctx.fillText('[ PRESS ENTER TO CONTINUE ]', W/2 - 100, panelY + H*0.38);
   } else {
     ctx.fillStyle = 'rgba(255,51,0,0.4)';
     ctx.font = '11px Courier New';
-    ctx.fillText('Try again — select a different patch.', 30, panelY + 100);
+    ctx.fillText(playerHP > 0 ? 'Try again — select a different patch.' : 'Integrity depleted…', 30, panelY + 100);
   }
   ctx.shadowBlur = 0;
+}
+
+// Splits text into lines that fit maxWidth using the current ctx.font.
+function wrapText(text, maxWidth) {
+  const lines = [];
+  let line = '';
+  text.split(' ').forEach(word => {
+    const test = line ? line + ' ' + word : word;
+    if (line && ctx.measureText(test).width > maxWidth) { lines.push(line); line = word; }
+    else line = test;
+  });
+  if (line) lines.push(line);
+  return lines;
 }
 
 // ── VICTORY SCREEN ──
@@ -1182,9 +1305,44 @@ function drawVictory() {
   ctx.shadowBlur = 8;
   ctx.shadowColor = '#ff3300';
   if (Math.floor(Date.now() / 600) % 2 === 0) {
-    ctx.fillText('[ PRESS ENTER TO RETURN TO LEVEL 1 ]', W/2, H/2 + 200);
+    ctx.fillText('[ ENTER ] NEXT MISSION  ·  [ H ] MISSION HUB', W/2, H/2 + 200);
   }
   ctx.shadowBlur = 0;
+  ctx.textAlign = 'left';
+}
+
+// ── DEFEAT SCREEN ──
+function drawDefeat() {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#050000';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(255,51,0,0.05)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < W; i += 32) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+  for (let j = 0; j < H; j += 32) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(W,j); ctx.stroke(); }
+
+  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.002);
+  ctx.textAlign = 'center';
+  ctx.shadowBlur = 30 + pulse * 20;
+  ctx.shadowColor = '#ff3300';
+  ctx.fillStyle = '#ff3300';
+  ctx.font = 'bold 52px Courier New';
+  ctx.fillText('SYSTEM COMPROMISED', W/2, H/2 - 80);
+  ctx.shadowBlur = 0;
+
+  ctx.font = '16px Courier New';
+  ctx.fillStyle = 'rgba(255,51,0,0.8)';
+  ctx.fillText('INTEGRITY 0% — AGENT CONNECTION LOST', W/2, H/2 - 30);
+  ctx.font = '12px Courier New';
+  ctx.fillStyle = 'rgba(0,255,65,0.55)';
+  ctx.fillText(`VULNERABILITIES PATCHED BEFORE FAILURE: ${caughtCount} / ${VULN_DB.length}`, W/2, H/2 + 10);
+
+  ctx.font = '13px Courier New';
+  ctx.fillStyle = '#00ff41';
+  if (Math.floor(Date.now() / 600) % 2 === 0) {
+    ctx.fillText('[ ENTER ] RESTART MISSION  ·  [ H ] MISSION HUB', W/2, H/2 + 200);
+  }
   ctx.textAlign = 'left';
 }
 
@@ -1479,6 +1637,8 @@ function startGame() {
   lastTime = performance.now();
   requestAnimationFrame(gameLoop);
 }
+
+document.getElementById('end-primary').onclick = endPrimaryAction;
 
 // Prevent default for game keys
 document.addEventListener('keydown', e => {

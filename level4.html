@@ -245,6 +245,13 @@
     line-height: 1.8;
     margin-bottom: 26px;
   }
+  .nav-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .bonus { color: #ffdd66; }
+  .hub-link {
+    display: inline-block; margin-top: 14px; font-size: 11px; letter-spacing: 3px;
+    color: rgba(234,255,255,0.55); text-decoration: none;
+  }
+  .hub-link:hover, .hub-link:focus-visible { color: #00ffff; outline: none; }
   @media (max-width: 760px) {
     .cars { grid-template-columns: 1fr 1fr; }
     .car-card { min-height: 185px; }
@@ -271,6 +278,7 @@
       </div>
       <button class="start-btn" id="start-btn">START RACE</button>
     </div>
+    <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
   </div>
 </div>
 
@@ -305,11 +313,14 @@
   <div class="panel">
     <div class="finish-title" id="finish-title">RACE COMPLETE</div>
     <div class="finish-copy" id="finish-copy"></div>
-    <button class="nav-btn" onclick="location.reload()">RACE AGAIN</button>
-    <button class="nav-btn" onclick="location.href='index.html'" style="margin-left:12px;background:#ff6eb4">RETURN</button>
+    <div class="nav-row">
+      <button class="nav-btn" id="race-again-btn" onclick="location.reload()">RACE AGAIN</button>
+      <button class="nav-btn" onclick="location.href='index.html'" style="background:#ff6eb4">MISSION HUB</button>
+    </div>
   </div>
 </div>
 
+<script src="js/progress.js"></script>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -367,18 +378,25 @@ function renderCarCards() {
     btn.className = 'car-card' + (i === selectedCar ? ' selected' : '');
     btn.onclick = () => { selectedCar = i; renderCarCards(); };
     previewCar(btn, car);
-    btn.insertAdjacentHTML('beforeend', `
-      <div class="car-name">${car.name}</div>
-      ${stat('ACCEL', car.accel)}
-      ${stat('SPEED', car.speed)}
-      ${stat('GRIP', car.grip)}
-      ${stat('BOOST', car.boost)}
-    `);
+    const name = document.createElement('div');
+    name.className = 'car-name';
+    name.textContent = car.name;
+    btn.append(name, stat('ACCEL', car.accel), stat('SPEED', car.speed), stat('GRIP', car.grip), stat('BOOST', car.boost));
     carOptionsEl.appendChild(btn);
   });
 }
 function stat(label, value) {
-  return `<div class="stat"><span>${label}</span><div class="bar"><span style="width:${Math.round(value * 82)}%"></span></div></div>`;
+  const row = document.createElement('div');
+  row.className = 'stat';
+  const text = document.createElement('span');
+  text.textContent = label;
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  const fill = document.createElement('span');
+  fill.style.width = Math.round(value * 82) + '%';
+  bar.appendChild(fill);
+  row.append(text, bar);
+  return row;
 }
 renderCarCards();
 
@@ -400,7 +418,9 @@ const dayNightMs = 300000;
 let started = false;
 let raceLive = false;
 let finished = false;
-let startTime = 0;
+let startTime = 0;      // countdown start (also drives the day/night cycle)
+let raceStartTime = 0;  // the moment the lights go GREEN; race time counts from here
+let finalTimeMs = 0;
 let lastT = 0;
 let countdown = 3;
 
@@ -787,13 +807,41 @@ function update(dt, t) {
 }
 
 function finishRace() {
+  if (finished) return;
   finished = true;
   raceLive = false;
   const ranks = rankings();
   const place = ranks.findIndex(r => r.name === 'GHOST') + 1;
+  const timeMs = Math.round(performance.now() - raceStartTime);
+  finalTimeMs = timeMs;
+  // Finishing all three laps completes the level; P1 is a bonus objective.
+  const { state } = HTPProgress.recordCompletion(4, { position: place, timeMs });
   document.getElementById('finish-title').textContent = place === 1 ? 'YOU WON THE GRAND PRIX' : `FINISHED P${place}`;
-  document.getElementById('finish-copy').innerHTML = `Car: ${CARS[selectedCar].name}<br>Time: ${formatTime(performance.now() - startTime)}<br>Rivals defeated: ${9 - place} / 8`;
+  const lines = [
+    'Car: ' + CARS[selectedCar].name,
+    'Time: ' + formatTime(timeMs),
+    'Rivals defeated: ' + (9 - place) + ' / 8',
+  ];
+  const best = state.levels[4] && state.levels[4].best;
+  if (best) lines.push('Personal best: P' + best.position + ' · ' + formatTime(best.timeMs));
+  const copy = document.getElementById('finish-copy');
+  copy.replaceChildren();
+  lines.forEach((line, i) => {
+    if (i) copy.appendChild(document.createElement('br'));
+    copy.append(line);
+  });
+  const bonus = document.createElement('div');
+  bonus.className = 'bonus';
+  bonus.textContent = place === 1 ? 'BONUS OBJECTIVE COMPLETE: FIRST PLACE' : 'BONUS OBJECTIVE: FINISH P1';
+  copy.appendChild(bonus);
+  if (HTPProgress.isCampaignComplete(state)) {
+    const done = document.createElement('div');
+    done.className = 'bonus';
+    done.textContent = 'ALL FOUR MISSIONS COMPLETE · HACK THE PLANET';
+    copy.appendChild(done);
+  }
   finishScreen.style.display = 'flex';
+  document.getElementById('race-again-btn').focus();
 }
 
 function rankings() {
@@ -803,12 +851,22 @@ function rankings() {
 function updateHud(now) {
   speedEl.textContent = String(Math.round(player.speed)).padStart(3, '0');
   lapEl.textContent = String(Math.min(lapsTotal, player.lap));
-  timeEl.textContent = formatTime(now - startTime);
+  timeEl.textContent = formatTime(finished ? finalTimeMs : raceLive ? now - raceStartTime : 0);
   const ranks = rankings();
   posEl.textContent = String(ranks.findIndex(r => r.name === 'GHOST') + 1);
-  rankListEl.innerHTML = '<div class="hud-label">RACE ORDER</div>' + ranks.map((r, i) =>
-    `<div class="row ${r.player ? 'player-row' : ''}"><span>${i + 1}. ${r.name}</span><span>${Math.max(0, Math.floor((trackLength * lapsTotal - r.distance) / 100))}</span></div>`
-  ).join('');
+  const label = document.createElement('div');
+  label.className = 'hud-label';
+  label.textContent = 'RACE ORDER';
+  rankListEl.replaceChildren(label, ...ranks.map((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'row' + (r.player ? ' player-row' : '');
+    const name = document.createElement('span');
+    name.textContent = (i + 1) + '. ' + r.name;
+    const remaining = document.createElement('span');
+    remaining.textContent = Math.max(0, Math.floor((trackLength * lapsTotal - r.distance) / 100));
+    row.append(name, remaining);
+    return row;
+  }));
   drawMiniMap();
 }
 function formatTime(ms) {
@@ -979,7 +1037,17 @@ function musicLoop() {
 function toggleMusic() {
   musicOn = !musicOn;
   if (musicOn) musicLoop();
-  else clearTimeout(musicTimer);
+  else {
+    clearTimeout(musicTimer);
+    // Drop the bus carrying the notes already scheduled for this loop (up to
+    // ~7.5 s) so M silences the music at once; the next loop gets a fresh bus.
+    if (masterGain) {
+      masterGain.disconnect();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.72;
+      masterGain.connect(audioCtx.destination);
+    }
+  }
 }
 
 function draw(t) {
@@ -1005,6 +1073,7 @@ function frame(t) {
       if (elapsed > 3.8) {
         countdownEl.style.display = 'none';
         raceLive = true;
+        raceStartTime = t;
       }
     }
     update(dt, t);
