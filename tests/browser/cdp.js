@@ -149,7 +149,15 @@ async function launch({ args = [], windowSize = '1280,800', gpu = false } = {}) 
   };
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
     const msgId = ++id;
-    pending.set(msgId, { resolve, reject });
+    // A command Chrome never answers fails loudly instead of hanging the test.
+    const timer = setTimeout(() => {
+      pending.delete(msgId);
+      reject(new Error(`CDP ${method} got no reply in 30 s`));
+    }, 30000);
+    pending.set(msgId, {
+      resolve: v => { clearTimeout(timer); resolve(v); },
+      reject: e => { clearTimeout(timer); reject(e); },
+    });
     ws.send(JSON.stringify({ id: msgId, method, params, ...(sessionId ? { sessionId } : {}) }));
   });
 

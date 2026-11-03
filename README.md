@@ -111,7 +111,9 @@ hack-the-planet/
 │   ├── serve.test.js        # Static server: valid, missing, malformed, traversal
 │   ├── pages.test.js        # Links, completion hooks, SRI, intro still present
 │   └── browser/
-│       └── smoke.browser.js # Headless Chrome campaign run (DevTools Protocol)
+│       ├── cdp.js               # Minimal DevTools Protocol client (no dependencies)
+│       ├── smoke.browser.js     # Headless Chrome campaign run (hooks + navigation)
+│       └── gameplay.browser.js  # Plays the levels with real keyboard/mouse input
 ├── gen_gif.py               # Generates the trailer GIF (needs ImageMagick)
 ├── preview.gif              # README preview
 ├── package.json             # npm scripts only, no dependencies
@@ -134,7 +136,8 @@ Each level is still a self-contained HTML file with its own engine, rendering an
 
 ```bash
 npm test               # unit + static tests (Node built-in test runner, no browser)
-npm run test:browser   # headless Chrome smoke test of the whole campaign
+npm run test:browser   # headless Chrome smoke test of the whole campaign (~30 s)
+npm run test:gameplay  # headless Chrome, real keyboard/mouse input only (~4 min)
 npm run check          # syntax check of all inline scripts only
 ```
 
@@ -150,14 +153,24 @@ npm run check          # syntax check of all inline scripts only
   - no page logs a console error
 
   It needs Chrome or Chromium (`CHROME_PATH` to override) and network access to cdnjs, and skips itself if no browser is found.
+- `npm run test:gameplay` plays with real key and mouse events only; it reads game state to steer and to assert, but never writes it. It covers:
+  - the hub with Tab/arrows/Enter and reduced motion
+  - the full Level 1 intro without skipping, then skip + a 3-kill win with arrows and clicks
+  - Level 2 defeat by wrong patches, restart, and all six patches by walking
+  - Level 3 start on a short window, one target, the locked boss and a car
+  - Level 4's three laps with the keyboard
+  - that each music toggle actually silences the scheduled music (an audio-graph probe, not listening)
+
+  It uses the real GPU when headless Chrome can and falls back to software WebGL, which is much slower. Level 3's full five-target-and-CIPHER run takes several minutes, so it's in the manual checks below.
 
 ### Manual checks (things automation can't judge)
 
 1. Play the whole Level 1 intro without skipping: scenes, narration and audio drone, then the menu.
-2. Listen to the music in each level, and check that `M` / `♪ BGM` toggles it.
-3. Actually play Level 1 to 3 kills, Level 2 through all six battles, Level 3's five targets and CIPHER, and Level 4's three laps. Check each success screen's **next mission** and **hub** buttons.
-4. In the hub, turn on *reduce motion* in the OS. The matrix rain and title glitch should stop.
-5. Resize the hub to phone width: cards stack in one column, with no horizontal scroll.
+2. Listen to the music in each level, and check that `M` (Levels 3–4) / `♪ BGM` (Level 1) toggles it right away. Level 2 has no toggle.
+3. Play Level 3's five targets and CIPHER (the automated gameplay test covers one target and the locked boss). Check each success screen's **next mission** and **hub** buttons.
+4. Try for P1 in Level 4. Finishing is verified automatically; whether first place is a fair challenge needs a human.
+5. In the hub, turn on *reduce motion* in the OS. The matrix rain and title glitch should stop.
+6. Resize the hub to phone width: cards stack in one column, with no horizontal scroll.
 
 ### Trailer GIF
 
@@ -186,7 +199,8 @@ python3 gen_gif.py out/teaser.gif  # or any path; HTP_GIF_OUTPUT also works
 - Levels 1 and 3 need WebGL. Very old GPUs or blocked WebGL will show a blank scene.
 - Progress is stored per browser and per origin, so `file://` and `http://127.0.0.1:8080` keep separate progress.
 - The Level 1 intro plays on every visit; use `[ SKIP ]` on replays.
-- The browser smoke test triggers win conditions programmatically. It proves the hooks and navigation work, not that each level is fun or beatable by hand; see the manual checks above.
+- The smoke test triggers win conditions programmatically. The gameplay test plays with real input, but its bots read exact positions, so it shows that a level can be beaten, not how hard it feels.
+- Level 2 has no music toggle. Two of its robots spawn on obstacle tiles and stay put; you trigger them from an adjacent tile.
 
 ---
 
