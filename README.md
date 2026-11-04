@@ -14,7 +14,7 @@ Everything runs in the browser with plain HTML, CSS and JavaScript. There's no b
 
 | # | Mission | Type | Win condition |
 |---|---------|------|---------------|
-| 01 | **FSYNDICATE Arena** (`level1.html`) | Three.js FPS arena with cover + ~68 s cinematic intro | Neutralize the PandeCorp drone 3 times before it breaches you 3 times. *Separate report:* AI security objectives 0–3 |
+| 01 | **FSYNDICATE — The Agentic Frontier** (`level1.html`) | Cyber-western Three.js FPS + ~68 s cinematic intro | Contain three rogue agents (three bounties) before taking 3 breaches. *Separate report:* AI security score 0–3 |
 | 02 | **Vulnerability Hunter** (`level2.html`) | 2D canvas exploration + AI-security quiz battles | Patch all 6 AI vulnerabilities before your integrity reaches 0% |
 | 03 | **Social Engineer** (`level3.html`) | Three.js open Miami city, NPC dialogues, drivable cars | Get intel from 5 targets with the right social-engineering technique, **then** beat CIPHER (4 AI threat-intel questions) |
 | 04 | **Neon Grand Prix** (`level4.html`) | Canvas pseudo-3D racer, 8 AI rivals, one AI security decision per lap | Finish all 3 laps. *Bonus:* take P1. *Separate report:* AI security score 0–3 |
@@ -64,7 +64,7 @@ Open `index.html` in a browser. Everything works from `file://`, including saved
 | Level | Controls |
 |-------|----------|
 | **Hub** | `Tab` / arrow keys to move between missions · `Enter` to launch |
-| **01 FSYNDICATE Arena** | `W A S D` move / strafe · mouse look (click to capture, Pointer Lock) · left click or `F` fire · `Space` jump · `Q` scan the agent · `E` security console · `Esc` / `P` pause · `M` music · classic: `↑ ↓` move, `← →` turn · mouse sensitivity and invert Y in **CONTROLS** |
+| **01 The Agentic Frontier** | `W A S D` move / strafe · mouse look (click to capture, Pointer Lock) · left click or `F` fire the Pulse Revolver (6 charges) · `R` reload · `Space` jump · `Q` scan · `I` activity log · `E` terminal · `Esc` / `P` pause · `M` music · classic: `↑ ↓` move, `← →` turn · sensitivity and invert Y in **CONTROLS** |
 | **02 Vulnerability Hunter** | `WASD` / arrows move · `1–4` or `↑ ↓` choose a patch · `Enter` confirm · on the end screen `Enter` next mission / restart, `H` hub |
 | **03 Social Engineer** | `WASD` move · mouse drag rotate camera · `E` talk / enter or exit car · `Esc` close dialogue · `M` music |
 | **04 Neon Grand Prix** | `W` / `↑` accelerate · `S` / `↓` brake · `A D` / `← →` steer · `Space` boost · `Esc` pause / resume · `M` music · decisions: `1`–`3` or `↑ ↓` + `Enter` |
@@ -75,22 +75,25 @@ Every level has a **MISSION HUB** link on its start screen and on its end screen
 
 ## Mission notes
 
-**Level 1: FSYNDICATE — AUTONOMOUS THREAT ARENA. OBSERVE. ANALYZE. CONTAIN.** The cinematic intro (11 scenes: matrix rain, the PandeCorp skyline, a surveillance scan, a terminal break-in, a world-map cyberattack and the logo shatter) is offered in full on the first visit; later visits open on the briefing, with **WATCH INTRO** always available. Having seen it is stored separately from campaign progress (`htp.introSeen`) and never completes the level.
+**Level 1: FSYNDICATE — THE AGENTIC FRONTIER.** *Three bounties. Three rogue agents. One digital frontier.* The cinematic intro (11 scenes: matrix rain, the PandeCorp skyline, a surveillance scan, a terminal break-in, a world-map cyberattack and the logo shatter) is offered in full on the first visit; later visits open on the briefing, with **WATCH INTRO** always available. Having seen it is stored separately from campaign progress (`htp.introSeen`) and never completes the level.
 
-The arena's four server racks and central core are real cover: the same geometry (`js/arena/world.js`) draws them and blocks movement, bolts and the drone's line of sight. PANDECORP-SENTINEL-01 is a *simulated* autonomous agent — a deterministic state machine, not an AI model — that only fires with line of sight and routes around cover:
+The mission is a cyber-western FPS on **Main Street**, a small low-poly town: the Saloon, the Sheriff's Office (tool-review terminal), the Telegraph Station (message-verification terminal), the Data Vault, a water tower, wagons, crates and barrels, and the north gate (`MAIN_STREET_EXIT`). Every structure is built from the same boxes that block movement, Pulse Revolver shots and the agents' line of sight (`js/arena/world.js`).
+
+The **Bounty Board** shows three WANTED posters (LOCKED → AVAILABLE → IN PROGRESS → CONTAINED). One duel runs at a time; each opens with a short quick draw (*AGENT DETECTED · STAND BY... · DRAW!*) that shows where the agent stands. The agents are **simulations** — declarative configs (identity, goal, tools, permissions, states, combat stats) run by one deterministic state machine, not AI models:
 
 ```
-PATROL ──(sight, < 18 m)──► CHASE ──(sight, < 9 m)──► ATTACK
-       ◄──(4 s unseen / > 24 m)──   ◄──(sight lost / > 11.5 m)──
+PATROL ──(sight)──► DETECT ──(classified)──► TRACK ──(in range, authorized)──► ATTACK ──(burst)──► RECOVER
 ```
 
-| Round | Concept | What you do | Best outcome |
-|-------|---------|-------------|--------------|
-| 1 | Agent observability | Press `Q` with the drone in sight: the scan reads its real state, target, distance, last action and the observation behind its last transition | Scan it in 2 different states |
-| 2 | AI decision validation | The drone fires at a maintenance beacon on one unverified motion signal (confidence 0.62). At the console, its log separates **observed data**, **model inference**, **requested action** and **policy decision** | Require corroboration and human review for high-impact actions |
-| 3 | Agent containment | The drone requests a weapon overcharge and audit-log suspension. The console shows each call as PROPOSED → APPROVED/BLOCKED → EXECUTED | Apply the policy restriction (in-policy calls run, out-of-policy calls are blocked) |
+Every observation, simulated inference, tool request, policy decision and execution goes into an audit log. `Q` scans the agent in sight (a snapshot in the HUD); `I` opens the **Agent Inspector**'s full activity log — ATTEMPTED → AUTHORIZED → EXECUTED — and freezes the duel.
 
-The console freezes the simulation, has no timer, and every choice has a visible, recoverable consequence (a faster or harder-hitting drone, or monitoring going dark). Each incident belongs to its round: left undecided, it is reported as *not completed* and the policy default (authorization required) still applies. You win by neutralizing the drone 3 times whatever you decide; the AI security score is reported separately.
+| Bounty | Agent | Concept | What happens | Best decision |
+|--------|-------|---------|--------------|---------------|
+| 01 | THE SCOUT · fast, fragile | Agent observability | It detects you, classifies you and asks to attack — all logged | Scan it in 2 states and read its activity log |
+| 02 | THE ENFORCER · slow, armoured | Tool misuse (OWASP ASI02) | It drops barriers across Main Street (no scope configured) and asks to `lock_gate` the town's exit to "contain a suspect" | Scope its tools to the Data Vault; out-of-scope calls are blocked and logged |
+| 03 | THE SIGNAL · agile, ranged | Insecure inter-agent communication (ASI07) | An order claiming to come from FRONTIER-CONTROLLER asks it to override security policy. The evidence: no valid signature, a public relay, a reused nonce, a sender not authorized for that action | Reject it unless it is signed, fresh, on the authenticated channel and authorized |
+
+Terminals have no timer and every choice changes what the policy lets the agent execute: the exit gate locks and barriers come faster, the Enforcer repairs itself, the Signal floods the street with decoys and jams your scanner — or the calls are blocked. Undecided requests stay held (the policy default) and are reported as *not completed*. Containing all three bounties wins whatever you decide; three breaches lose the mission. The **AI SECURITY SCORE** (0–3) is reported separately and saved as Level 1's best result.
 
 **Level 2.** A wrong patch costs 10% integrity and lets you try again in the same battle. At 0% the mission fails, and `Enter` restarts the level cleanly: full integrity, all six robots back. Topics covered: prompt injection, data poisoning, model inversion, adversarial examples, training-data bias and hallucination.
 
@@ -115,18 +118,19 @@ The educational text is deliberately simplified. Where a mitigation reduces a ri
 ```
 hack-the-planet/
 ├── index.html               # Mission Hub (campaign map, status, reset)
-├── level1.html              # 01 FSYNDICATE Arena: cinematic intro, rendering, HUD, screens (logic in js/arena/)
+├── level1.html              # 01 The Agentic Frontier: intro, Main Street, HUD, board, inspector, terminals (logic in js/arena/)
 ├── level2.html              # 02 Vulnerability Hunter: 2D canvas + quiz battles
 ├── level3.html              # 03 Social Engineer: Miami city (three.js)
 ├── level4.html              # 04 Neon Grand Prix: page, HUD, decisions, report (logic in js/racer/)
 ├── js/
 │   ├── progress.js          # Shared campaign state: level list, unlocks, localStorage
 │   ├── arena/               # Level 1 modules (classic scripts, also loadable in Node)
-│   │   ├── world.js         #   arena geometry, collisions, line of sight, navigation
+│   │   ├── world.js         #   Main Street geometry, collisions, line of sight, navigation, barriers
 │   │   ├── player.js        #   movement, mouse look, aim direction
-│   │   ├── enemy.js         #   the simulated agent's state machine and telemetry
-│   │   ├── projectiles.js   #   swept bolt collisions (cover, walls, floor, ceiling, bodies)
-│   │   └── security.js      #   the three AI security objectives and the report
+│   │   ├── agents.js        #   the three agents (declarative configs), state machine, tools, audit log, inspector data
+│   │   ├── projectiles.js   #   swept pulse collisions (cover, ground, sky, per-agent bodies)
+│   │   ├── security.js      #   tool policy, the three objectives, decisions, report
+│   │   └── bounties.js      #   the bounty board: order, one active duel, breaches
 │   └── racer/               # Level 4 modules (classic scripts, also loadable in Node)
 │       ├── track.js         #   the circuit: single source of truth for road geometry + minimap
 │       ├── physics.js       #   fixed-step car physics (frame-rate independent)
@@ -138,7 +142,7 @@ hack-the-planet/
 │   └── check-scripts.js     # Syntax check for every inline <script>
 ├── tests/
 │   ├── progress.test.js     # Progression, unlock and storage-failure tests
-│   ├── arena.test.js        # Level 1: movement, cover, line of sight, bolts, agent, objectives
+│   ├── arena.test.js        # Level 1: controls, cover, pulses, agents, tools/permissions, audit, bounties, objectives
 │   ├── racer.test.js        # Level 4: circuit, physics, rivals, security events, report
 │   ├── serve.test.js        # Static server: valid, missing, malformed, traversal
 │   ├── pages.test.js        # Links, completion hooks, SRI, intro still present
@@ -175,7 +179,7 @@ npm run check          # syntax check of all inline scripts only
 
 On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffeinate -dimsu npm run test:gameplay`) when the machine may be idle: App Nap / idle sleep can suspend the test process for many minutes. `HTP_ONLY="level 4"` runs only matching gameplay subtests, and `HTP_DEBUG=1` logs progress.
 
-- `npm test` covers progression and unlock logic, corrupt and throwing `localStorage`, the static server (valid files, 404s, malformed URLs, `..` and encoded traversal, sibling-prefix paths, dotfiles, symlink escape) and page wiring. `tests/racer.test.js` checks that the circuit closes and is identical every lap, that the minimap turns where the road turns, that road edges and penalties share one boundary, that physics match at 30/60/144 fps, that rivals stay on the asphalt, that each security event fires once on its lap, and that every combination of choices finishes with a distinct score and report. `tests/arena.test.js` covers WASD and classic movement, frame-rate independence, the pitch limit and aim direction, solid cover, bolts stopping at cover/walls/floor/ceiling and hitting whole bodies, the agent never firing through cover and routing around it, damage and respawn, scanning, and both console decisions.
+- `npm test` covers progression and unlock logic, corrupt and throwing `localStorage`, the static server (valid files, 404s, malformed URLs, `..` and encoded traversal, sibling-prefix paths, dotfiles, symlink escape) and page wiring. `tests/racer.test.js` checks that the circuit closes and is identical every lap, that the minimap turns where the road turns, that road edges and penalties share one boundary, that physics match at 30/60/144 fps, that rivals stay on the asphalt, that each security event fires once on its lap, and that every combination of choices finishes with a distinct score and report. `tests/arena.test.js` covers WASD and classic movement, frame-rate independence, the pitch limit and aim direction, solid buildings and cover, pulses stopping at structures/ground/sky and hitting each agent's own body, temporary barriers, the Scout's state sequence and audit chain, agents never seeing or firing through cover and routing around it, every Enforcer tool decision (allowed/blocked/held, with reasons), held requests resolving after review, the Signal's message checks and their consequences, the bounty board's order, the inspector reading real log entries, and an honest report.
 - `npm run test:browser` starts the local server and drives Chrome over the DevTools Protocol. It walks the hub and all four levels in order and checks that:
   - audio only starts after a real click
   - skipping the intro can't reopen the menu mid-match
@@ -189,7 +193,7 @@ On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffein
   It needs Chrome or Chromium (`CHROME_PATH` to override) and network access to cdnjs, and skips itself if no browser is found.
 - `npm run test:gameplay` plays with real key and mouse events only; it reads game state to steer and to assert, but never writes it. It covers:
   - the hub with Tab/arrows/Enter and reduced motion
-  - the full Level 1 intro without skipping, then skip, WASD, a mouse shot along the crosshair, music, pause, and a keyboard-only win that scans the agent and uses both security consoles
+  - the full Level 1 intro without skipping, then skip, the bounty board, the quick draw, WASD, a mouse shot along the crosshair, music, pause, and a keyboard-only run of all three bounties that scans, opens the activity log and uses both terminals
   - Level 2 defeat by wrong patches, restart, and all six patches by walking
   - Level 3 start on a short window, one target, the locked boss and a car
   - Level 4 driven **from the screen alone**: steering from the rendered asphalt pixels, speed from the HUD, decisions from the on-screen text; plus pause/resume, the music toggle and the report
@@ -199,7 +203,7 @@ On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffein
 
 ### Manual checks (things automation can't judge)
 
-1. Play the whole Level 1 intro without skipping: scenes, narration and audio drone, then the briefing. In combat, check mouse look with Pointer Lock at a few sensitivities, that cover feels useful, and that the drone's states are readable at a distance.
+1. Play the whole Level 1 intro without skipping: scenes, narration and audio drone, then the briefing. In the duels, check mouse look with Pointer Lock at a few sensitivities, that cover feels useful, that each agent is recognizable at a distance, and that the three duels feel different.
 2. Listen to the music in each level, and check that `M` (Levels 3–4) / `♪ BGM` (Level 1) toggles it right away. Level 2 has no toggle.
 3. Play Level 3's five targets and CIPHER (the automated gameplay test covers one target and the locked boss). Check each success screen's **next mission** and **hub** buttons.
 4. Race Level 4 by hand: is the road readable at speed, do curves feel anticipatable, and is P1 a fair challenge? The automated driver finishes around P3 reading only the screen, but feel needs a human.
@@ -232,7 +236,7 @@ python3 gen_gif.py out/teaser.gif  # or any path; HTP_GIF_OUTPUT also works
 - Built for desktop and keyboard; the levels don't have touch controls.
 - Levels 1 and 3 need WebGL. Very old GPUs or blocked WebGL will show a blank scene.
 - Progress is stored per browser and per origin, so `file://` and `http://127.0.0.1:8080` keep separate progress.
-- The Level 1 intro plays on every visit; use `[ SKIP ]` on replays.
+- Level 1's agents are scripted simulations of agent behaviour, not AI models; the security score reflects in-game decisions only.
 - The smoke test triggers win conditions programmatically. The gameplay test plays with real input, but its bots read exact positions, so it shows that a level can be beaten, not how hard it feels.
 - Level 2 has no music toggle. Two of its robots spawn on obstacle tiles and stay put; you trigger them from an adjacent tile.
 

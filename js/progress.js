@@ -21,7 +21,7 @@
 
   // Campaign order. Completion of level N unlocks level N + 1.
   const LEVELS = [
-    { id: 1, url: 'level1.html', code: 'LEVEL 01', name: 'FSYNDICATE ARENA' },
+    { id: 1, url: 'level1.html', code: 'LEVEL 01', name: 'THE AGENTIC FRONTIER' },
     { id: 2, url: 'level2.html', code: 'LEVEL 02', name: 'VULNERABILITY HUNTER' },
     { id: 3, url: 'level3.html', code: 'LEVEL 03', name: 'SOCIAL ENGINEER' },
     { id: 4, url: 'level4.html', code: 'LEVEL 04', name: 'NEON GRAND PRIX' },

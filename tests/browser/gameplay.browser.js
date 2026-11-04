@@ -54,7 +54,7 @@ function keyboard(page) {
 
 const angleDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
-test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome not found (set CHROME_PATH)', timeout: 600000 }, async (t) => {
+test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome not found (set CHROME_PATH)', timeout: 900000 }, async (t) => {
   const server = createServer();
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -122,7 +122,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('level1 intro');
     });
 
-    await sub('level 1: controls, scan, both consoles and 3 neutralizations with real input', async () => {
+    await sub('level 1: the agentic frontier — three bounties with real input', async () => {
       await page.goto(base + '/level1.html');
       await page.click('#play-intro-btn');
       await page.waitFor('introRunning === true');
@@ -133,93 +133,112 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       await page.click('#brief-controls-btn');
       assert.equal(await page.eval('document.getElementById("brief-controls").classList.contains("open")'), true);
       await page.click('#start-btn');
-      await page.waitFor('phase === "playing"');
+      await page.waitFor('phase === "board"');
+      assert.equal(await page.eval('document.activeElement.id'), 'duel-scout', 'the available bounty is focused');
+      await page.key('Enter');                                  // START DUEL from the keyboard
+      await page.waitFor('phase === "draw"');
+      assert.match(await page.eval('document.getElementById("draw").textContent'), /AGENT DETECTED.*THE SCOUT/);
+      await page.waitFor('phase === "playing"', 4000);
       assert.equal(await page.eval('audioCtx.state'), 'running');
 
-      // WASD strafes relative to the view; a click fires along the crosshair.
+      // WASD strafes; a click fires one pulse along the crosshair.
       const x0 = await page.eval('player.pos.x');
       await page.key('KeyD', 300);
       assert.ok(await page.eval('player.pos.x') > x0 + 0.5, 'D strafes right');
       await page.clickAt(480, 300);
       await page.waitFor('bolts.some(b => b.owner === "player")', 2000);
-      assert.equal(await page.eval('bolts.filter(b => b.owner === "player").length'), 1, 'a click fires once');
       const aim = await page.eval('(() => { const b = bolts.find(b => b.owner === "player"); const d = Player.aimDirection(player.yaw, player.pitch); const v = b.vel, n = Math.hypot(v.x, v.y, v.z); return Math.abs(v.x / n - d.x) + Math.abs(v.y / n - d.y) + Math.abs(v.z / n - d.z); })()');
-      assert.ok(aim < 1e-6, 'the bolt flies along the aim direction');
+      assert.ok(aim < 1e-6, 'the pulse flies along the aim direction');
+      assert.equal(await page.eval('chambers'), 5, 'one charge used');
 
-      // Music: M toggles it (the cursor is captured, so the BGM button mirrors
-      // the state); SFX keep their audio context.
+      // Music, pause.
       await page.key('KeyM');
-      assert.equal(await page.eval('document.getElementById("music-btn").textContent'), '♪ BGM: OFF');
-      assert.ok(await page.eval('audioCtx !== null'), 'SFX keep their audio context');
-      assert.equal(await page.eval('__audibleAfter(audioCtx, 0.3)'), 0, 'music is silenced at once');
+      assert.equal(await page.eval('__audibleAfter(audioCtx, 0.3)'), 0, 'M silences the music at once');
+      assert.ok(await page.eval('audioCtx !== null'), 'sound effects keep their context');
       await page.key('KeyM');
       assert.ok(await page.eval('__audibleAfter(audioCtx, 0.3)') > 0, 'music resumes');
-
-      // Pause freezes the simulation.
       await page.key('Escape');
       assert.equal(await page.eval('phase'), 'paused');
       const t1 = await page.eval('combatTime');
       await sleep(500);
-      assert.equal(await page.eval('combatTime'), t1, 'nothing moves while paused');
+      assert.equal(await page.eval('combatTime'), t1, 'the duel is frozen while paused');
       await page.key('Escape');
       assert.equal(await page.eval('phase'), 'playing');
 
-      // Play: keyboard-only (arrows turn, W moves, F fires, Q scans, E uses the console).
+      // Play all three bounties: keyboard only (arrows turn, W moves, F fires,
+      // Q scans, I opens the log, E uses a terminal, decisions by their text).
       const keys = keyboard(page);
-      const end = Date.now() + 300000;
-      const picks = { validation: /corroborating evidence/, containment: /^APPLY POLICY RESTRICTION$/ };
-      let consoles = 0, lastScanAt = 0;
+      const end = Date.now() + 420000;
+      const picks = { enforcer: /Scope its tools/, signal: /Reject it unless/ };
+      let decisions = 0, lastScanAt = 0, logs = 0, unexpectedPauses = 0;
       for (;;) {
         const s = await page.eval(`(() => {
-          const eye = Player.eyeOf(player), inc = security.consoleIncident();
-          const goal = inc ? { x: World.CONSOLE.x, z: World.CONSOLE.z - 1 } : enemy.pos;
-          return { phase, alive: player.alive, x: player.pos.x, z: player.pos.z, yaw: player.yaw,
-            ex: enemy.pos.x, ez: enemy.pos.z, ealive: enemy.alive, state: enemy.state.toUpperCase(),
-            los: World.lineOfSight(eye, { x: enemy.pos.x, y: Enemy.EYE_Y, z: enemy.pos.z }),
-            way: World.nextWaypoint(player.pos, goal), incident: inc && inc.id, near: World.nearConsole(player.pos),
-            scanned: [...security.state.scannedStates], stage: consoleView && consoleView.stage,
-            options: [...document.querySelectorAll('#console-card .option')].map(b => b.lastChild.textContent) };
+          const kind = agent && agent.kind;
+          const term = kind && Object.values(World.CONSOLES).find(c => security.consoleIncident(kind, c.id));
+          const goal = term ? { x: term.x, z: term.z } : agent ? agent.pos : player.pos;
+          return { phase, kind, alive: player.alive, x: player.pos.x, z: player.pos.z, yaw: player.yaw,
+            ax: agent ? agent.pos.x : 0, az: agent ? agent.pos.z : 0, aalive: !!(agent && agent.alive), state: agent ? agent.state.toUpperCase() : '',
+            los: !!agent && World.lineOfSight(Player.eyeOf(player), { x: agent.pos.x, y: agent.cfg.eyeY, z: agent.pos.z }),
+            way: World.nextWaypoint(player.pos, goal), term: term && term.id, near: !!term && World.nearConsole(player.pos, term.id),
+            scanned: [...security.state.scout.scanned], logOpened: security.state.scout.logOpened,
+            stage: consoleView && consoleView.stage, chambers,
+            options: [...document.querySelectorAll('#console-card .option')].map(b => b.lastChild.textContent),
+            focus: document.activeElement && document.activeElement.id };
         })()`);
         if (s.phase === 'gameOver') break;
-        if (Date.now() - (debug.last || 0) > 3000) { debug.last = Date.now(); debug(JSON.stringify({ p: s.phase, x: s.x.toFixed(1), z: s.z.toFixed(1), e: [s.ex.toFixed(1), s.ez.toFixed(1), s.state, s.ealive], los: s.los, inc: s.incident, near: s.near, k: await page.eval('playerKills + "-" + enemyKills + " hp" + player.health + "/" + enemy.health') })); }
-        assert.ok(Date.now() < end, 'mission ends within 5 minutes');
+        if (Date.now() - (debug.last || 0) > 4000) { debug.last = Date.now(); debug(JSON.stringify({ p: s.phase, k: s.kind, st: s.state, los: s.los, term: s.term, near: s.near, ch: s.chambers, b: await page.eval('board.contained + "/" + board.breaches + " hp" + player.health') })); }
+        assert.ok(Date.now() < end, 'mission ends within 7 minutes');
+        if (s.phase === 'paused') {
+          // Not caused by the bot: report it (with the game's own reason) and resume like a player would.
+          console.log('  ! unexpected pause in ' + s.kind + ' duel: ' + await page.eval('pauseReason'));
+          unexpectedPauses++;
+          assert.ok(unexpectedPauses < 5, 'the duel keeps pausing on its own');
+          await keys.releaseAll(); await page.key('Escape'); continue;
+        }
+        if (s.phase === 'board') { await keys.releaseAll(); await page.key('Enter'); await sleep(150); continue; }
+        if (s.phase === 'draw') { await keys.releaseAll(); await sleep(100); continue; }
+        if (s.phase === 'inspector') { logs++; await page.key('KeyI'); continue; }
         if (s.phase === 'console') {
           await keys.releaseAll();
           if (s.stage === 'choose') {
-            const i = s.options.findIndex(o => picks[s.incident || (s.options.length && /POLICY/.test(s.options.join()) ? 'containment' : 'validation')].test(o));
+            const i = s.options.findIndex(o => picks[s.kind].test(o));
             assert.ok(i >= 0, 'the defensible control is offered: ' + s.options.join(' | '));
             await page.key('Digit' + (i + 1));
-            assert.match(await page.eval('document.getElementById("console-card").textContent'), /OBJECTIVE COMPLETE/);
-            consoles++;
+            assert.match(await page.eval('document.getElementById("console-card").textContent'), /ACTION BLOCKED/);
+            decisions++;
           } else await page.key('Enter');
           continue;
         }
         if (s.phase !== 'playing') { await sleep(50); continue; }
         if (!s.alive) { await keys.releaseAll(); await sleep(100); continue; }
-        if (s.incident && s.near) { await keys.releaseAll(); await page.key('KeyE'); continue; }
-        const fighting = !s.incident && s.ealive && s.los;
-        const tx = fighting ? s.ex : s.way.x, tz = fighting ? s.ez : s.way.z;
+        if (s.term && s.near) { await keys.releaseAll(); await page.key('KeyE'); continue; }
+        if (s.kind === 'scout' && s.scanned.length >= 2 && !s.logOpened) { await keys.releaseAll(); await page.key('KeyI'); continue; }
+        const fighting = !s.term && s.aalive && s.los;
+        const scoutDone = s.kind !== 'scout' || (s.scanned.length >= 2 && s.logOpened);
+        const tx = fighting ? s.ax : s.way.x, tz = fighting ? s.az : s.way.z;
         const err = angleDiff(Math.atan2(-(tx - s.x), -(tz - s.z)), s.yaw);
-        const dist = Math.hypot(s.ex - s.x, s.ez - s.z);
+        const dist = Math.hypot(s.ax - s.x, s.az - s.z);
         await keys.set('ArrowLeft', err > 0.05); await keys.set('ArrowRight', err < -0.05);
-        await keys.set('KeyW', Math.abs(err) < 0.6 && (!fighting || dist > 8));
-        await keys.set('KeyF', fighting && Math.abs(err) < 0.1);
-        if (s.los && s.ealive && !s.scanned.includes(s.state) && Date.now() - lastScanAt > 1700) { lastScanAt = Date.now(); await page.key('KeyQ'); }
+        await keys.set('KeyW', Math.abs(err) < 0.6 && (!fighting || dist > 7));
+        // The Scout must be observed before it is contained.
+        await keys.set('KeyF', fighting && Math.abs(err) < 0.12 && (scoutDone || await page.eval('agent.health > 30')));
+        if (s.los && s.aalive && s.kind === 'scout' && !s.scanned.includes(s.state) && Date.now() - lastScanAt > 1400) { lastScanAt = Date.now(); await page.key('KeyQ'); }
         await sleep(30);
       }
       await keys.releaseAll();
-      assert.equal(consoles, 2, 'both security consoles were used');
-      const won = await page.eval('playerKills >= 3');
-      assert.ok(won, 'KUKY wins the match: ' + await page.eval('playerKills + "-" + enemyKills'));
+      assert.equal(decisions, 2, 'both terminals were used');
+      assert.ok(logs >= 1, 'the activity log was opened');
+      assert.equal(await page.eval('board.contained'), 3, 'all three bounties contained: ' + await page.eval('board.contained + "/" + board.breaches'));
       assert.equal(await page.eval('security.score()'), 3);
+      assert.equal(await page.eval('document.getElementById("results-title").textContent'), 'FRONTIER SECURED');
       assert.match(await page.eval('document.getElementById("security-score-line").textContent'), /3\/3/);
+      assert.equal(await page.eval('document.querySelectorAll("#knowledge li").length'), 3);
       assert.equal((await progress(page)).levels[1].best.securityScore, 3);
       assert.equal(await page.eval('document.activeElement.id'), 'next-btn');
 
-      // The skipped intro's 68 s timer must not touch the results screen.
       const wait = 70000 - (Date.now() - introStart);
       if (wait > 0) await sleep(wait);
-      assert.equal(await page.eval('phase'), 'gameOver');
+      assert.equal(await page.eval('phase'), 'gameOver', 'the skipped intro\'s timer never fires into the mission');
 
       const loaded = page.waitForEvent('Page.loadEventFired');
       await page.click('#next-btn');

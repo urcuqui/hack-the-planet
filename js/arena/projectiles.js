@@ -1,4 +1,4 @@
-// FSYNDICATE Arena: bolts. Each step sweeps the segment a bolt travels, so a
+// FSYNDICATE — The Agentic Frontier: Pulse Revolver shots and agent bolts. Each step sweeps the segment a bolt travels, so a
 // fast bolt cannot pass through a column, a wall, the floor or a target.
 // Targets are vertical capsules (a body, not a single point).
 (function (root, factory) {
@@ -62,7 +62,8 @@
     return dist < cap.radius ? s : null;
   }
 
-  // Moves every bolt by dt. targets: { player: {pos, alive}, enemy: {pos, alive} }.
+  // Moves every bolt by dt. targets: { player: {pos, alive}, enemy: {pos, alive, capsule?} }
+  // (an agent can bring its own capsule: the Enforcer is much bigger than the Scout).
   // Returns events: { type: 'hit', target, damage, point, bolt } and
   // { type: 'impact', point, kind, bolt }.
   function step(list, dt, targets) {
@@ -74,7 +75,7 @@
       const wall = World.segmentHit(a, next);
       const victim = b.owner === 'player' ? 'enemy' : 'player';
       const t = targets[victim];
-      const th = t && t.alive ? capsuleHit(a, next, t.pos, CAPSULES[victim]) : null;
+      const th = t && t.alive ? capsuleHit(a, next, t.pos, t.capsule || CAPSULES[victim]) : null;
       const at = s => ({ x: a.x + (next.x - a.x) * s, y: a.y + (next.y - a.y) * s, z: a.z + (next.z - a.z) * s });
       if (th != null && (!wall || th <= wall.t)) {
         b.alive = false;
