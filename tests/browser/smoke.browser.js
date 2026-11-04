@@ -35,33 +35,46 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
     await t.test('level 1: intro needs a gesture, skip is safe, win records completion', async () => {
       await page.goto(base + '/level1.html');
       assert.equal(await page.eval('typeof THREE'), 'object', 'three.js loaded with SRI');
+      assert.equal(await page.eval('typeof HTPArena.World'), 'object', 'arena modules loaded');
       assert.equal(await page.eval('introACtx === null && audioCtx === null'), true, 'no audio before a gesture');
       assert.equal(await page.eval('getComputedStyle(document.getElementById("pre-intro")).display'), 'flex');
+      assert.equal(await page.eval('document.activeElement.id'), 'play-intro-btn', 'first visit offers the intro');
 
-      await page.click('#pre-intro');
+      await page.click('#play-intro-btn');
       await page.waitFor('introRunning === true');
       assert.equal(await page.eval('introACtx && introACtx.state'), 'running', 'intro audio starts after the click');
       await sleep(1500);   // let a few intro scenes render
       await page.click('#skip-intro-btn');
-      await page.waitFor('document.getElementById("overlay").style.display === "flex"');
+      await page.waitFor('phase === "briefing" && document.getElementById("overlay").classList.contains("open")');
+      assert.equal(await page.eval('localStorage.getItem("htp.introSeen")'), '1');
+      assert.equal(await progress(page), null, 'watching or skipping the intro does not complete the level');
 
-      await page.click('#overlay .btn');
+      await page.click('#start-btn');
       await page.waitFor('phase === "playing"');
       assert.equal(await page.eval('audioCtx && audioCtx.state'), 'running', 'game music starts after the click');
 
-      // The 68 s intro timer firing after a skip must not reopen the menu mid-match.
+      // The 68 s intro timer firing after a skip must not reopen the briefing mid-match.
       await page.eval('endIntro()');
       await sleep(1500);
-      assert.equal(await page.eval('document.getElementById("overlay").style.display'), 'none');
+      assert.equal(await page.eval('phase'), 'playing');
+      assert.equal(await page.eval('document.getElementById("overlay").classList.contains("open")'), false);
 
       assert.equal(await progress(page), null, 'loading/playing alone does not complete the level');
-      await page.eval('playerKills = 2; hitEnemy(100); enemyKills = 3; checkWinCondition();');
-      await page.waitFor('phase === "gameOver"');
-      assert.match(await page.eval('document.getElementById("overlay").textContent'), /MISSION SUCCESS/);
-      assert.equal((await progress(page)).levels[1].completed, true);
+      await page.eval('playerKills = 2; hitEnemy(100); hitEnemy(100);');
+      await page.waitFor('phase === "gameOver"', 4000);
+      assert.match(await page.eval('document.getElementById("results-pre").textContent'), /MISSION COMPLETE/);
+      assert.equal(await page.eval('document.querySelectorAll("#security-report details").length'), 3);
+      const p1 = await progress(page);
+      assert.equal(p1.levels[1].completed, true);
+      assert.equal(p1.levels[1].best.securityScore, 0);
 
-      await page.click('#overlay .btn');          // RETRY
+      await page.click('#retry-btn');
       await page.waitFor('phase === "playing" && playerKills === 0');
+
+      // Second visit: the briefing is one step away, the intro still available.
+      await page.goto(base + '/level1.html');
+      assert.equal(await page.eval('document.activeElement.id'), 'skip-to-brief-btn');
+      assert.match(await page.eval('document.getElementById("play-intro-btn").textContent'), /WATCH INTRO/);
       page.assertNoErrors('level1');
     });
 

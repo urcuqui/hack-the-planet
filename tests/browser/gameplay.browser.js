@@ -97,15 +97,16 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('hub');
     });
 
-    await sub('level 1: full intro without skipping hands over to the menu', async () => {
+    await sub('level 1: full intro without skipping hands over to the briefing', async () => {
       if (await page.eval('location.pathname') !== '/level1.html') await page.goto(base + '/level1.html');
       assert.equal(await page.eval('introACtx === null && audioCtx === null'), true, 'no audio before a gesture');
-      await page.key('Enter');                       // any key starts the intro
+      await page.waitFor('document.activeElement.id === "play-intro-btn"', 3000);   // first visit offers the intro
+      await page.key('Enter');                       // Enter on the focused PLAY INTRO
       await page.waitFor('introRunning === true');
       assert.equal(await page.eval('introACtx.state'), 'running');
       const lines = new Set();
       const started = Date.now();
-      while (await page.eval('document.getElementById("overlay").style.display') !== 'flex') {
+      while (await page.eval('phase') !== 'briefing') {
         assert.ok(Date.now() - started < 80000, 'menu should appear about 68 s after the intro starts');
         lines.add(await page.eval('document.getElementById("narrator-box").textContent'));
         await sleep(250);
@@ -115,60 +116,113 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       }
       assert.equal(await page.eval('introACtx'), null, 'intro audio is released');
       assert.equal(await page.eval('document.getElementById("skip-intro-btn").checkVisibility()'), false);
-      assert.equal(await page.eval('phase'), 'start');
+      assert.equal(await page.eval('document.getElementById("overlay").classList.contains("open")'), true);
+      assert.equal(await page.eval('document.activeElement.id'), 'start-btn');
+      assert.equal(await progress(page), null, 'watching the intro does not complete the level');
       page.assertNoErrors('level1 intro');
     });
 
-    await sub('level 1: skip, win 3 kills with arrows + mouse, BGM toggle keeps SFX', async () => {
+    await sub('level 1: controls, scan, both consoles and 3 neutralizations with real input', async () => {
       await page.goto(base + '/level1.html');
-      await page.click('#pre-intro');
+      await page.click('#play-intro-btn');
       await page.waitFor('introRunning === true');
       const introStart = Date.now();
       await sleep(1500);
       await page.click('#skip-intro-btn');
-      await page.waitFor('document.getElementById("overlay").style.display === "flex"');
-      await page.click('#overlay .btn');
+      await page.waitFor('phase === "briefing"');
+      await page.click('#brief-controls-btn');
+      assert.equal(await page.eval('document.getElementById("brief-controls").classList.contains("open")'), true);
+      await page.click('#start-btn');
       await page.waitFor('phase === "playing"');
       assert.equal(await page.eval('audioCtx.state'), 'running');
 
-      // BGM off: music stops reaching the speakers, SFX context stays, no shot fired.
-      await page.click('#music-btn');
-      assert.equal(await page.eval('document.getElementById("music-btn").textContent'), '♪ BGM: OFF');
-      assert.equal(await page.eval('projectiles.length'), 0, 'clicking BGM is not a shot');
-      assert.ok(await page.eval('audioCtx !== null'), 'SFX still have an audio context');
-      assert.equal(await page.eval('__audibleAfter(audioCtx, 0.3)'), 0, 'music is silenced at once');
-      await page.click('#music-btn');
-      assert.ok(await page.eval('__audibleAfter(audioCtx, 0.3)') > 0, 'music resumes');
-      await page.click('#music-btn');                // play the match with BGM off
+      // WASD strafes relative to the view; a click fires along the crosshair.
+      const x0 = await page.eval('player.pos.x');
+      await page.key('KeyD', 300);
+      assert.ok(await page.eval('player.pos.x') > x0 + 0.5, 'D strafes right');
+      await page.clickAt(480, 300);
+      await page.waitFor('bolts.some(b => b.owner === "player")', 2000);
+      assert.equal(await page.eval('bolts.filter(b => b.owner === "player").length'), 1, 'a click fires once');
+      const aim = await page.eval('(() => { const b = bolts.find(b => b.owner === "player"); const d = Player.aimDirection(player.yaw, player.pitch); const v = b.vel, n = Math.hypot(v.x, v.y, v.z); return Math.abs(v.x / n - d.x) + Math.abs(v.y / n - d.y) + Math.abs(v.z / n - d.z); })()');
+      assert.ok(aim < 1e-6, 'the bolt flies along the aim direction');
 
+      // Music: M toggles it (the cursor is captured, so the BGM button mirrors
+      // the state); SFX keep their audio context.
+      await page.key('KeyM');
+      assert.equal(await page.eval('document.getElementById("music-btn").textContent'), '♪ BGM: OFF');
+      assert.ok(await page.eval('audioCtx !== null'), 'SFX keep their audio context');
+      assert.equal(await page.eval('__audibleAfter(audioCtx, 0.3)'), 0, 'music is silenced at once');
+      await page.key('KeyM');
+      assert.ok(await page.eval('__audibleAfter(audioCtx, 0.3)') > 0, 'music resumes');
+
+      // Pause freezes the simulation.
+      await page.key('Escape');
+      assert.equal(await page.eval('phase'), 'paused');
+      const t1 = await page.eval('combatTime');
+      await sleep(500);
+      assert.equal(await page.eval('combatTime'), t1, 'nothing moves while paused');
+      await page.key('Escape');
+      assert.equal(await page.eval('phase'), 'playing');
+
+      // Play: keyboard-only (arrows turn, W moves, F fires, Q scans, E uses the console).
       const keys = keyboard(page);
-      const end = Date.now() + 150000;
+      const end = Date.now() + 300000;
+      const picks = { validation: /corroborating evidence/, containment: /^APPLY POLICY RESTRICTION$/ };
+      let consoles = 0, lastScanAt = 0;
       for (;;) {
-        const s = await page.eval(`({ phase, alive: player.alive, ea: enemy.alive, px: player.position.x, pz: player.position.z,
-          yaw: player.yaw, ex: enemy.position.x, ez: enemy.position.z })`);
-        if (s.phase !== 'playing') break;
-        assert.ok(Date.now() < end, 'match should end within 150 s');
-        const dx = s.ex - s.px, dz = s.ez - s.pz, dist = Math.hypot(dx, dz);
-        const err = angleDiff(Math.atan2(-dx, -dz), s.yaw);
-        await keys.set('ArrowLeft', s.ea && err > 0.06);
-        await keys.set('ArrowRight', s.ea && err < -0.06);
-        await keys.set('ArrowUp', s.ea && dist > 9 && Math.abs(err) < 0.5);
-        await keys.set('ArrowDown', s.ea && dist < 5);
-        if (s.ea && s.alive && Math.abs(err) < 0.08) await page.clickAt(480, 300);
-        await sleep(40);
+        const s = await page.eval(`(() => {
+          const eye = Player.eyeOf(player), inc = security.consoleIncident();
+          const goal = inc ? { x: World.CONSOLE.x, z: World.CONSOLE.z - 1 } : enemy.pos;
+          return { phase, alive: player.alive, x: player.pos.x, z: player.pos.z, yaw: player.yaw,
+            ex: enemy.pos.x, ez: enemy.pos.z, ealive: enemy.alive, state: enemy.state.toUpperCase(),
+            los: World.lineOfSight(eye, { x: enemy.pos.x, y: Enemy.EYE_Y, z: enemy.pos.z }),
+            way: World.nextWaypoint(player.pos, goal), incident: inc && inc.id, near: World.nearConsole(player.pos),
+            scanned: [...security.state.scannedStates], stage: consoleView && consoleView.stage,
+            options: [...document.querySelectorAll('#console-card .option')].map(b => b.lastChild.textContent) };
+        })()`);
+        if (s.phase === 'gameOver') break;
+        if (Date.now() - (debug.last || 0) > 3000) { debug.last = Date.now(); debug(JSON.stringify({ p: s.phase, x: s.x.toFixed(1), z: s.z.toFixed(1), e: [s.ex.toFixed(1), s.ez.toFixed(1), s.state, s.ealive], los: s.los, inc: s.incident, near: s.near, k: await page.eval('playerKills + "-" + enemyKills + " hp" + player.health + "/" + enemy.health') })); }
+        assert.ok(Date.now() < end, 'mission ends within 5 minutes');
+        if (s.phase === 'console') {
+          await keys.releaseAll();
+          if (s.stage === 'choose') {
+            const i = s.options.findIndex(o => picks[s.incident || (s.options.length && /POLICY/.test(s.options.join()) ? 'containment' : 'validation')].test(o));
+            assert.ok(i >= 0, 'the defensible control is offered: ' + s.options.join(' | '));
+            await page.key('Digit' + (i + 1));
+            assert.match(await page.eval('document.getElementById("console-card").textContent'), /OBJECTIVE COMPLETE/);
+            consoles++;
+          } else await page.key('Enter');
+          continue;
+        }
+        if (s.phase !== 'playing') { await sleep(50); continue; }
+        if (!s.alive) { await keys.releaseAll(); await sleep(100); continue; }
+        if (s.incident && s.near) { await keys.releaseAll(); await page.key('KeyE'); continue; }
+        const fighting = !s.incident && s.ealive && s.los;
+        const tx = fighting ? s.ex : s.way.x, tz = fighting ? s.ez : s.way.z;
+        const err = angleDiff(Math.atan2(-(tx - s.x), -(tz - s.z)), s.yaw);
+        const dist = Math.hypot(s.ex - s.x, s.ez - s.z);
+        await keys.set('ArrowLeft', err > 0.05); await keys.set('ArrowRight', err < -0.05);
+        await keys.set('KeyW', Math.abs(err) < 0.6 && (!fighting || dist > 8));
+        await keys.set('KeyF', fighting && Math.abs(err) < 0.1);
+        if (s.los && s.ealive && !s.scanned.includes(s.state) && Date.now() - lastScanAt > 1700) { lastScanAt = Date.now(); await page.key('KeyQ'); }
+        await sleep(30);
       }
       await keys.releaseAll();
-      await page.waitFor('phase === "gameOver"');
-      assert.match(await page.eval('document.getElementById("overlay").textContent'), /MISSION SUCCESS/);
-      assert.equal((await progress(page)).levels[1].completed, true);
+      assert.equal(consoles, 2, 'both security consoles were used');
+      const won = await page.eval('playerKills >= 3');
+      assert.ok(won, 'KUKY wins the match: ' + await page.eval('playerKills + "-" + enemyKills'));
+      assert.equal(await page.eval('security.score()'), 3);
+      assert.match(await page.eval('document.getElementById("security-score-line").textContent'), /3\/3/);
+      assert.equal((await progress(page)).levels[1].best.securityScore, 3);
+      assert.equal(await page.eval('document.activeElement.id'), 'next-btn');
 
-      // The skipped intro's 68 s timer must not replace the success screen.
+      // The skipped intro's 68 s timer must not touch the results screen.
       const wait = 70000 - (Date.now() - introStart);
       if (wait > 0) await sleep(wait);
-      assert.match(await page.eval('document.getElementById("overlay").textContent'), /MISSION SUCCESS/);
+      assert.equal(await page.eval('phase'), 'gameOver');
 
       const loaded = page.waitForEvent('Page.loadEventFired');
-      await page.click('#overlay .btn.alt');        // LEVEL 02 >
+      await page.click('#next-btn');
       await loaded;
       assert.equal(await page.eval('location.pathname'), '/level2.html');
       page.assertNoErrors('level1');
