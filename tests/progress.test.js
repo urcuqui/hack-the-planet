@@ -58,6 +58,16 @@ test('level 4 tracks best position and best time independently', () => {
   assert.deepEqual(s.levels[4].best, { position: 2, timeMs: 95000 });
 });
 
+test('level 1 keeps its best AI security score; old saves without it still load', () => {
+  let s = P.applyCompletion(P.defaultState(), 1, { securityScore: 1 }, T0);
+  s = P.applyCompletion(s, 1, { securityScore: 3 }, T1);
+  s = P.applyCompletion(s, 1, { securityScore: 2 }, T1);
+  assert.deepEqual(s.levels[1].best, { securityScore: 3 });
+  const old = P.normalize({ version: 1, levels: { 1: { completed: true, firstCompletedAt: 'x' } } });
+  assert.equal(old.levels[1].completed, true);
+  assert.equal(old.highestUnlocked, 2);
+});
+
 test('level 4 keeps the best AI security score, separate from the race result', () => {
   let s = P.applyCompletion(P.defaultState(), 4, { position: 6, timeMs: 100000, securityScore: 2 }, T0);
   s = P.applyCompletion(s, 4, { position: 1, timeMs: 90000, securityScore: 0 }, T1);

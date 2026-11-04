@@ -144,7 +144,7 @@
 
 <main>
   <header>
-    <div class="pre">&gt; FSOCIETY // MISSION CONTROL</div>
+    <div class="pre">&gt; FSYNDICATE // MISSION CONTROL</div>
     <h1>HACK THE PLANET</h1>
     <div class="tagline">FOUR OPERATIONS. ONE CORPORATION. PANDECORP IS WATCHING.</div>
   </header>
@@ -183,8 +183,8 @@
 const MISSIONS = {
   1: {
     accent: '#00ff41',
-    theme: '3D FIRST-PERSON ARENA · CINEMATIC INTRO',
-    objective: 'Break into the PandeCorp arena as KUKY and beat its security drone. First to 3 kills wins.',
+    theme: 'FPS ARENA · OBSERVE. ANALYZE. CONTAIN.',
+    objective: 'Neutralize PandeCorp\'s autonomous security drone 3 times — scanning it, validating its decisions and containing it along the way.',
   },
   2: {
     accent: '#ff3300',
@@ -225,6 +225,7 @@ function metaText(level, entry) {
   const parts = [];
   if (entry.lastCompletedAt) parts.push('Last cleared ' + formatDate(entry.lastCompletedAt));
   const best = entry.best || {};
+  if (level.id === 1 && Number.isFinite(best.securityScore)) parts.push('Best AI security ' + best.securityScore + '/3');
   if (level.id === 2 && Number.isFinite(best.integrity)) parts.push('Best integrity ' + best.integrity + '%');
   if (level.id === 4 && Number.isFinite(best.position)) parts.push('Best finish P' + best.position);
   if (level.id === 4 && Number.isFinite(best.timeMs)) parts.push('Best time ' + formatTime(best.timeMs));
