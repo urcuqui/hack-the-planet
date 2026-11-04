@@ -50,26 +50,36 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       assert.equal(await progress(page), null, 'watching or skipping the intro does not complete the level');
 
       await page.click('#start-btn');
-      await page.waitFor('phase === "playing"');
+      await page.waitFor('phase === "board"');
       assert.equal(await page.eval('audioCtx && audioCtx.state'), 'running', 'game music starts after the click');
+      assert.deepEqual(await page.eval('[...document.querySelectorAll(".poster .status")].map(s => s.textContent)'), ['AVAILABLE', 'LOCKED', 'LOCKED']);
+      await page.click('#duel-scout');
+      await page.waitFor('phase === "playing"', 5000);          // after the quick draw
 
-      // The 68 s intro timer firing after a skip must not reopen the briefing mid-match.
+      // The 68 s intro timer firing after a skip must not reopen the briefing mid-duel.
       await page.eval('endIntro()');
       await sleep(1500);
       assert.equal(await page.eval('phase'), 'playing');
       assert.equal(await page.eval('document.getElementById("overlay").classList.contains("open")'), false);
 
       assert.equal(await progress(page), null, 'loading/playing alone does not complete the level');
-      await page.eval('playerKills = 2; hitEnemy(100); hitEnemy(100);');
+      for (const kind of ['scout', 'enforcer', 'signal']) {
+        if (kind !== 'scout') {
+          await page.waitFor('phase === "board"', 4000);
+          await page.click('#duel-' + kind);
+          await page.waitFor('phase === "playing"', 5000);
+        }
+        await page.eval('hitEnemy(1000)');
+      }
       await page.waitFor('phase === "gameOver"', 4000);
-      assert.match(await page.eval('document.getElementById("results-pre").textContent'), /MISSION COMPLETE/);
+      assert.equal(await page.eval('document.getElementById("results-title").textContent'), 'FRONTIER SECURED');
       assert.equal(await page.eval('document.querySelectorAll("#security-report details").length'), 3);
       const p1 = await progress(page);
       assert.equal(p1.levels[1].completed, true);
       assert.equal(p1.levels[1].best.securityScore, 0);
 
       await page.click('#retry-btn');
-      await page.waitFor('phase === "playing" && playerKills === 0');
+      await page.waitFor('phase === "board" && board.contained === 0');
 
       // Second visit: the briefing is one step away, the intro still available.
       await page.goto(base + '/level1.html');

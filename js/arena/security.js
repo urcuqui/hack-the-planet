@@ -1,263 +1,260 @@
-// FSYNDICATE Arena: the three AI security objectives, one per round.
-//   1 Agent observability   — scan the agent and read its real state.
-//   2 Decision validation   — review a decision taken on incomplete evidence.
-//   3 Agent containment     — restrict a request that exceeds policy.
-// Pure state machine: the page asks it what to show and tells it what the
-// player did. The score counts in-game outcomes only; it is not a measure of
-// any real system's security.
+// FSYNDICATE — The Agentic Frontier: security objectives and the policy
+// layer every agent tool call passes through.
+//   Bounty 1 · THE SCOUT    — observability: scan it and audit its log.
+//   Bounty 2 · THE ENFORCER — tool misuse (OWASP ASI02): scope a tool request.
+//   Bounty 3 · THE SIGNAL   — insecure inter-agent communication (ASI07).
+// Pure state machine (Node-testable). The score counts in-game decisions
+// only; it is not a measure of any real system's security.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else (root.HTPArena = root.HTPArena || {}).Security = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const SCAN_RANGE = 32;
-  const SCAN_COOLDOWN = 1.5;
+  const SCAN_RANGE = 34;
+  const SCAN_COOLDOWN = 1.2;
   const STATES_TO_OBSERVE = 2;
-  const OBSERVABILITY_TIP = 'Observability helps security teams understand what an autonomous agent is doing and investigate its actions.';
-
-  const VALIDATION = {
-    id: 'validation',
-    title: 'AI DECISION VALIDATION',
-    console: 'DECISION LOG · REVIEW REQUIRED',
-    log: {
-      observed: 'Unrecognized movement near rack NE. No identity signal. Single sensor (motion).',
-      inference: 'Potential unauthorized access. Confidence 0.62.',
-      request: 'Activate attack protocol against the source.',
-      policy: 'REVIEW REQUIRED · high-impact action on a single, unverified signal',
-    },
-    options: [
-      {
-        label: 'Approve it. The model flagged the movement, so the threat is real.',
-        outcome: 'exploited',
-        feedback: 'An inference is not proof. Approving it let the agent attack on a single unverified signal — and its attack protocol now runs hotter this round.',
-        effect: { mods: { fireIntervalFactor: 0.75 }, tag: 'ATTACK PROTOCOL UNREVIEWED · FIRE RATE UP' },
-      },
-      {
-        label: 'Raise the confidence threshold to 0.95; above that the agent may act on its own.',
-        outcome: 'needs-improvement',
-        feedback: 'It stops this 0.62 alert, but confidence is not evidence: a confident misclassification would still execute with no review.',
-        decoyOff: true,
-        effect: null,
-      },
-      {
-        label: 'Require corroborating evidence and human review before any high-impact action.',
-        outcome: 'complete',
-        feedback: 'The beacon was a maintenance unit. With corroboration required, the agent stops firing at it, and attacks need confirmation — its charge-up is longer this round.',
-        residual: 'Residual risk: review adds delay, and corroborating sensors can share the same blind spot.',
-        decoyOff: true,
-        effect: { mods: { windupBonus: 0.3 }, tag: 'CORROBORATION REQUIRED · LONGER CHARGE-UP' },
-      },
-    ],
-    evidence: 'The decision log showed one motion signal, no identity, confidence 0.62 — and the agent fired at a maintenance beacon.',
-    why: 'Automated decisions with high impact need validation proportional to their risk; a model\'s output is a signal, not a verdict.',
-    best: 'Separate inference from decision: require corroboration and human review for high-impact actions, and log every decision.',
-  };
-
-  const CONTAINMENT = {
-    id: 'containment',
-    title: 'AGENT CONTAINMENT',
-    console: 'SECURITY CONTROL CONSOLE · AUTHORIZATION REQUIRED',
-    request: 'EXECUTE ATTACK · OVERCHARGE WEAPON · SUSPEND AUDIT LOG',
-    policy: 'AUTHORIZATION REQUIRED',
-    actions: [
-      { call: 'track_target()', policy: 'ALLOWED' },
-      { call: 'fire_standard()', policy: 'ALLOWED · LOGGED' },
-      { call: 'overcharge_weapon(max)', policy: 'EXCEEDS POLICY' },
-      { call: 'suspend_audit_log()', policy: 'EXCEEDS POLICY' },
-    ],
-    options: [
-      {
-        label: 'ALLOW UNRESTRICTED EXECUTION',
-        outcome: 'exploited',
-        states: ['EXECUTED', 'EXECUTED', 'EXECUTED', 'EXECUTED'],
-        feedback: 'Every capability ran, including the out-of-policy overcharge. The drone now hits much harder for a while.',
-        effect: { seconds: 20, mods: { damageFactor: 1.6 }, tag: 'OVERCHARGE ACTIVE · DAMAGE UP' },
-      },
-      {
-        label: 'APPLY POLICY RESTRICTION',
-        outcome: 'complete',
-        states: ['EXECUTED', 'EXECUTED', 'BLOCKED', 'BLOCKED'],
-        feedback: 'In-policy actions still run, so the fight goes on — but the overcharge and log suspension are blocked, and its burst fire is throttled for a few seconds.',
-        residual: 'Residual risk: allowed actions can still cause harm, which is why they stay logged and monitored.',
-        effect: { seconds: 12, mods: { fireIntervalFactor: 1.35 }, tag: 'POLICY RESTRICTION · BURST FIRE THROTTLED' },
-      },
-      {
-        label: 'DISABLE MONITORING',
-        outcome: 'exploited',
-        states: ['EXECUTED', 'EXECUTED', 'EXECUTED', 'EXECUTED'],
-        feedback: 'Turning off monitoring removed the one thing that let you see the agent — and the overcharge still ran. Scans now return no data.',
-        effect: { seconds: 20, mods: { damageFactor: 1.6 }, tag: 'OVERCHARGE ACTIVE · MONITORING OFF', monitoringOff: true },
-      },
-    ],
-    evidence: 'The request listed four actions; two exceeded the agent\'s policy (weapon overcharge, audit log suspension).',
-    why: 'An autonomous agent should only be able to do what its policy authorizes; containment limits the damage of a bad or compromised decision.',
-    best: 'Least privilege with enforced policy: allow in-scope actions, block out-of-policy ones, keep monitoring and audit logs on.',
-  };
 
   const OBSERVABILITY = {
-    id: 'observability',
-    title: 'AGENT OBSERVABILITY',
-    evidence: 'Scans read the agent\'s live state, target, distance, last action and the observation behind its last transition.',
-    why: OBSERVABILITY_TIP,
-    best: 'Instrument autonomous agents: expose their state, inputs and actions, and keep a log you can investigate.',
+    id: 'scout', title: 'THE SCOUT', concept: 'Observability', knowledge: 'Agent Observability',
+    tip: 'Observability lets you see what an autonomous agent observed, what it inferred, what it asked to do and what actually ran.',
+    evidence: 'The inspector read the Scout\'s live state, its tool calls and the classification that turned a motion signal into an attack.',
+    why: 'You cannot secure what you cannot see: autonomous actions need to be observable and auditable after the fact.',
+    best: 'Log every observation, inference, tool request, policy decision and execution, and make the log easy to investigate.',
   };
 
-  const LABEL = {
-    'complete': 'COMPLETE',
-    'needs-improvement': 'NEEDS IMPROVEMENT',
-    'exploited': 'NEEDS IMPROVEMENT',
-    'not-completed': 'NOT COMPLETED',
+  const TOOL_REVIEW = {
+    id: 'enforcer', console: 'sheriff', title: 'AGENT TOOL REQUEST', concept: 'Tool Controls', knowledge: 'Tool Misuse (ASI02)',
+    request: {
+      agent: 'FRONTIER-ENFORCER-02', tool: 'lock_gate', target: 'MAIN_STREET_EXIT', reason: 'CONTAIN SUSPECT',
+      role: 'Protect the DATA VAULT', scope: 'DATA_VAULT doors and grounds', policy: 'REVIEW REQUIRED',
+    },
+    evidence: 'The Enforcer holds lock_gate and deploy_barrier for the Data Vault, but asked to lock the town\'s public exit and was dropping barriers across Main Street.',
+    why: 'A legitimate tool can still be misused: having a tool is not the same as being authorized to use it on any target.',
+    best: 'Scope every tool to the agent\'s role and targets, require authorization for sensitive calls, and log each call with its decision.',
+    options: [
+      {
+        label: 'Approve it. lock_gate is in the Enforcer\'s toolkit, so the call is allowed.',
+        outcome: 'exploited', policy: 'open',
+        feedback: 'The gate slams shut and the Enforcer, now trusted with any target, walls off Main Street faster. Having a tool is not authorization to use it anywhere.',
+      },
+      {
+        label: 'Scope its tools to the Data Vault: allow in-scope targets, block the rest, log every call.',
+        outcome: 'complete', policy: 'scoped',
+        feedback: 'lock_gate on MAIN_STREET_EXIT is blocked: the target is outside the agent\'s authorized scope. Barriers outside the vault grounds are blocked too — its scan and pulse still work, so the duel goes on.',
+        residual: 'Residual risk: in-scope calls can still be misused, so they stay logged and reviewable.',
+      },
+      {
+        label: 'Revoke every tool the Enforcer has.',
+        outcome: 'needs-improvement', policy: 'revoked',
+        feedback: 'Nothing unsafe runs — but the Enforcer can no longer protect the vault either. Least privilege means the minimum the job needs, not zero.',
+      },
+    ],
   };
+
+  const MESSAGE_CHECK = {
+    id: 'signal', console: 'telegraph', title: 'INCOMING AGENT MESSAGE', concept: 'Message Verification', knowledge: 'Inter-Agent Trust (ASI07)',
+    message: { claimedSender: 'FRONTIER-CONTROLLER', receiver: 'THE SIGNAL', request: 'OVERRIDE SECURITY POLICY', status: 'UNVERIFIED' },
+    // The evidence is about authenticity, integrity, permissions and
+    // provenance — not about suspicious words in the message.
+    evidence: [
+      ['CLAIMED IDENTITY', 'FRONTIER-CONTROLLER'],
+      ['VERIFIED IDENTITY', 'NONE · no valid signature (key id 7f3a… is not in the trust store)'],
+      ['CHANNEL', 'Public telegraph relay (expected: the controller\'s mutually authenticated channel)'],
+      ['INTEGRITY', 'Nonce already used 2 h ago · possible replay'],
+      ['PERMISSIONS', 'FRONTIER-CONTROLLER may update patrol routes; it may NOT override security policy'],
+      ['REQUESTED ACTION', 'OVERRIDE SECURITY POLICY'],
+      ['POLICY DECISION', 'AUTHENTICATION AND AUTHORIZATION REQUIRED'],
+    ],
+    evidenceSummary: 'The message claimed to be the controller but carried no valid signature, arrived on a public relay, reused a nonce, and asked for an action the controller is not authorized to give.',
+    why: 'Agents that trust each other\'s claimed identity can be steered by anyone who can send a message.',
+    best: 'Authenticate every agent message (signatures or mutual TLS), check integrity and freshness, and authorize the sender for the specific action before executing it.',
+    options: [
+      {
+        label: 'Accept it: the sender name is the controller\'s.',
+        outcome: 'exploited', policy: 'open',
+        feedback: 'The override runs. The Signal floods Main Street with decoys and jams your scanner for a while. A name in a message is a claim, not an identity.',
+      },
+      {
+        label: 'Have the Signal re-confirm with the sender over the same relay, then execute.',
+        outcome: 'needs-improvement', policy: 'reconfirm',
+        feedback: 'The "confirmation" comes back over the same unauthenticated relay — from whoever sent the first message. The override runs a few seconds later.',
+      },
+      {
+        label: 'Reject it unless it is signed by a trusted key, fresh, on the authenticated channel, and the sender is authorized for this action.',
+        outcome: 'complete', policy: 'verified',
+        feedback: 'The message fails every check and is quarantined. With the relay cut, the Signal can no longer broadcast decoys.',
+        residual: 'Residual risk: a stolen signing key would still pass; keys need rotation and monitoring.',
+      },
+    ],
+  };
+
+  const LABEL = { 'complete': 'COMPLETE', 'needs-improvement': 'NEEDS REVIEW', 'exploited': 'NEEDS REVIEW', 'not-completed': 'NOT COMPLETED' };
 
   function createSecurity() {
     const s = {
-      round: 1,
-      scannedStates: new Set(),
-      tipShown: false,
-      lastScanAt: -Infinity,
-      observability: 'pending',
-      validation: { available: false, choice: null },
-      containment: { available: false, choice: null },
+      scout: { scanned: new Set(), logOpened: false, tipShown: false },
+      enforcer: { incident: false, choice: null },
+      signal: { incident: false, choice: null },
       effects: [],
+      lastScanAt: -Infinity,
       lastEvent: 'MONITORING',
     };
+    const defOf = kind => (kind === 'enforcer' ? TOOL_REVIEW : MESSAGE_CHECK);
+    const choiceOf = kind => (s[kind].choice == null ? null : defOf(kind).options[s[kind].choice]);
+    const policyMode = kind => { const c = choiceOf(kind); return c ? c.policy : 'unreviewed'; };
 
-    // Round = neutralizations + 1. Opening a round makes its incident available.
-    function setRound(round) {
-      if (round <= s.round) return null;
-      s.round = Math.min(3, round);
-      let opened = null;
-      if (s.round >= 2 && !s.validation.available) { s.validation.available = true; s.lastEvent = 'DECISION ON INCOMPLETE EVIDENCE'; opened = 'validation'; }
-      if (s.round >= 3 && !s.containment.available) { s.containment.available = true; s.lastEvent = 'OUT-OF-POLICY REQUEST'; opened = 'containment'; }
-      return opened;
+    // The policy every tool call goes through. The decisions above change it.
+    function policy(kind, tool, target) {
+      if (kind === 'enforcer') {
+        const mode = policyMode('enforcer');
+        if (tool === 'scan_target' || tool === 'fire_pulse') return { decision: 'ALLOWED' };
+        if (mode === 'revoked') return { decision: 'BLOCKED', reason: 'ALL TOOLS REVOKED' };
+        if (mode === 'open') return { decision: 'ALLOWED', reason: 'IN TOOLKIT' };
+        if (mode === 'scoped') {
+          if (tool === 'request_backup') return { decision: 'BLOCKED', reason: 'NOT IN ROLE POLICY' };
+          return target === 'DATA_VAULT' ? { decision: 'ALLOWED', reason: 'IN SCOPE' } : { decision: 'BLOCKED', reason: 'TARGET OUTSIDE AUTHORIZED SCOPE (DATA_VAULT)' };
+        }
+        // Not reviewed yet — the misconfiguration: deploy_barrier has no scope.
+        if (tool === 'deploy_barrier') return { decision: 'ALLOWED', reason: 'NO SCOPE CONFIGURED' };
+        return { decision: 'PENDING', reason: 'REVIEW REQUIRED' };
+      }
+      if (kind === 'signal') {
+        const mode = policyMode('signal');
+        if (tool === 'policy_override') {
+          if (mode === 'unreviewed') return { decision: 'PENDING', reason: 'AUTHENTICATION REQUIRED' };
+          if (mode === 'verified') return { decision: 'BLOCKED', reason: 'NO VALID SIGNATURE · SENDER NOT AUTHORIZED' };
+          return { decision: 'ALLOWED', reason: mode === 'open' ? 'CLAIMED SENDER TRUSTED' : 'RE-CONFIRMED OVER SAME RELAY' };
+        }
+        if (tool === 'broadcast_decoy' && mode === 'verified') return { decision: 'BLOCKED', reason: 'RELAY QUARANTINED' };
+        return { decision: 'ALLOWED' };
+      }
+      return { decision: 'ALLOWED' };
     }
 
-    function monitoringOff(time) {
-      return s.effects.some(e => e.monitoringOff && time < e.until);
-    }
+    const live = (e, time) => time >= (e.from || 0) && time < e.until;
+    function jammed(time) { return s.effects.some(e => e.jam && live(e, time)); }
 
-    // Player pressed Q. enemyTelemetry from Enemy.telemetry; sight: has line of sight.
-    function scan(enemyTelemetry, sight, time, enemyAlive) {
+    // Q: attach the inspector to the agent in sight.
+    function scan(kind, info, sight, time, alive) {
       if (time - s.lastScanAt < SCAN_COOLDOWN) return { ok: false, reason: 'SCANNER RECHARGING' };
       s.lastScanAt = time;
-      if (monitoringOff(time)) return { ok: false, reason: 'NO DATA · MONITORING DISABLED' };
-      if (!enemyAlive) return { ok: false, reason: 'AGENT OFFLINE · REBOOTING' };
+      if (jammed(time)) return { ok: false, reason: 'SCANNER JAMMED · UNVERIFIED OVERRIDE RUNNING' };
+      if (!alive) return { ok: false, reason: 'AGENT CONTAINED' };
       if (!sight) return { ok: false, reason: 'SCAN FAILED · NO LINE OF SIGHT' };
-      if (enemyTelemetry.distance > SCAN_RANGE) return { ok: false, reason: 'SCAN FAILED · OUT OF RANGE' };
-      const firstTip = !s.tipShown;
-      s.tipShown = true;
-      s.scannedStates.add(enemyTelemetry.state);
-      if (s.observability === 'pending' && s.scannedStates.size >= STATES_TO_OBSERVE) {
-        s.observability = 'complete';
-        s.lastEvent = 'OBSERVABILITY OBJECTIVE COMPLETE';
+      if (info.distance > SCAN_RANGE) return { ok: false, reason: 'SCAN FAILED · OUT OF RANGE' };
+      let tip = null;
+      if (kind === 'scout') {
+        s.scout.scanned.add(info.state);
+        if (!s.scout.tipShown) { s.scout.tipShown = true; tip = OBSERVABILITY.tip; }
       }
-      return { ok: true, telemetry: enemyTelemetry, tip: firstTip ? OBSERVABILITY_TIP : null };
+      return { ok: true, info, tip };
     }
 
-    // Which incident the console offers right now (or null). Each incident
-    // belongs to its round; once the round is over it can no longer be fixed.
-    function consoleIncident() {
-      if (s.round === 2 && s.validation.choice == null) return VALIDATION;
-      if (s.round === 3 && s.containment.choice == null) return CONTAINMENT;
-      return null;
+    // I: open the full activity log (a safe window: the page freezes the duel).
+    function openLog(kind, everScanned) {
+      if (!everScanned) return { ok: false, reason: 'SCAN THE AGENT FIRST · [Q]' };
+      if (kind === 'scout') s.scout.logOpened = true;
+      return { ok: true };
     }
 
-    function decide(id, index, time) {
-      const def = id === 'validation' ? VALIDATION : CONTAINMENT;
-      const slot = s[id];
-      if (!slot.available || slot.choice != null || consoleIncident() !== def) return null;
+    function raiseIncident(kind) {
+      if (kind !== 'enforcer' && kind !== 'signal') return null;
+      s[kind].incident = true;
+      s.lastEvent = kind === 'enforcer' ? 'TOOL REQUESTED · REVIEW REQUIRED' : 'IDENTITY UNVERIFIED · AUTHENTICATION REQUIRED';
+      return defOf(kind);
+    }
+
+    // The incident a console can handle right now for the active bounty.
+    function consoleIncident(kind, consoleId) {
+      if (kind !== 'enforcer' && kind !== 'signal') return null;
+      const def = defOf(kind);
+      if (def.console !== consoleId) return null;
+      return s[kind].incident && s[kind].choice == null ? def : null;
+    }
+
+    function decide(kind, index, time) {
+      if (kind !== 'enforcer' && kind !== 'signal') return null;
+      const def = defOf(kind);
+      const slot = s[kind];
+      if (!slot.incident || slot.choice != null) return null;
       const option = def.options[index];
       if (!option) return null;
       slot.choice = index;
-      if (option.effect) {
-        s.effects.push(Object.assign({}, option.effect, {
-          source: id, round: s.round,
-          until: option.effect.seconds ? time + option.effect.seconds : Infinity,
-        }));
+      if (kind === 'enforcer' && option.policy === 'open') {
+        s.effects.push({ kind, from: time, until: time + 20, mods: { barrierCooldownFactor: 0.45 }, tag: 'GATE LOCKED · BARRIERS ANYWHERE' });
       }
-      s.lastEvent = option.effect ? option.effect.tag : (option.outcome === 'complete' ? 'POLICY APPLIED' : 'THRESHOLD CHANGED');
+      if (kind === 'signal' && option.policy !== 'verified') {
+        const delay = option.policy === 'reconfirm' ? 4 : 0;
+        s.effects.push({ kind, from: time + delay, until: time + delay + 15, jam: true, mods: { decoyCooldownFactor: 0.4, fireIntervalFactor: 0.8 }, tag: 'POLICY OVERRIDDEN · SCANNER JAMMED' });
+      }
+      s.lastEvent = option.outcome === 'complete' ? 'ACTION BLOCKED · POLICY ENFORCED' : option.outcome === 'exploited' ? 'ACTION EXECUTED · UNSAFE' : 'DECISION RECORDED';
       return { def, option };
     }
 
-    // Behaviour changes in force (they end with their round or their time).
-    function enemyMods(time) {
-      return Object.assign({}, ...s.effects.filter(e => time < e.until && e.round === s.round).map(e => e.mods));
+    function agentMods(kind, time) {
+      return Object.assign({}, ...s.effects.filter(e => e.kind === kind && live(e, time)).map(e => e.mods));
     }
-    function activeTags(time) {
-      return s.effects.filter(e => time < e.until && e.round === s.round).map(e => e.tag);
-    }
-    function decoyActive() {
-      if (!s.validation.available) return false;
-      const c = s.validation.choice;
-      return s.round === 2 && (c == null || !VALIDATION.options[c].decoyOff);
+    function activeTag(kind, time) {
+      const e = s.effects.find(x => x.kind === kind && live(x, time));
+      return e ? e.tag : null;
     }
 
-    function policyStatus(time) {
-      if (monitoringOff(time)) return 'MONITORING DISABLED';
-      if (s.round === 3) {
-        const c = s.containment.choice;
-        if (c == null) return 'AUTHORIZATION REQUIRED · REQUEST PENDING';
-        return CONTAINMENT.options[c].outcome === 'complete' ? 'POLICY RESTRICTION ENFORCED' : 'UNRESTRICTED EXECUTION';
+    function objective(kind) {
+      if (kind === 'scout') {
+        const n = Math.min(STATES_TO_OBSERVE, s.scout.scanned.size);
+        if (n < STATES_TO_OBSERVE) return `SCAN THE SCOUT IN ${STATES_TO_OBSERVE} STATES (${n}/${STATES_TO_OBSERVE}) · [Q]`;
+        return s.scout.logOpened ? 'OBSERVABILITY ✓ · CONTAIN THE SCOUT' : 'OPEN ITS ACTIVITY LOG · [I]';
       }
-      if (s.round === 2) {
-        const c = s.validation.choice;
-        if (c == null) return 'REVIEW REQUIRED';
-        return ['ACTING ON INFERENCE', 'THRESHOLD 0.95 · NO REVIEW', 'CORROBORATION REQUIRED'][c];
-      }
-      return 'MONITORING';
-    }
-
-    // The objective line for the HUD.
-    function objective() {
-      if (s.round === 1) {
-        return s.observability === 'complete'
-          ? 'OBSERVABILITY ✓ · NEUTRALIZE THE DRONE TO CONTINUE'
-          : `SCAN THE AGENT IN ${STATES_TO_OBSERVE} DIFFERENT STATES (${s.scannedStates.size}/${STATES_TO_OBSERVE}) · [Q]`;
-      }
-      if (s.round === 2) return s.validation.choice == null ? 'REVIEW THE DRONE\'S DECISION LOG · [E] AT THE CONSOLE' : 'DECISION REVIEWED · NEUTRALIZE THE DRONE';
-      return s.containment.choice == null ? 'CONTAIN THE OUT-OF-POLICY REQUEST · [E] AT THE CONSOLE' : 'CONTAINMENT DECIDED · NEUTRALIZE THE DRONE';
+      const slot = s[kind];
+      if (!slot.incident) return kind === 'enforcer' ? 'WATCH ITS TOOL USE · [Q] [I]' : 'WATCH ITS MESSAGES · [Q] [I]';
+      if (slot.choice == null) return kind === 'enforcer' ? 'REVIEW THE TOOL REQUEST · [E] SHERIFF\'S OFFICE' : 'VERIFY THE MESSAGE · [E] TELEGRAPH STATION';
+      return 'DECISION RECORDED · CONTAIN ' + (kind === 'enforcer' ? 'THE ENFORCER' : 'THE SIGNAL');
     }
 
     function outcomes() {
-      const pick = (def, slot) => slot.choice == null ? 'not-completed' : def.options[slot.choice].outcome;
+      const pick = kind => { const c = choiceOf(kind); return c ? c.outcome : 'not-completed'; };
       return {
-        observability: s.observability === 'complete' ? 'complete' : 'not-completed',
-        validation: pick(VALIDATION, s.validation),
-        containment: pick(CONTAINMENT, s.containment),
+        scout: s.scout.scanned.size >= STATES_TO_OBSERVE && s.scout.logOpened ? 'complete' : 'not-completed',
+        enforcer: pick('enforcer'),
+        signal: pick('signal'),
       };
     }
-
-    function score() {
-      return Object.values(outcomes()).filter(o => o === 'complete').length;
-    }
+    function score() { return Object.values(outcomes()).filter(o => o === 'complete').length; }
 
     function report() {
       const o = outcomes();
-      const entry = (def, outcome, slot, happened) => ({
-        id: def.id, title: def.title, outcome, label: LABEL[outcome],
-        happened, evidence: def.evidence, why: def.why, best: def.best,
-        residual: slot && slot.choice != null ? def.options[slot.choice].residual || null : null,
-      });
+      const sc = s.scout;
+      const entry = (kind, evidence) => {
+        const def = defOf(kind), c = choiceOf(kind);
+        return {
+          id: kind, agent: kind === 'enforcer' ? 'THE ENFORCER' : 'THE SIGNAL', concept: def.concept, knowledge: def.knowledge,
+          outcome: o[kind], label: LABEL[o[kind]],
+          happened: c ? 'You chose: ' + c.label + ' ' + c.feedback
+            : s[kind].incident ? 'The request was never reviewed. The policy default held it (not executed), but nobody contained it.'
+              : 'The duel ended before the incident.',
+          evidence, why: def.why, best: def.best, residual: c ? c.residual || null : null,
+        };
+      };
       return [
-        entry(OBSERVABILITY, o.observability, null, o.observability === 'complete'
-          ? `You scanned the agent in ${[...s.scannedStates].join(' and ')} and read why it changed state.`
-          : s.scannedStates.size ? `You scanned it in ${[...s.scannedStates].join(', ')} only — one state shows what it does, two show how it decides.`
-            : 'You never scanned the agent, so its decisions stayed invisible.'),
-        entry(VALIDATION, o.validation, s.validation, s.validation.choice != null
-          ? 'You chose: ' + VALIDATION.options[s.validation.choice].label + ' ' + VALIDATION.options[s.validation.choice].feedback
-          : s.validation.available ? 'The decision log was never reviewed; the agent kept firing at an unverified signal.' : 'The mission ended before this round.'),
-        entry(CONTAINMENT, o.containment, s.containment, s.containment.choice != null
-          ? 'You chose: ' + CONTAINMENT.options[s.containment.choice].label + '. ' + CONTAINMENT.options[s.containment.choice].feedback
-          : s.containment.available ? 'The request stayed pending. The policy default (authorization required) kept the overcharge from running, but nobody contained it.' : 'The mission ended before this round.'),
+        {
+          id: 'scout', agent: 'THE SCOUT', concept: OBSERVABILITY.concept, knowledge: OBSERVABILITY.knowledge,
+          outcome: o.scout, label: LABEL[o.scout],
+          happened: o.scout === 'complete'
+            ? `You scanned it in ${[...sc.scanned].join(' and ')} and read its activity log: observation → inference → request → policy → execution.`
+            : `Scanned states: ${sc.scanned.size ? [...sc.scanned].join(', ') : 'none'}; activity log ${sc.logOpened ? 'opened' : 'never opened'}. Its decisions stayed partly invisible.`,
+          evidence: OBSERVABILITY.evidence, why: OBSERVABILITY.why, best: OBSERVABILITY.best, residual: null,
+        },
+        entry('enforcer', TOOL_REVIEW.evidence),
+        entry('signal', MESSAGE_CHECK.evidenceSummary),
       ];
     }
 
     return {
-      state: s, setRound, scan, consoleIncident, decide, enemyMods, activeTags, decoyActive,
-      policyStatus, objective, outcomes, score, report, monitoringOff,
+      state: s, policy, scan, openLog, raiseIncident, consoleIncident, decide, agentMods, activeTag, jammed,
+      objective, outcomes, score, report,
     };
   }
 
-  return { VALIDATION, CONTAINMENT, OBSERVABILITY, LABEL, OBSERVABILITY_TIP, SCAN_RANGE, STATES_TO_OBSERVE, createSecurity };
+  return { OBSERVABILITY, TOOL_REVIEW, MESSAGE_CHECK, LABEL, SCAN_RANGE, STATES_TO_OBSERVE, createSecurity };
 });

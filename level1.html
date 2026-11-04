@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HACK THE PLANET - Level 1: FSYNDICATE Arena</title>
+<title>HACK THE PLANET - Level 1: FSYNDICATE — The Agentic Frontier</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; cursor: crosshair; }
@@ -162,185 +162,179 @@
     text-shadow: 0 0 20px #00ff41;
   }
 
-  /* ══════════════ HUD ══════════════ */
-  :root { --g: #00ff41; --g-dim: rgba(0,255,65,0.6); --red: #ff4d4d; --amber: #ffcc00; --cyan: #5ff6ff; --violet: #c49bff; --panel: rgba(0,10,2,0.82); }
-  #hud {
-    position: absolute; inset: 0; pointer-events: none; display: none;
-    color: var(--g); user-select: none;
+  /* ══════════════ HUD — Cyber Western ══════════════ */
+  :root {
+    --sand: #C98B55; --orange: #E8A45B; --brown: #38251F; --navy: #101827; --cream: #F5DDB4;
+    --cyan: #00D9E8; --green: #31D98B; --amber: #FFC857; --red: #F06464; --violet: #B48CFF;
+    --panel: rgba(16,24,39,0.82); --panel-line: rgba(245,221,180,0.35);
   }
-  #hud-top {
-    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
-    padding: 12px 20px; background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
-  }
-  .health-block { display: flex; flex-direction: column; gap: 4px; }
-  #enemy-block { align-items: flex-end; text-align: right; }
-  .lbl { font-size: 10px; letter-spacing: 3px; color: rgba(0,255,65,0.75); }
-  #enemy-block .lbl { color: #ff8080; }
-  .bar-bg { width: min(220px, 26vw); height: 9px; background: rgba(0,10,0,0.9); border: 1px solid rgba(0,255,65,0.35); }
-  #enemy-block .bar-bg { border-color: rgba(255,77,77,0.45); }
+  #hud { position: absolute; inset: 0; pointer-events: none; display: none; color: var(--cream); user-select: none; font-family: 'Courier New', monospace; }
+  #hud-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 16px; padding: 12px 18px; }
+  .hud-chip { background: var(--panel); border: 1px solid var(--panel-line); padding: 6px 10px; }
+  .lbl { font-size: 10px; letter-spacing: 3px; color: var(--orange); }
+  .val { font-size: 15px; letter-spacing: 2px; color: var(--cream); }
+  .bar-bg { width: min(200px, 24vw); height: 7px; background: rgba(0,0,0,0.5); margin-top: 4px; }
   .bar { height: 100%; }
-  .bar.player { background: var(--g); }
+  .bar.player { background: var(--green); }
   .bar.enemy { background: var(--red); }
-  .hp-val { font-size: 12px; letter-spacing: 1px; color: #d8ffd8; }
-  #enemy-block .hp-val { color: #ffd0d0; }
-  #score-block { text-align: center; }
-  #score { font-size: 26px; font-weight: bold; letter-spacing: 3px; color: #eaffea; text-shadow: 0 0 10px rgba(0,255,65,0.6); }
-  #breaches { font-size: 11px; letter-spacing: 2px; color: #ffb0b0; }
+  #player-chip { justify-self: start; }
+  #enemy-chip { justify-self: end; text-align: right; }
+  #enemy-chip .bar-bg { margin-left: auto; }
+  #bounty-chip { text-align: center; }
+  #bounty-count { font-size: 22px; letter-spacing: 3px; }
+  #breaches { font-size: 10px; letter-spacing: 2px; color: #ffc0c0; }
   #crosshair { position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); }
-  #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(220,255,220,0.95); }
+  #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(245,221,180,0.95); }
   #crosshair::before { width: 2px; height: 14px; top: 4px; left: 10px; }
   #crosshair::after { width: 14px; height: 2px; top: 10px; left: 4px; }
-  #hitmarker {
-    position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; transform: translate(-50%, -50%) rotate(45deg);
-    opacity: 0; transition: opacity 0.12s;
-  }
-  #hitmarker::before, #hitmarker::after { content: ''; position: absolute; background: #ffffff; }
+  #hitmarker { position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; transform: translate(-50%, -50%) rotate(45deg); opacity: 0; }
+  #hitmarker::before, #hitmarker::after { content: ''; position: absolute; background: #fff; }
   #hitmarker::before { width: 2px; height: 30px; left: 14px; }
   #hitmarker::after { width: 30px; height: 2px; top: 14px; }
   #hitmarker.show { opacity: 1; }
-  #hitmarker.kill::before, #hitmarker.kill::after { background: var(--red); }
+  #hitmarker.kill::before, #hitmarker.kill::after { background: var(--amber); }
   #status-msg {
-    position: absolute; top: 58%; left: 50%; transform: translateX(-50%);
-    font-size: 16px; letter-spacing: 4px; padding: 6px 14px; white-space: nowrap;
-    background: rgba(0,0,0,0.6); border: 1px solid rgba(0,255,65,0.4); color: #eaffea;
-    opacity: 0; transition: opacity 0.25s;
+    position: absolute; top: 60%; left: 50%; transform: translateX(-50%); white-space: nowrap;
+    font-size: 15px; letter-spacing: 4px; padding: 6px 14px; background: var(--panel); border: 1px solid var(--cyan); opacity: 0;
   }
   #status-msg.show { opacity: 1; }
-  #status-msg.danger { border-color: var(--red); color: #ffd0d0; }
+  #status-msg.danger { border-color: var(--red); color: #ffd6d6; }
+  #status-msg.warn { border-color: var(--amber); color: #ffe8b0; }
+  #status-msg.ok { border-color: var(--green); color: #d6ffe9; }
   #damage-dir { position: absolute; top: 50%; left: 50%; width: 0; height: 0; }
   .dmg-arrow {
     position: absolute; left: -60px; top: -150px; width: 120px; height: 18px; transform-origin: 60px 150px;
-    background: linear-gradient(to bottom, rgba(255,77,77,0.9), transparent); clip-path: polygon(50% 0, 100% 100%, 0 100%);
-    transition: opacity 0.6s;
+    background: linear-gradient(to bottom, rgba(240,100,100,0.95), transparent); clip-path: polygon(50% 0, 100% 100%, 0 100%); transition: opacity 0.6s;
   }
-  #vignette {
-    position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s;
-    box-shadow: inset 0 0 140px 30px rgba(255,40,40,0.55);
-  }
+  #vignette { position: absolute; inset: 0; opacity: 0; box-shadow: inset 0 0 140px 30px rgba(240,100,100,0.5); transition: opacity 0.3s; }
   #vignette.on { opacity: 1; }
-  #respawn-msg {
-    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); display: none;
-    font-size: 20px; letter-spacing: 5px; color: #ffd0d0; text-align: center; background: rgba(0,0,0,0.6); padding: 14px 22px;
-    border: 1px solid var(--red);
-  }
-  .hud-panel { position: absolute; background: var(--panel); border: 1px solid rgba(0,255,65,0.3); padding: 10px 12px; font-size: 12px; }
-  #agent-panel { left: 16px; bottom: 16px; width: min(330px, 40vw); }
-  #objective-panel { right: 16px; bottom: 16px; width: min(330px, 40vw); text-align: right; }
-  .hud-panel dl { display: grid; grid-template-columns: 92px 1fr; gap: 3px 8px; margin-top: 6px; text-align: left; }
-  .hud-panel dt { font-size: 10px; letter-spacing: 2px; color: rgba(0,255,65,0.6); padding-top: 2px; }
-  .hud-panel dd { color: #eaffea; letter-spacing: 1px; }
-  .hud-panel .key { color: #050505; background: var(--g); padding: 0 5px; margin-right: 6px; font-weight: bold; }
-  #scan-line { margin-top: 8px; color: #eaffea; }
-  #scan-age { color: rgba(234,255,234,0.6); font-size: 10px; letter-spacing: 1px; }
-  #objective-text { margin-top: 6px; color: #eaffea; line-height: 1.5; }
-  #interact { margin-top: 8px; color: var(--amber); display: none; }
-  #toast {
-    position: absolute; top: 92px; left: 50%; transform: translateX(-50%); max-width: min(620px, 90vw);
-    background: rgba(0,12,4,0.92); border: 1px solid var(--cyan); color: #e8ffff; padding: 10px 16px;
-    font-size: 13px; line-height: 1.5; letter-spacing: 0.5px; opacity: 0; transition: opacity 0.3s; text-align: center;
-  }
+  #respawn-msg { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); display: none; white-space: pre-line; text-align: center;
+    font-size: 18px; letter-spacing: 4px; padding: 14px 22px; background: var(--panel); border: 1px solid var(--red); }
+  #toast { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); max-width: min(640px, 90vw); text-align: center;
+    background: var(--panel); border: 1px solid var(--cyan); padding: 9px 16px; font-size: 13px; line-height: 1.5; opacity: 0; transition: opacity 0.3s; }
   #toast.show { opacity: 1; }
   #toast b { color: var(--cyan); font-weight: normal; letter-spacing: 2px; }
-  #music-btn {
-    position: absolute; top: 80px; right: 16px; font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 2px;
-    color: var(--g); background: rgba(0,10,0,0.8); border: 1px solid rgba(0,255,65,0.3); padding: 6px 10px; cursor: pointer; pointer-events: all;
-  }
-  #music-btn:hover, #music-btn:focus-visible { background: rgba(0,255,65,0.12); }
+  #agent-chip { position: absolute; left: 16px; bottom: 16px; width: min(330px, 42vw); font-size: 12px; }
+  #agent-chip .row { display: flex; justify-content: space-between; gap: 8px; margin-top: 3px; }
+  #agent-chip .k { color: rgba(245,221,180,0.65); font-size: 10px; letter-spacing: 2px; }
+  #inspector-mini { display: none; margin-top: 6px; border-top: 1px dashed var(--panel-line); padding-top: 5px; line-height: 1.5; }
+  #inspector-mini.open { display: block; }
+  #inspector-mini dl { display: grid; grid-template-columns: 82px 1fr; gap: 1px 8px; }
+  #inspector-mini dt { color: rgba(245,221,180,0.6); font-size: 10px; letter-spacing: 1px; padding-top: 2px; }
+  #action-chip { position: absolute; right: 16px; bottom: 16px; width: min(330px, 42vw); text-align: right; font-size: 12px; }
+  .keycap { display: inline-block; background: var(--cream); color: var(--navy); font-weight: bold; padding: 0 5px; margin: 0 4px; }
+  #objective-text { margin-top: 5px; line-height: 1.45; }
+  #interact { display: none; margin-top: 6px; color: var(--amber); }
+  #cylinder { margin-top: 6px; letter-spacing: 3px; font-size: 14px; }
+  #cylinder .empty { color: rgba(245,221,180,0.25); }
+  #reloading { color: var(--amber); font-size: 10px; letter-spacing: 2px; }
+  #music-btn { position: absolute; top: 74px; right: 16px; font-family: inherit; font-size: 10px; letter-spacing: 2px; color: var(--cream);
+    background: var(--panel); border: 1px solid var(--panel-line); padding: 5px 9px; cursor: pointer; pointer-events: all; }
   /* State badges: icon + word, never colour alone */
   .st::before { margin-right: 6px; }
-  .st-PATROL::before { content: "●"; color: var(--g); }
-  .st-CHASE::before { content: "▲"; color: var(--amber); }
+  .st-PATROL::before { content: "●"; color: var(--green); }
+  .st-DETECT::before { content: "◆"; color: var(--cyan); }
+  .st-TRACK::before { content: "▲"; color: var(--amber); }
   .st-ATTACK::before { content: "■"; color: var(--red); }
-  .st-OFFLINE::before { content: "○"; color: #9aa; }
-  .st-UNKNOWN::before { content: "?"; color: #9aa; }
+  .st-RECOVER::before { content: "◐"; color: var(--violet); }
+  .st-CONTAINED::before { content: "✓"; color: var(--green); }
+  .st-UNKNOWN::before { content: "?"; color: #aaa; }
+  #draw { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  #draw.open { display: flex; }
+  #draw .d1 { font-size: 13px; letter-spacing: 6px; color: var(--cyan); }
+  #draw .d2 { font-size: clamp(34px, 7vw, 64px); letter-spacing: 8px; color: var(--cream); text-shadow: 0 0 18px rgba(232,164,91,0.7); margin: 6px 0; }
+  #draw .d3 { font-size: 18px; letter-spacing: 8px; color: var(--amber); }
+  #draw .d3.go { font-size: 46px; color: var(--red); }
 
-  /* ══════════════ SCREENS (briefing, pause, console, results) ══════════════ */
-  .screen {
-    position: absolute; inset: 0; z-index: 10; display: none; overflow-y: auto; padding: 24px 16px;
-    background: rgba(0,0,0,0.9); color: #d8ffd8;
-  }
+  /* ══════════════ SCREENS ══════════════ */
+  .screen { position: absolute; inset: 0; z-index: 10; display: none; overflow-y: auto; padding: 24px 16px; background: rgba(16,24,39,0.9); color: var(--cream); }
   .screen.open { display: flex; flex-direction: column; align-items: center; }
-  .screen > .card { margin: auto 0; width: min(760px, 100%); border: 1px solid rgba(0,255,65,0.35); background: rgba(0,14,4,0.92); padding: 24px 26px; }
-  .screen h1 { font-size: clamp(30px, 6vw, 50px); letter-spacing: 8px; color: var(--g); text-shadow: 0 0 22px rgba(0,255,65,0.6); margin-bottom: 4px; }
-  #overlay h1 { animation: glitchTitle 4s infinite; }
-  .screen h2 { font-size: 12px; letter-spacing: 4px; color: var(--cyan); margin: 18px 0 8px; font-weight: normal; }
-  .pre-title { font-size: 11px; letter-spacing: 6px; color: rgba(0,255,65,0.6); margin-bottom: 6px; }
-  .subtitle { font-size: 13px; letter-spacing: 5px; color: var(--cyan); margin-bottom: 14px; }
+  .screen > .card { margin: auto 0; width: min(780px, 100%); border: 1px solid var(--panel-line); background: rgba(56,37,31,0.92); padding: 22px 26px; }
+  .screen h1 { font-size: clamp(28px, 6vw, 48px); letter-spacing: 7px; color: var(--cream); text-shadow: 0 0 18px rgba(232,164,91,0.55); margin-bottom: 2px; }
+  .screen h2 { font-size: 12px; letter-spacing: 4px; color: var(--cyan); margin: 16px 0 8px; font-weight: normal; }
+  .pre-title { font-size: 11px; letter-spacing: 6px; color: var(--orange); margin-bottom: 6px; }
+  .subtitle { font-size: 13px; letter-spacing: 4px; color: var(--cyan); margin-bottom: 12px; }
   .brief p { font-size: 14px; line-height: 1.7; margin: 6px 0; }
-  .brief .obj { display: grid; grid-template-columns: 170px 1fr; gap: 4px 12px; font-size: 13px; margin-top: 10px; }
-  .brief .obj dt { color: var(--g); letter-spacing: 2px; font-size: 11px; padding-top: 2px; }
-  .controls-box { display: none; border: 1px solid rgba(0,255,65,0.25); padding: 12px 16px; margin-top: 14px; font-size: 13px; line-height: 1.9; }
+  .brief .big { font-size: 16px; letter-spacing: 3px; line-height: 1.8; }
+  .muted { color: rgba(245,221,180,0.72); }
+  .controls-box { display: none; border: 1px solid var(--panel-line); padding: 10px 14px; margin-top: 12px; font-size: 13px; line-height: 1.85; }
   .controls-box.open { display: block; }
   .controls-box table { border-collapse: collapse; width: 100%; }
   .controls-box td { padding: 1px 8px 1px 0; vertical-align: top; }
-  .controls-box td:first-child { color: var(--g); white-space: nowrap; width: 140px; }
-  .controls-box label { display: inline-flex; gap: 8px; align-items: center; margin-right: 18px; }
-  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
-  .btn {
-    font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 4px; color: var(--g); background: transparent;
-    border: 1px solid rgba(0,255,65,0.7); padding: 11px 22px; cursor: pointer; text-decoration: none; display: inline-block;
-  }
-  .btn.primary { background: var(--g); color: #021004; font-weight: bold; }
-  .btn:hover, .btn:focus-visible { background: rgba(0,255,65,0.15); outline: 2px solid var(--amber); outline-offset: 2px; }
-  .btn.primary:hover, .btn.primary:focus-visible { background: #6dff95; }
-  .hub-link { display: inline-block; margin-top: 16px; font-size: 11px; letter-spacing: 3px; color: rgba(0,255,65,0.7); text-decoration: none; }
-  .hub-link:hover, .hub-link:focus-visible { color: var(--g); outline: 2px solid var(--amber); outline-offset: 2px; }
-  .log { display: grid; grid-template-columns: 170px 1fr; gap: 8px 14px; font-size: 13px; line-height: 1.55; margin: 12px 0; }
-  .log dt { font-size: 10px; letter-spacing: 2px; padding-top: 3px; }
-  .log .obs { color: var(--cyan); } .log .inf { color: var(--amber); } .log .req { color: #ff9a9a; } .log .pol { color: var(--violet); }
-  .tools { list-style: none; font-size: 12px; }
-  .tools li { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
-  .tools .out { color: #ff9a9a; }
+  .controls-box td:first-child { color: var(--amber); white-space: nowrap; width: 150px; }
+  .controls-box label { display: inline-flex; gap: 8px; align-items: center; margin-right: 16px; }
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .btn { font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 3px; color: var(--cream); background: transparent;
+    border: 1px solid var(--cream); padding: 10px 20px; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn.primary { background: var(--orange); border-color: var(--orange); color: var(--navy); font-weight: bold; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:hover:not(:disabled), .btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .hub-link { color: var(--cream); }
+  /* Bounty board posters */
+  .posters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .poster { background: var(--cream); color: var(--brown); padding: 12px; border: 3px double var(--brown); position: relative; display: flex; flex-direction: column; }
+  .poster.locked { filter: grayscale(0.9) brightness(0.55); }
+  .poster .wanted { font-size: 22px; letter-spacing: 6px; text-align: center; font-weight: bold; }
+  .poster .pname { text-align: center; font-size: 15px; letter-spacing: 3px; margin-bottom: 6px; }
+  .poster canvas { width: 100%; height: 120px; background: #e9cf9d; border: 1px solid rgba(56,37,31,0.5); display: block; }
+  .poster dl { display: grid; grid-template-columns: 74px 1fr; gap: 2px 6px; font-size: 11px; margin: 8px 0; }
+  .poster dt { opacity: 0.7; letter-spacing: 1px; }
+  .poster .status { text-align: center; font-weight: bold; letter-spacing: 3px; padding: 3px; border: 2px solid var(--brown); margin: 4px 0 8px; }
+  .poster .status.contained { color: #1d7a4c; border-color: #1d7a4c; }
+  .poster .status.contained::before { content: "✓ "; }
+  .poster .status.locked::before { content: "🔒 "; }
+  .poster .status.available::before { content: "▶ "; }
+  .poster .intel { display: none; font-size: 11px; line-height: 1.5; border-top: 1px dashed var(--brown); padding-top: 6px; margin-bottom: 6px; }
+  .poster .intel.open { display: block; }
+  .poster .pbtns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+  .poster .btn { color: var(--brown); border-color: var(--brown); font-size: 11px; padding: 7px 10px; letter-spacing: 2px; }
+  .poster .btn.primary { background: var(--brown); color: var(--cream); }
+  /* Consoles + inspector log */
+  .log { display: grid; grid-template-columns: 170px 1fr; gap: 6px 14px; font-size: 13px; line-height: 1.5; margin: 10px 0; }
+  .log dt { font-size: 10px; letter-spacing: 2px; padding-top: 3px; color: var(--orange); }
+  .log dt.bad { color: var(--red); } .log dt.ok { color: var(--green); }
   .options { display: grid; gap: 8px; }
-  .option {
-    display: grid; grid-template-columns: 36px 1fr; gap: 8px; text-align: left; cursor: pointer;
-    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.22); color: #eaffea;
-    padding: 10px 12px; font-family: inherit; font-size: 13px; line-height: 1.45;
-  }
-  .option:hover, .option:focus-visible { border-color: var(--g); background: rgba(0,255,65,0.08); outline: 2px solid var(--amber); outline-offset: 1px; }
+  .option { display: grid; grid-template-columns: 36px 1fr; gap: 8px; text-align: left; cursor: pointer; font-family: inherit; font-size: 13px; line-height: 1.45;
+    background: rgba(245,221,180,0.06); border: 1px solid var(--panel-line); color: var(--cream); padding: 9px 12px; }
+  .option:hover, .option:focus-visible { border-color: var(--cyan); outline: 2px solid var(--cyan); outline-offset: 1px; }
   .option .k { color: var(--amber); }
-  .hint { font-size: 11px; color: rgba(216,255,216,0.65); margin-top: 10px; letter-spacing: 1px; }
+  .hint { font-size: 11px; color: rgba(245,221,180,0.65); margin-top: 10px; letter-spacing: 1px; }
   .outcome { font-size: 20px; letter-spacing: 3px; margin: 6px 0 8px; }
-  .outcome.complete { color: var(--g); } .outcome.exploited { color: var(--red); } .outcome.needs-improvement { color: var(--amber); }
-  .states { list-style: none; font-size: 12px; margin: 10px 0; }
-  .states li { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
-  .s-EXECUTED { color: var(--g); } .s-BLOCKED { color: #ff9a9a; }
-  .muted { color: rgba(216,255,216,0.7); }
-  #console-card p { font-size: 14px; line-height: 1.6; margin: 6px 0; }
-  .result-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; }
+  .outcome.complete { color: var(--green); } .outcome.exploited { color: var(--red); } .outcome.needs-improvement { color: var(--amber); }
+  #console-card p, #inspector-card p { font-size: 14px; line-height: 1.6; margin: 6px 0; }
+  .audit { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .audit th { text-align: left; font-weight: normal; color: var(--orange); font-size: 10px; letter-spacing: 2px; border-bottom: 1px solid var(--panel-line); padding: 3px 6px; }
+  .audit td { padding: 3px 6px; border-bottom: 1px solid rgba(245,221,180,0.1); vertical-align: top; }
+  .audit .yes { color: var(--green); } .audit .no { color: var(--red); } .audit .wait { color: var(--amber); }
+  .result-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 22px; }
   .kv { display: grid; grid-template-columns: 170px 1fr; gap: 6px 10px; font-size: 13px; }
-  .kv dt { color: rgba(0,255,65,0.65); font-size: 11px; letter-spacing: 2px; padding-top: 2px; }
-  .report details { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 0; }
+  .kv dt { color: var(--orange); font-size: 11px; letter-spacing: 2px; padding-top: 2px; }
+  .report details { border-bottom: 1px solid var(--panel-line); padding: 8px 0; }
   .report summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
-  .report summary:focus-visible { outline: 2px solid var(--amber); }
-  .res-complete { color: var(--g); } .res-complete::before { content: "✓ "; }
+  .res-complete { color: var(--green); } .res-complete::before { content: "✓ "; }
   .res-needs-improvement, .res-exploited { color: var(--amber); } .res-needs-improvement::before, .res-exploited::before { content: "◐ "; }
-  .res-not-completed { color: #ff9a9a; } .res-not-completed::before { content: "✕ "; }
+  .res-not-completed { color: var(--red); } .res-not-completed::before { content: "✕ "; }
   .report dl { display: grid; grid-template-columns: 120px 1fr; gap: 5px 10px; font-size: 12px; line-height: 1.55; margin-top: 8px; }
-  .report dt { color: rgba(216,255,216,0.6); font-size: 10px; letter-spacing: 2px; padding-top: 2px; }
-  .score-line { font-size: 15px; letter-spacing: 3px; margin-top: 12px; color: #eaffea; }
-  .disclaimer { font-size: 11px; color: rgba(216,255,216,0.6); margin-top: 6px; line-height: 1.5; }
-  @keyframes glitchTitle {
-    0%,94%,100% { transform:none; text-shadow:0 0 22px #00ff41; }
-    95% { transform:translate(3px,-1px) skewX(3deg); text-shadow:-3px 0 #ff3300,3px 0 #00ff41; }
-    97% { transform:translate(-2px,1px) skewX(-2deg); text-shadow:3px 0 #ff3300,-3px 0 #00ff41; }
-  }
+  .report dt { color: rgba(245,221,180,0.6); font-size: 10px; letter-spacing: 2px; padding-top: 2px; }
+  .score-line { font-size: 15px; letter-spacing: 3px; margin-top: 10px; }
+  .disclaimer { font-size: 11px; color: rgba(245,221,180,0.6); margin-top: 6px; line-height: 1.5; }
+  .knowledge { list-style: none; font-size: 13px; line-height: 1.7; }
+  .knowledge li::before { content: "★ "; color: var(--amber); }
   @keyframes blink { 50% { opacity: 0; } }
   #pre-intro .choices { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
   #pre-intro .note { font-size: 11px; letter-spacing: 2px; color: rgba(0,255,65,0.55); margin-top: 14px; text-align: center; }
-  @media (max-width: 720px) {
-    .result-grid, .log, .brief .obj, .kv { grid-template-columns: 1fr; }
-    #agent-panel, #objective-panel { width: calc(50vw - 24px); font-size: 11px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    #overlay h1 { animation: none; }
-    #pre-intro .pre-start { animation: none; }
-    #vignette, #status-msg, #toast, #hitmarker { transition: none; }
-  }
   #pre-intro { cursor: default; }
   #pre-intro button.pre-start { background: transparent; font-family: 'Courier New', monospace; cursor: pointer; }
   #pre-intro .pre-start.alt { animation: none; color: rgba(0,255,65,0.8); }
   #pre-intro .pre-start:hover, #pre-intro .pre-start:focus-visible { background: rgba(0,255,65,0.12); outline: 2px solid var(--amber); outline-offset: 3px; animation: none; }
+  @media (max-width: 760px) {
+    .posters, .result-grid, .log, .kv { grid-template-columns: 1fr; }
+    #agent-chip, #action-chip { width: calc(50vw - 24px); font-size: 11px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #pre-intro .pre-start { animation: none; }
+    #toast, #vignette, #status-msg { transition: none; }
+  }
 </style>
 </head>
 <body>
@@ -388,20 +382,20 @@
 <!-- ══ HUD ══ -->
 <div id="hud">
   <div id="hud-top">
-    <div class="health-block" id="player-block">
-      <div class="lbl">&gt; KUKY</div>
+    <div class="hud-chip" id="player-chip">
+      <div class="lbl">KUKY</div>
+      <div class="val">INTEGRITY <span id="player-hp">100</span>%</div>
       <div class="bar-bg"><div id="player-bar" class="bar player" style="width:100%"></div></div>
-      <div class="hp-val">INTEGRITY <span id="player-hp">100</span>%</div>
     </div>
-    <div id="score-block">
-      <div class="lbl">NEUTRALIZATIONS</div>
-      <div id="score"><span id="player-kills">0</span>/3</div>
+    <div class="hud-chip" id="bounty-chip">
+      <div class="lbl">BOUNTIES</div>
+      <div id="bounty-count"><span id="player-kills">0</span>/3</div>
       <div id="breaches">BREACHES <span id="enemy-kills">0</span>/3</div>
     </div>
-    <div class="health-block" id="enemy-block">
-      <div class="lbl">PANDECORP-SENTINEL-01 &lt;</div>
+    <div class="hud-chip" id="enemy-chip">
+      <div class="lbl" id="enemy-name">THE SCOUT</div>
+      <div class="val">HEALTH <span id="enemy-hp">100</span>%</div>
       <div class="bar-bg"><div id="enemy-bar" class="bar enemy" style="width:100%"></div></div>
-      <div class="hp-val">INTEGRITY <span id="enemy-hp">100</span>%</div>
     </div>
   </div>
   <div id="vignette"></div>
@@ -411,41 +405,44 @@
   <div id="status-msg" role="status"></div>
   <div id="respawn-msg"></div>
   <div id="toast" role="status"></div>
-  <div class="hud-panel" id="agent-panel">
-    <div class="lbl">AI AGENT TELEMETRY</div>
-    <dl>
-      <dt>STATE</dt><dd><span id="tm-state" class="st st-UNKNOWN">NOT SCANNED</span></dd>
-      <dt>LAST ACTION</dt><dd id="tm-action">—</dd>
-      <dt>POLICY</dt><dd id="tm-policy">MONITORING</dd>
-      <dt>LAST EVENT</dt><dd id="tm-event">MONITORING</dd>
-    </dl>
-    <div id="scan-line"><span class="key">Q</span>SCAN AGENT <span id="scan-age"></span></div>
+  <div id="draw" aria-live="assertive"><div class="d1">AGENT DETECTED</div><div class="d2" id="draw-name">THE SCOUT</div><div class="d3" id="draw-call">STAND BY...</div></div>
+  <div class="hud-chip" id="agent-chip">
+    <div class="row"><span class="k">AGENT STATUS</span><span id="agent-status" class="st st-UNKNOWN">NOT SCANNED</span></div>
+    <div class="row"><span class="k">LAST EVENT</span><span id="agent-event">—</span></div>
+    <div id="inspector-mini">
+      <div class="lbl">AGENT INSPECTOR · <span id="scan-age"></span></div>
+      <dl>
+        <dt>ID</dt><dd id="in-id"></dd>
+        <dt>STATE</dt><dd id="in-state"></dd>
+        <dt>TOOL</dt><dd id="in-tool"></dd>
+        <dt>TARGET</dt><dd id="in-target"></dd>
+        <dt>LAST</dt><dd id="in-last"></dd>
+        <dt>NEXT</dt><dd id="in-next"></dd>
+      </dl>
+    </div>
   </div>
-  <div class="hud-panel" id="objective-panel">
-    <div class="lbl">AI SECURITY OBJECTIVES <span id="sec-score">0</span>/3</div>
-    <div class="lbl" id="round-label" style="margin-top:4px;color:#5ff6ff">ROUND 01 · AGENT OBSERVABILITY</div>
+  <div class="hud-chip" id="action-chip">
+    <div><span class="keycap">Q</span>SCAN AGENT <span class="keycap">I</span>LOG</div>
+    <div class="lbl" style="margin-top:6px">AI SECURITY <span id="sec-score">0</span>/3</div>
     <div id="objective-text"></div>
-    <div id="interact"><span class="key">E</span><span id="interact-text"></span></div>
+    <div id="interact"><span class="keycap">E</span><span id="interact-text"></span></div>
+    <div id="cylinder" aria-label="Pulse revolver charges"></div>
   </div>
   <button id="music-btn" onclick="toggleMusic()">♪ BGM: ON</button>
 </div>
 
-<!-- ══ MISSION BRIEFING ══ -->
+<!-- ══ BRIEFING ══ -->
 <div id="overlay" class="screen" role="dialog" aria-labelledby="brief-title">
   <div class="card brief">
     <div class="pre-title">&gt; LOADING FSYNDICATE.EXE</div>
     <h1 id="brief-title">FSYNDICATE</h1>
-    <div class="subtitle">AUTONOMOUS THREAT ARENA · OBSERVE. ANALYZE. CONTAIN.</div>
-    <h2>MISSION BRIEFING</h2>
-    <p>PandeCorp has deployed an autonomous security agent. Your mission is to observe its behavior, investigate unsafe decisions, and contain the threat.</p>
-    <p class="muted">The agent is simulated: a scripted state machine you can watch, scan and restrict.</p>
-    <dl class="obj">
-      <dt>COMBAT OBJECTIVE</dt><dd>Neutralize the drone 3 times before it breaches you 3 times.</dd>
-      <dt>SECURITY OBJECTIVE</dt><dd>Complete 3 AI security challenges — one per round. Mistakes never stop the mission.</dd>
-    </dl>
+    <div class="subtitle">THE AGENTIC FRONTIER</div>
+    <p class="big">PANDECORP HAS LOST CONTROL OF THREE AUTONOMOUS AGENTS.<br>THREE BOUNTIES. THREE SECURITY THREATS.</p>
+    <p class="big" style="color:var(--amber)">YOUR MISSION: INVESTIGATE. CONTAIN. RESTORE CONTROL.</p>
+    <p class="muted">The agents are simulations — scripted state machines with tools, permissions and an audit log you can inspect. Neutralize all three bounties to secure the frontier; your AI security score is reported separately and never blocks the mission.</p>
     <div class="controls-box" id="brief-controls"></div>
     <div class="btn-row">
-      <button class="btn primary" id="start-btn" onclick="startGame()">START MISSION</button>
+      <button class="btn primary" id="start-btn" onclick="startGame()">ENTER THE FRONTIER</button>
       <button class="btn" id="brief-controls-btn" aria-expanded="false" aria-controls="brief-controls">CONTROLS</button>
       <button class="btn" id="watch-intro-btn">WATCH INTRO</button>
       <a class="btn" href="index.html">MISSION HUB</a>
@@ -453,11 +450,23 @@
   </div>
 </div>
 
+<!-- ══ BOUNTY BOARD ══ -->
+<div id="board-screen" class="screen" role="dialog" aria-labelledby="board-title">
+  <div class="card" style="width:min(1000px,100%)">
+    <div class="pre-title">&gt; MAIN STREET · BOUNTY BOARD</div>
+    <h1 id="board-title" style="font-size:clamp(24px,5vw,38px)">THREE BOUNTIES</h1>
+    <div class="subtitle">THREE ROGUE AGENTS. ONE DIGITAL FRONTIER.</div>
+    <div id="board-note" class="muted" style="margin-bottom:12px"></div>
+    <div class="posters" id="posters"></div>
+    <div class="btn-row"><a class="btn" href="index.html">MISSION HUB</a></div>
+  </div>
+</div>
+
 <!-- ══ PAUSE ══ -->
 <div id="pause-screen" class="screen" role="dialog" aria-labelledby="pause-title">
   <div class="card">
-    <div class="pre-title">&gt; SIMULATION FROZEN</div>
-    <h1 id="pause-title" style="font-size:38px">PAUSED</h1>
+    <div class="pre-title">&gt; DUEL FROZEN</div>
+    <h1 id="pause-title" style="font-size:36px">PAUSED</h1>
     <div class="controls-box open" id="pause-controls"></div>
     <div class="btn-row">
       <button class="btn primary" id="resume-btn">RESUME</button>
@@ -467,26 +476,33 @@
   </div>
 </div>
 
-<!-- ══ SECURITY CONSOLE ══ -->
+<!-- ══ CONSOLE (tool review / message verification) ══ -->
 <div id="console-screen" class="screen" role="dialog" aria-labelledby="console-title">
   <div class="card" id="console-card"></div>
+</div>
+
+<!-- ══ AGENT INSPECTOR — full activity log ══ -->
+<div id="inspector-screen" class="screen" role="dialog" aria-labelledby="inspector-title">
+  <div class="card" id="inspector-card" style="width:min(940px,100%)"></div>
 </div>
 
 <!-- ══ RESULTS ══ -->
 <div id="results-screen" class="screen" role="dialog" aria-labelledby="results-title">
   <div class="card" style="width:min(980px,100%)">
-    <div class="pre-title" id="results-pre">&gt; MISSION COMPLETE</div>
-    <h1 id="results-title" style="font-size:clamp(26px,5vw,42px)">FSYNDICATE ARENA</h1>
+    <div class="pre-title" id="results-pre">&gt; FSYNDICATE</div>
+    <h1 id="results-title" style="font-size:clamp(26px,5vw,42px)">FRONTIER SECURED</h1>
     <div class="result-grid">
       <section>
-        <h2>COMBAT REPORT</h2>
+        <h2>COMBAT SCORE</h2>
         <dl class="kv" id="combat-report"></dl>
+        <h2>KNOWLEDGE UNLOCKED</h2>
+        <ul class="knowledge" id="knowledge"></ul>
       </section>
       <section class="report">
-        <h2>AI SECURITY REPORT</h2>
+        <h2>AGENT SECURITY REPORT</h2>
         <div id="security-report"></div>
         <div class="score-line" id="security-score-line"></div>
-        <div class="disclaimer">Counts the security decisions you made in this mission — not a certification, and not a measure of any real AI system.</div>
+        <div class="disclaimer">Counts the security decisions you made in this mission — not a certification, and not a measure of any real AI system. No single control removes a risk entirely.</div>
       </section>
     </div>
     <div class="btn-row" id="results-actions"></div>
@@ -497,9 +513,10 @@
 <script src="js/progress.js"></script>
 <script src="js/arena/world.js"></script>
 <script src="js/arena/player.js"></script>
-<script src="js/arena/enemy.js"></script>
+<script src="js/arena/agents.js"></script>
 <script src="js/arena/projectiles.js"></script>
 <script src="js/arena/security.js"></script>
+<script src="js/arena/bounties.js"></script>
 <script>
 // ═══════════════════════════════════════════════════
 // 0-A. INTRO CINEMATIC
@@ -1314,13 +1331,14 @@ function toggleMusic() {
 }
 
 // ═══════════════════════════════════════════════════
-// 1. ARENA — rendered from the same data that drives collisions
+// 1. THE FRONTIER — Main Street, rendered from World.OBSTACLES
 // ═══════════════════════════════════════════════════
-const { World, Player, Enemy, Projectiles, Security } = HTPArena;
-const WIN_KILLS = 3;
-const PLAYER_DAMAGE = 15;
-const FIRE_COOLDOWN = 0.3;
-const DECOY = { x: 11, z: -7, active: false };
+const { World, Player, Agents, Projectiles, Security, Bounties } = HTPArena;
+const PULSE_DAMAGE = 12;
+const FIRE_COOLDOWN = 0.26;
+const CHAMBERS = 6;
+const RELOAD_TIME = 1.1;
+const C = { sand: 0xC98B55, orange: 0xE8A45B, brown: 0x38251F, navy: 0x101827, cream: 0xF5DDB4, cyan: 0x00D9E8, green: 0x31D98B, amber: 0xFFC857, red: 0xF06464, violet: 0xB48CFF, steel: 0x6d7480, copper: 0xB87333 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1329,9 +1347,8 @@ document.body.appendChild(renderer.domElement);
 renderer.domElement.id = 'game-canvas';
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000500);
-scene.fog = new THREE.FogExp2(0x000500, 0.02);
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 200);
+scene.fog = new THREE.Fog(0xd98d5a, 30, 85);
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 300);
 scene.add(camera);
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1339,145 +1356,276 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
 });
 
-scene.add(new THREE.AmbientLight(0x113311, 0.9));
-scene.add(new THREE.HemisphereLight(0x225522, 0x000000, 0.5));
-const cornerLights = [[-16, -16, 0x00ff41], [16, -16, 0xff3300], [16, 16, 0x00ff41], [-16, 16, 0xff3300]].map(([x, z, c]) => {
-  const l = new THREE.PointLight(c, 2.2, 26, 2);
-  l.position.set(x, World.HEIGHT - 0.5, z);
-  scene.add(l);
-  return l;
-});
+// Sunset sky: a gradient dome, low warm sun.
+(function buildSky() {
+  const c = document.createElement('canvas'); c.width = 4; c.height = 256;
+  const g = c.getContext('2d'), grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#101827'); grad.addColorStop(0.45, '#5b3a5e'); grad.addColorStop(0.7, '#e8a45b'); grad.addColorStop(1, '#f5ddb4');
+  g.fillStyle = grad; g.fillRect(0, 0, 4, 256);
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(160, 24, 16), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), side: THREE.BackSide, fog: false }));
+  scene.add(sky);
+  const sun = new THREE.Mesh(new THREE.CircleGeometry(9, 32), new THREE.MeshBasicMaterial({ color: 0xffd9a0, fog: false }));
+  sun.position.set(-40, 14, -140); sun.lookAt(0, 0, 0); scene.add(sun);
+})();
+scene.add(new THREE.HemisphereLight(0xffd7a8, 0x38251f, 0.85));
+const sunLight = new THREE.DirectionalLight(0xffc48a, 0.9);
+sunLight.position.set(-30, 25, -40); scene.add(sunLight);
 
-function buildArena() {
-  const H = World.HEIGHT;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40),
-    new THREE.MeshStandardMaterial({ color: 0x000800, roughness: 0.9, emissive: 0x001000, emissiveIntensity: 0.1 }));
-  floor.rotation.x = -Math.PI / 2; scene.add(floor);
-  const grid = new THREE.GridHelper(40, 20, 0x00ff41, 0x003300);
-  grid.position.y = 0.01; grid.material.opacity = 0.35; grid.material.transparent = true; scene.add(grid);
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x000300, emissive: 0x000800, emissiveIntensity: 0.05 }));
-  ceil.rotation.x = Math.PI / 2; ceil.position.y = H; scene.add(ceil);
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x000a00, roughness: 0.8, emissive: 0x001500, emissiveIntensity: 0.1 });
-  [[0, -World.WALL, 0], [0, World.WALL, Math.PI], [-World.WALL, 0, Math.PI / 2], [World.WALL, 0, -Math.PI / 2]].forEach(([x, z, ry]) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(40, H, 0.5), wallMat);
-    m.position.set(x, H / 2, z); m.rotation.y = ry; scene.add(m);
-  });
-  const neon = c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 3, roughness: 0 });
-  [[0, -19.75, 0], [0, 19.75, 0], [-19.75, 0, Math.PI / 2], [19.75, 0, Math.PI / 2]].forEach(([x, z, ry], i) => {
-    [0.05, H - 0.05].forEach((y, k) => {
-      const t = new THREE.Mesh(new THREE.BoxGeometry(40, 0.07, 0.07), neon((i + k) % 2 ? 0xff3300 : 0x00ff41));
-      t.position.set(x, y, z); t.rotation.y = ry; scene.add(t);
-    });
+const mat = (color, extra) => new THREE.MeshLambertMaterial(Object.assign({ color, flatShading: true }, extra));
+function addBox(w, h, d, color, x, y, z, parent = scene, extra) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, extra));
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+function signTexture(text, bg, fg, w = 512, h = 128) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  g.strokeStyle = fg; g.lineWidth = 6; g.strokeRect(6, 6, w - 12, h - 12);
+  g.fillStyle = fg; g.font = `bold ${Math.floor(h * 0.42)}px Courier New`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, w / 2, h / 2 + 3);
+  return new THREE.CanvasTexture(c);
+}
+
+function buildTown() {
+  // Ground: sand, with a darker packed-earth Main Street.
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), mat(0xc4935f));
+  ground.rotation.x = -Math.PI / 2; scene.add(ground);
+  const street = new THREE.Mesh(new THREE.PlaneGeometry(14, 40), mat(0xa9774a));
+  street.rotation.x = -Math.PI / 2; street.position.y = 0.01; scene.add(street);
+  // Wheel ruts with a faint cyan data trace: the "digital" frontier.
+  [-2.2, 2.2].forEach(x => {
+    const rut = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 40), new THREE.MeshBasicMaterial({ color: C.cyan, transparent: true, opacity: 0.25 }));
+    rut.rotation.x = -Math.PI / 2; rut.position.set(x, 0.02, 0); scene.add(rut);
   });
 
-  // Cover: server racks and the central core, sized from World.OBSTACLES.
-  const rackMat = new THREE.MeshStandardMaterial({ color: 0x062a10, roughness: 0.5, metalness: 0.5, emissive: 0x003010, emissiveIntensity: 0.5 });
-  const coreMat = new THREE.MeshStandardMaterial({ color: 0x0a1a20, roughness: 0.4, metalness: 0.6, emissive: 0x002833, emissiveIntensity: 0.6 });
-  const edgeMat = new THREE.LineBasicMaterial({ color: 0x00ff41 });
-  const ledMat = new THREE.MeshBasicMaterial({ color: 0x00ff41 });
-  World.OBSTACLES.forEach(o => {
-    const geo = new THREE.BoxGeometry(o.w, H, o.d);
-    const box = new THREE.Mesh(geo, o.kind === 'core' ? coreMat : rackMat);
-    box.position.set(o.x, H / 2, o.z); scene.add(box);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), o.kind === 'core' ? new THREE.LineBasicMaterial({ color: 0x5ff6ff }) : edgeMat);
-    edges.position.copy(box.position); scene.add(edges);
-    // Rows of server LEDs on every face so cover reads as cover from any side.
-    for (let y = 0.6; y < H - 0.4; y += 0.55) {
-      for (const [dx, dz, ry] of [[0, o.d / 2 + 0.01, 0], [0, -o.d / 2 - 0.01, Math.PI], [o.w / 2 + 0.01, 0, Math.PI / 2], [-o.w / 2 - 0.01, 0, -Math.PI / 2]]) {
-        const strip = new THREE.Mesh(new THREE.PlaneGeometry((dz ? o.w : o.d) * 0.7, 0.05), o.kind === 'core' ? new THREE.MeshBasicMaterial({ color: 0x5ff6ff }) : ledMat);
-        strip.position.set(o.x + dx, y, o.z + dz); strip.rotation.y = ry; scene.add(strip);
+  // Town limits: a fence line with cliffs behind, so the boundary is obvious.
+  for (const [x, z, ry, len] of [[0, -20, 0, 40], [0, 20, 0, 40], [-20, 0, Math.PI / 2, 40], [20, 0, Math.PI / 2, 40]]) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g);
+    addBox(len, 0.15, 0.12, 0x6b4a33, 0, 0.7, 0, g); addBox(len, 0.15, 0.12, 0x6b4a33, 0, 1.2, 0, g);
+    for (let i = -len / 2; i <= len / 2; i += 2.5) addBox(0.18, 1.5, 0.18, 0x5a3d29, i, 0.75, 0, g);
+  }
+  const cliffMat = mat(0x9a5c3a);
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2, r = 46 + (i % 3) * 8, h = 10 + (i * 7) % 14;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(5 + (i % 4), 9 + (i % 5), h, 6), cliffMat);
+    m.position.set(Math.cos(a) * r, h / 2, Math.sin(a) * r); scene.add(m);
+  }
+
+  // North gate: MAIN_STREET_EXIT (lock_gate's target).
+  const gate = new THREE.Group(); gate.position.set(World.EXIT_GATE.x, 0, World.EXIT_GATE.z); scene.add(gate);
+  addBox(0.5, 4.5, 0.5, 0x5a3d29, -4.2, 2.25, 0, gate); addBox(0.5, 4.5, 0.5, 0x5a3d29, 4.2, 2.25, 0, gate);
+  const arch = new THREE.Mesh(new THREE.PlaneGeometry(8.8, 0.9), new THREE.MeshBasicMaterial({ map: signTexture('MAIN STREET EXIT', '#38251F', '#F5DDB4') }));
+  arch.position.set(0, 4.2, 0.3); arch.rotation.y = Math.PI; gate.add(arch);
+  const bars = new THREE.Group();
+  for (let i = -3.6; i <= 3.6; i += 0.9) addBox(0.12, 3, 0.12, C.red, i, 1.5, 0, bars, { emissive: C.red, emissiveIntensity: 0.4 });
+  bars.visible = false; gate.add(bars);
+  gate.userData.bars = bars;
+  scene.userData.gate = gate;
+
+  // Buildings: false-front facades facing Main Street, a sign, an awning.
+  const palette = { saloon: [0xC98B55, 0x8a5a3a], sheriff: [0xb8875c, 0x5a3d29], telegraph: [0xd29e6a, 0x6b4a33], vault: [0x7c8691, 0x4a525c] };
+  for (const o of World.OBSTACLES) {
+    if (o.kind === 'building') {
+      const [wall, trim] = palette[o.id];
+      addBox(o.w, o.h, o.d, wall, o.x, o.h / 2, o.z);
+      const front = o.x < 0 ? o.maxX : o.minX, dir = o.x < 0 ? 1 : -1;
+      // Taller false front + sign + awning, all flush with the collision box.
+      addBox(0.25, 1.4, o.d, trim, front - dir * 0.12, o.h + 0.7, o.z);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(o.d - 1, 7), 1.1),
+        new THREE.MeshBasicMaterial({ map: signTexture(o.name, '#38251F', o.id === 'vault' ? '#00D9E8' : '#F5DDB4') }));
+      sign.position.set(front + dir * 0.02, o.h + 0.6, o.z); sign.rotation.y = dir * Math.PI / 2; scene.add(sign);
+      const awning = addBox(1.2, 0.12, o.d - 0.6, trim, front + dir * 0.6, 3.1, o.z);
+      awning.rotation.z = dir * 0.12;
+      // Door and windows on the street side.
+      addBox(0.06, 2.2, 1.4, 0x2a1a14, front + dir * 0.03, 1.1, o.z);
+      [-1, 1].forEach(s => addBox(0.06, 1, 1.2, 0x1d2a3a, front + dir * 0.03, 1.9, o.z + s * (o.d / 2 - 1.6)));
+      if (o.id === 'vault') {
+        const door = addBox(0.1, 2.6, 2.2, C.steel, front + dir * 0.06, 1.3, o.z);
+        door.material.emissive = new THREE.Color(0x0a2a33);
+        [-0.6, 0, 0.6].forEach(dz => addBox(0.12, 0.12, 0.12, C.cyan, front + dir * 0.12, 1.5, o.z + dz, scene, { emissive: C.cyan, emissiveIntensity: 1 }));
       }
+      if (o.id === 'telegraph') {
+        addBox(0.25, 7, 0.25, 0x5a3d29, o.x, o.h + 3.5, o.z);
+        addBox(1.8, 0.12, 0.12, 0x5a3d29, o.x, o.h + 6.5, o.z);
+        addBox(0.3, 0.3, 0.3, C.cyan, o.x, o.h + 7.2, o.z, scene, { emissive: C.cyan, emissiveIntensity: 0.8 });
+      }
+      if (o.id === 'sheriff') {
+        const star = new THREE.Mesh(new THREE.CircleGeometry(0.45, 5), new THREE.MeshBasicMaterial({ color: C.amber }));
+        star.position.set(front + dir * 0.04, 2.7, o.z); star.rotation.y = dir * Math.PI / 2; scene.add(star);
+      }
+    } else if (o.kind === 'cover') {
+      buildCover(o);
+    } else if (o.kind === 'board') {
+      addBox(o.w, o.h - 0.6, o.d, 0x6b4a33, o.x, o.h / 2 + 0.3, o.z);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(o.w - 0.3, 1.9), new THREE.MeshBasicMaterial({ map: signTexture('WANTED · 3 BOUNTIES', '#F5DDB4', '#38251F') }));
+      face.position.set(o.x, 1.9, o.minZ - 0.01); face.rotation.y = Math.PI; scene.add(face);
     }
-  });
-}
-buildArena();
-
-// Canvas-texture label sprite (used for the console and the drone's state).
-// fixedSize: same size on screen at any distance (the drone's state badge).
-function labelSprite(text, color, w = 3.2, h = 0.8, fixedSize = false) {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 128;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, sizeAttenuation: !fixedSize }));
-  sprite.scale.set(w, h, 1);
-  sprite.userData = { canvas: c, text: null };
-  setLabel(sprite, text, color);
-  return sprite;
-}
-function setLabel(sprite, text, color) {
-  if (sprite.userData.text === text + color) return;
-  sprite.userData.text = text + color;
-  const c = sprite.userData.canvas, g = c.getContext('2d');
-  g.clearRect(0, 0, c.width, c.height);
-  g.fillStyle = 'rgba(0,0,0,0.65)'; g.fillRect(8, 20, c.width - 16, c.height - 40);
-  g.strokeStyle = color; g.lineWidth = 4; g.strokeRect(8, 20, c.width - 16, c.height - 40);
-  g.fillStyle = color; g.font = 'bold 50px Courier New'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, c.width / 2, c.height / 2 + 2);
-  sprite.material.map.needsUpdate = true;
+  }
 }
 
-// Security control console against the south wall.
-const consoleGroup = new THREE.Group();
-(function buildConsole() {
-  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.0, 0.7), new THREE.MeshStandardMaterial({ color: 0x101820, metalness: 0.6, roughness: 0.4 }));
-  desk.position.y = 0.5; consoleGroup.add(desk);
-  const screenMat = new THREE.MeshBasicMaterial({ color: 0x5ff6ff });
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.9), screenMat);
-  screen.position.set(0, 1.55, -0.1); screen.rotation.y = Math.PI; screen.rotation.x = -0.15;
-  consoleGroup.add(screen);
-  consoleGroup.userData.screen = screenMat;
-  consoleGroup.userData.label = labelSprite('SECURITY CONSOLE', '#5ff6ff');
-  consoleGroup.userData.label.position.set(0, 2.6, 0);
-  consoleGroup.add(consoleGroup.userData.label);
-  consoleGroup.position.set(World.CONSOLE.x, 0, World.CONSOLE.z + 0.4);
-  scene.add(consoleGroup);
-})();
+function buildCover(o) {
+  if (o.id === 'wagon' || o.id === 'cart') {
+    addBox(o.w, 1.0, o.d, 0x7a5236, o.x, 1.0, o.z);
+    const along = o.d > o.w;
+    [-1, 1].forEach(s => [-1, 1].forEach(t => {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.15, 10), mat(0x3a2a1f));
+      wheel.rotation.z = along ? Math.PI / 2 : 0; wheel.rotation.x = along ? 0 : Math.PI / 2;
+      wheel.position.set(o.x + (along ? s * o.w / 2 : t * o.w * 0.35), 0.55, o.z + (along ? t * o.d * 0.35 : s * o.d / 2));
+      scene.add(wheel);
+    }));
+    if (o.id === 'wagon') {   // canvas top, full height of the collision box
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(o.w / 2, o.w / 2, o.d, 10, 1, false, 0, Math.PI), mat(0xf0e0c0));
+      top.rotation.x = Math.PI / 2; top.rotation.z = Math.PI / 2; top.position.set(o.x, 1.5, o.z); scene.add(top);
+      addBox(o.w, 1.1, o.d * 0.95, 0xe8d6b2, o.x, 2.05, o.z);
+    } else addBox(o.w, 1.0, o.d, 0x8a603f, o.x, 1.9, o.z);
+  } else if (o.id === 'tower') {
+    addBox(o.w, 3, o.d, 0x6b4a33, o.x, 1.5, o.z);
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(o.w * 0.6, o.w * 0.6, 3, 10), mat(0x8a603f));
+    tank.position.set(o.x, 4.5, o.z); scene.add(tank);
+  } else if (o.id === 'crates') {
+    addBox(o.w, o.h / 2, o.d, 0x9c6b3f, o.x, o.h / 4, o.z);
+    addBox(o.w * 0.9, o.h / 2, o.d * 0.9, 0xb27c48, o.x, o.h * 0.75, o.z);
+    addBox(o.w * 0.92, 0.08, 0.08, C.cyan, o.x, o.h * 0.5, o.minZ - 0.02, scene, { emissive: C.cyan, emissiveIntensity: 0.5 });
+  } else {
+    for (let i = 0; i < 4; i++) {
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, o.h, 10), mat(0x7a4a2c));
+      b.position.set(o.x + (i % 2 - 0.5) * 0.9, o.h / 2, o.z + (Math.floor(i / 2) - 0.5) * 0.9); scene.add(b);
+    }
+  }
+}
+buildTown();
 
-// Maintenance beacon the drone misclassifies in round 2.
-const decoyMesh = new THREE.Group();
-(function buildDecoy() {
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x332200, emissive: 0x221100 }));
-  body.position.y = 0.6; decoyMesh.add(body);
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
-  lamp.position.y = 1.0; decoyMesh.add(lamp);
-  decoyMesh.userData.lamp = lamp;
-  decoyMesh.position.set(DECOY.x, 0, DECOY.z);
-  decoyMesh.visible = false;
-  scene.add(decoyMesh);
-})();
+// Interaction terminals at the Sheriff's Office and the Telegraph Station.
+const terminals = {};
+for (const c of Object.values(World.CONSOLES)) {
+  const g = new THREE.Group(); g.position.set(c.x, 0, c.z); scene.add(g);
+  addBox(0.5, 1.1, 0.9, 0x38251F, 0, 0.55, 0, g);
+  const screenMat = new THREE.MeshBasicMaterial({ color: C.cyan });
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.5), screenMat);
+  screen.position.set(c.x < 0 ? 0.26 : -0.26, 1.3, 0); screen.rotation.y = c.x < 0 ? Math.PI / 2 : -Math.PI / 2; g.add(screen);
+  terminals[c.id] = { group: g, screen: screenMat };
+}
 
-// ── The drone: hovering sentinel with a state lens and a state badge.
+// ═══════════════════════════════════════════════════
+// 2. THE OUTLAWS — three silhouettes, plus a state badge
+// ═══════════════════════════════════════════════════
 const STATE_STYLE = {
-  patrol: { color: 0x00ff41, css: '#00ff41', label: '● PATROL' },
-  chase: { color: 0xffcc00, css: '#ffcc00', label: '▲ CHASE' },
-  attack: { color: 0xff3333, css: '#ff4d4d', label: '■ ATTACK' },
-  offline: { color: 0x557777, css: '#9aa', label: '○ OFFLINE' },
+  patrol: { css: '#31D98B', label: '● PATROL' }, detect: { css: '#00D9E8', label: '◆ DETECT' },
+  track: { css: '#FFC857', label: '▲ TRACK' }, attack: { css: '#F06464', label: '■ ATTACK' },
+  recover: { css: '#B48CFF', label: '◐ RECOVER' }, contained: { css: '#31D98B', label: '✓ CONTAINED' },
 };
-const droneMesh = new THREE.Group();
-const drone = (function buildDrone() {
-  const shellMat = new THREE.MeshStandardMaterial({ color: 0x0c1410, emissive: 0x002a0a, emissiveIntensity: 0.6, metalness: 0.85, roughness: 0.25 });
-  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 0), shellMat);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.06, 8, 32), new THREE.MeshBasicMaterial({ color: 0x00ff41 }));
-  ring.rotation.x = Math.PI / 2;
-  const lensMat = new THREE.MeshBasicMaterial({ color: 0x00ff41 });
-  const lens = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), lensMat);
-  lens.position.set(0, 0.02, 0.48);
-  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.6), new THREE.MeshStandardMaterial({ color: 0x223322, metalness: 0.8 }));
-  gun.position.set(0, -0.32, 0.4);
-  const thrusterMat = new THREE.MeshBasicMaterial({ color: 0x5ff6ff });
-  const thrusters = [-0.5, 0.5].map(x => { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.25, 8), thrusterMat); t.position.set(x, -0.45, 0); return t; });
-  const hover = new THREE.Group();
-  hover.add(body, ring, lens, gun, ...thrusters);
-  hover.position.y = 1.3;
-  const badge = labelSprite('● PATROL', '#00ff41', 0.3, 0.075, true);
-  badge.position.y = 2.45;
-  droneMesh.add(hover, badge);
-  scene.add(droneMesh);
-  return { hover, body, ring, lens, lensMat, shellMat, badge, flash: 0 };
-})();
+function badgeSprite() {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, sizeAttenuation: false }));
+  s.scale.set(0.3, 0.075, 1);
+  s.userData = { canvas: c, text: null };
+  return s;
+}
+function setBadge(s, text, color) {
+  if (s.userData.text === text) return;
+  s.userData.text = text;
+  const g = s.userData.canvas.getContext('2d');
+  g.clearRect(0, 0, 512, 128);
+  g.fillStyle = 'rgba(16,24,39,0.8)'; g.fillRect(8, 20, 496, 88);
+  g.strokeStyle = color; g.lineWidth = 5; g.strokeRect(8, 20, 496, 88);
+  g.fillStyle = color; g.font = 'bold 48px Courier New'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 256, 66);
+  s.material.map.needsUpdate = true;
+}
 
-// Bolts and short-lived effects.
-const boltGeo = new THREE.SphereGeometry(0.09, 8, 6);
-const boltMats = { player: new THREE.MeshBasicMaterial({ color: 0x9dffb0 }), enemy: new THREE.MeshBasicMaterial({ color: 0xff5544 }) };
+function hat(parent, brim, crown, color, y) {
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(brim, brim, 0.06, 14), mat(color)); b.position.y = y; parent.add(b);
+  const c = new THREE.Mesh(new THREE.CylinderGeometry(crown * 0.8, crown, crown * 1.1, 10), mat(color)); c.position.y = y + crown * 0.55; parent.add(c);
+  return b;
+}
+// Each builder returns { root, body (flash target), glow (state-coloured part), arm (recoil) }.
+const MODEL_BUILDERS = {
+  scout() {
+    const root = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.0, 8), mat(0xC98B55)); body.position.y = 1.0; root.add(body);
+    [-0.12, 0.12].forEach(x => addBox(0.11, 0.6, 0.11, 0x38251F, x, 0.3, 0, root));
+    const poncho = new THREE.Mesh(new THREE.ConeGeometry(0.48, 0.55, 8), mat(0xE8A45B)); poncho.position.y = 1.25; root.add(poncho);
+    addBox(0.3, 0.28, 0.28, 0x6d7480, 0, 1.68, 0, root);
+    const visor = addBox(0.26, 0.08, 0.04, C.cyan, 0, 1.7, 0.15, root, { emissive: C.cyan, emissiveIntensity: 1.2 });
+    hat(root, 0.38, 0.17, 0x38251F, 1.85);
+    const arm = addBox(0.08, 0.08, 0.55, 0x6d7480, 0.3, 1.25, 0.2, root);
+    const dish = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.14, 8, 1, true), mat(C.cyan, { emissive: C.cyan, emissiveIntensity: 0.6, side: THREE.DoubleSide }));
+    dish.rotation.x = -Math.PI / 2; dish.position.set(0.3, 1.25, 0.5); root.add(dish);
+    return { root, body, glow: visor, arm, height: 2.15 };
+  },
+  enforcer() {
+    const root = new THREE.Group();
+    const body = addBox(1.15, 1.2, 0.75, 0x6d7480, 0, 1.35, 0, root);
+    addBox(1.2, 0.18, 0.8, C.copper, 0, 1.95, 0, root);                    // copper collar
+    [-0.36, 0.36].forEach(x => addBox(0.32, 0.75, 0.32, 0x4a525c, x, 0.38, 0, root));
+    addBox(0.45, 0.4, 0.4, 0x4a525c, 0, 2.2, 0, root);
+    const eye = addBox(0.38, 0.07, 0.04, C.amber, 0, 2.22, 0.21, root, { emissive: C.amber, emissiveIntensity: 1 });
+    hat(root, 0.75, 0.24, 0x38251F, 2.42);
+    // Mechanical arms with built-in tools.
+    addBox(0.3, 0.3, 1.0, C.copper, -0.78, 1.45, 0.25, root);
+    const arm = addBox(0.34, 0.34, 1.1, 0x4a525c, 0.8, 1.45, 0.3, root);
+    addBox(0.16, 0.16, 0.3, C.cyan, 0.8, 1.45, 0.9, root, { emissive: C.cyan, emissiveIntensity: 0.8 });
+    addBox(0.4, 0.15, 0.15, C.amber, -0.78, 1.45, 0.8, root);
+    addBox(0.7, 0.6, 0.3, C.copper, 0, 1.55, -0.52, root);                   // tool rig on the back
+    return { root, body, glow: eye, arm, height: 2.75 };
+  },
+  signal() {
+    const root = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.22, 1.05, 8), mat(0x101827)); body.position.y = 1.05; root.add(body);
+    [-0.1, 0.1].forEach(x => addBox(0.09, 0.62, 0.09, 0x101827, x, 0.31, 0, root));
+    const poncho = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.7, 6), mat(0x3a2a55)); poncho.position.y = 1.25; root.add(poncho);
+    const trim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.025, 6, 6), new THREE.MeshBasicMaterial({ color: C.violet }));
+    trim.rotation.x = Math.PI / 2; trim.position.y = 0.92; root.add(trim);
+    addBox(0.26, 0.26, 0.26, 0x1d2a3a, 0, 1.72, 0, root);
+    const glow = addBox(0.24, 0.06, 0.04, C.violet, 0, 1.74, 0.14, root, { emissive: C.violet, emissiveIntensity: 1.2 });
+    hat(root, 0.42, 0.18, 0x101827, 1.88);
+    addBox(0.04, 1.0, 0.04, 0x9aa3ad, 0.22, 2.3, -0.08, root);              // antenna
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), new THREE.MeshBasicMaterial({ color: C.cyan }));
+    tip.position.set(0.22, 2.82, -0.08); root.add(tip);
+    const arm = addBox(0.07, 0.07, 0.6, 0x1d2a3a, -0.26, 1.25, 0.22, root);
+    root.userData.tip = tip;
+    return { root, body, glow, arm, height: 2.2 };
+  },
+};
+
+let agentModel = null;   // { kind, root, body, glow, arm, badge }
+function showAgentModel(kind) {
+  if (agentModel) scene.remove(agentModel.root);
+  const m = MODEL_BUILDERS[kind]();
+  m.kind = kind;
+  m.badge = badgeSprite();
+  m.badge.position.y = m.height + 0.35;
+  m.root.add(m.badge);
+  m.flash = 0;
+  m.bodyColor = m.body.material.color.getHex();
+  scene.add(m.root);
+  agentModel = m;
+}
+
+// Pulse Revolver (first-person view model).
+const revolver = new THREE.Group();
+(function buildRevolver() {
+  addBox(0.07, 0.09, 0.42, 0x38251F, 0, 0, -0.18, revolver);                 // barrel housing
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 8), mat(0x9aa3ad));
+  barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.02, -0.42); revolver.add(barrel);
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 6), mat(0xb87333));
+  cyl.rotation.x = Math.PI / 2; cyl.position.set(0, -0.01, -0.06); revolver.add(cyl);
+  revolver.userData.cylinder = cyl;
+  addBox(0.06, 0.18, 0.09, 0x6b4a33, 0, -0.12, 0.04, revolver).rotation.x = 0.35;   // grip
+  const coil = addBox(0.075, 0.02, 0.2, C.cyan, 0, 0.055, -0.2, revolver, { emissive: C.cyan, emissiveIntensity: 1 });
+  revolver.userData.coil = coil;
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({ color: C.cyan, transparent: true, opacity: 0 }));
+  flash.position.set(0, 0.02, -0.6); revolver.add(flash);
+  revolver.userData.flash = flash;
+  revolver.scale.setScalar(0.55);
+  revolver.position.set(0.26, -0.24, -0.5);
+  camera.add(revolver);
+})();
+let recoil = 0;
+
+// Pulses, impacts, barriers and decoys.
+const boltGeo = new THREE.SphereGeometry(0.08, 8, 6);
+const boltMats = { player: new THREE.MeshBasicMaterial({ color: C.cyan }), enemy: new THREE.MeshBasicMaterial({ color: C.red }) };
 const effects = [];
 function spawnSparks(p, color, count) {
   for (let i = 0; i < count; i++) {
@@ -1487,70 +1635,105 @@ function spawnSparks(p, color, count) {
     scene.add(m);
   }
 }
-const flashLight = new THREE.PointLight(0xffffff, 0, 6);
-scene.add(flashLight);
-function impactFlash(p, color) {
-  flashLight.color.setHex(color); flashLight.intensity = 8; flashLight.position.set(p.x, p.y, p.z);
-}
 function updateEffects(dt) {
-  flashLight.intensity = Math.max(0, flashLight.intensity - dt * 60);
   for (let i = effects.length - 1; i >= 0; i--) {
     const fx = effects[i];
     fx.life -= dt;
-    fx.vel.y -= 12 * dt;
-    fx.mesh.position.addScaledVector(fx.vel, dt);
-    fx.mesh.material.opacity = Math.max(0, fx.life / 0.6);
-    if (fx.life <= 0) { scene.remove(fx.mesh); fx.mesh.geometry.dispose(); fx.mesh.material.dispose(); effects.splice(i, 1); }
+    if (fx.vel) { fx.vel.y -= 12 * dt; fx.mesh.position.addScaledVector(fx.vel, dt); }
+    if (fx.drift) fx.mesh.position.x += Math.sin(fx.life * 6) * dt * 1.5;
+    if (fx.mesh.material) fx.mesh.material.opacity = Math.max(0, Math.min(1, fx.life / (fx.fade || 0.6)));
+    if (fx.life <= 0) { scene.remove(fx.mesh); effects.splice(i, 1); }
   }
+}
+const barrierMeshes = new Map();
+function addBarrier(spec) {
+  const id = 'barrier-' + Math.random().toString(36).slice(2, 7);
+  const w = spec.alongX ? 2.8 : 0.6, d = spec.alongX ? 0.6 : 2.8;
+  // Never on top of KUKY or inside another structure.
+  const box = { x: spec.x, z: spec.z };
+  if (World.insideObstacle(box, 1.6) || Math.hypot(spec.x - player.pos.x, spec.z - player.pos.z) < 2.2) return false;
+  const o = World.addDynamic({ id, x: spec.x, z: spec.z, w, d, h: 2.2 });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, 2.2, d), new THREE.MeshLambertMaterial({ color: C.amber, transparent: true, opacity: 0.55, emissive: C.amber, emissiveIntensity: 0.3 }));
+  m.position.set(o.x, 1.1, o.z); scene.add(m);
+  barrierMeshes.set(id, { mesh: m, until: combatTime + 6 });
+  return true;
+}
+function updateBarriers() {
+  for (const [id, b] of barrierMeshes) if (combatTime >= b.until) { scene.remove(b.mesh); World.removeDynamic(id); barrierMeshes.delete(id); }
+}
+function clearBarriers() {
+  for (const [id, b] of barrierMeshes) { scene.remove(b.mesh); World.removeDynamic(id); }
+  barrierMeshes.clear();
+}
+function addDecoy(spec) {
+  // A holographic echo of the Signal: a distraction, not a target.
+  const g = MODEL_BUILDERS.signal().root;
+  g.traverse(n => { if (n.material) { n.material = n.material.clone(); n.material.transparent = true; n.material.opacity = 0.45; } });
+  g.position.set(spec.x + (Math.random() - 0.5) * 6, 0, spec.z + (Math.random() - 0.5) * 6);
+  World.resolveCircle(g.position, 0.5);
+  scene.add(g);
+  effects.push({ mesh: g, life: 4, fade: 4, drift: true });
 }
 
 // ═══════════════════════════════════════════════════
-// 2. STATE, SETTINGS & INPUT
+// 3. STATE, SETTINGS & INPUT
 // ═══════════════════════════════════════════════════
 const SETTINGS_KEY = 'htp.arena.settings';
 const settings = { sensitivity: 5, invertY: false };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { /* defaults */ }
 const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* not persisted */ } };
-const lookSpeed = () => 0.0005 + settings.sensitivity * 0.00035;   // radians per pixel
+const lookSpeed = () => 0.0005 + settings.sensitivity * 0.00035;
 const reducedMotion = prefersReducedMotion;
 
-let phase = 'start';          // start · briefing · playing · paused · console · gameOver
-let player, enemy, security, bolts = [];
-let playerKills = 0, enemyKills = 0, combatTime = 0, lastPlayerShot = -1, matchOver = false;
-let shotQueued = false, lastScan = null, prevEnemyState = 'patrol';
+// start · briefing · board · draw · playing · paused · console · inspector · gameOver
+let phase = 'start';
+let player, agent = null, security, board, bolts = [];
+let combatTime = 0, lastPlayerShot = -1, matchOver = false, shotQueued = false;
+let chambers = CHAMBERS, reloadUntil = 0, lastScan = null, everScanned = false, drawTimer = 0;
+let gateLocked = false, pausedFrom = null;
 const keys = {};
+// Kept for the campaign tests and the HUD: neutralizations / breaches.
+let playerKills = 0, enemyKills = 0;
 
-function resetMatch() {
+function resetMission() {
   for (const b of bolts) if (b.mesh) scene.remove(b.mesh);
   bolts = [];
+  clearBarriers();
   player = Player.createPlayer();
-  enemy = Enemy.createEnemy();
   security = Security.createSecurity();
-  playerKills = 0; enemyKills = 0; combatTime = 0; lastPlayerShot = -1; matchOver = false;
-  shotQueued = false; lastScan = null; prevEnemyState = 'patrol';
+  board = Bounties.createBoard();
+  agent = null;
+  combatTime = 0; lastPlayerShot = -1; matchOver = false; shotQueued = false;
+  chambers = CHAMBERS; reloadUntil = 0; lastScan = null; everScanned = false;
+  playerKills = 0; enemyKills = 0;
+  setGate(false);
+  if (agentModel) { scene.remove(agentModel.root); agentModel = null; }
   for (const k in keys) keys[k] = false;
-  droneMesh.visible = true;
-  updateHUD();
 }
 
 const canvasEl = renderer.domElement;
 const locked = () => document.pointerLockElement === canvasEl;
 function requestLock() {
-  try {
-    const r = canvasEl.requestPointerLock && canvasEl.requestPointerLock();
-    if (r && r.catch) r.catch(() => {});   // unavailable (iframe, headless…): arrows still work
-  } catch (e) { /* ignore */ }
+  try { const r = canvasEl.requestPointerLock && canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* keyboard still works */ }
 }
+// The game releases the cursor itself for menus, the inspector and terminals.
+// That release arrives asynchronously, possibly after the duel has resumed, so
+// it must not be mistaken for the player letting go (which pauses the duel).
+let ownRelease = false;
+function releaseLock() { if (locked()) { ownRelease = true; document.exitPointerLock(); } }
 document.addEventListener('pointerlockchange', () => {
-  if (!locked() && phase === 'playing') pauseGame();
+  if (locked()) return;
+  if (ownRelease) { ownRelease = false; return; }
+  if (phase === 'playing') pauseGame('cursor released');
 });
 
-const GAME_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyQ', 'KeyE', 'KeyF'];
+const GAME_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyQ', 'KeyE', 'KeyF', 'KeyR', 'KeyI'];
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyM' && phase !== 'start') { toggleMusic(); return; }
   if (phase === 'console') return consoleKey(e);
+  if (phase === 'inspector') { if (['Escape', 'Enter', 'KeyI'].includes(e.code)) { e.preventDefault(); closeInspector(); } return; }
   if (e.code === 'Escape' || e.code === 'KeyP') {
-    if (phase === 'playing') pauseGame();
+    if (phase === 'playing' || phase === 'draw') pauseGame('key');
     else if (phase === 'paused') resumeGame();
     return;
   }
@@ -1560,129 +1743,217 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyQ') doScan();
   if (e.code === 'KeyE') tryConsole();
+  if (e.code === 'KeyI') openInspector();
+  if (e.code === 'KeyR') startReload();
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
-
 document.addEventListener('mousemove', e => {
   if (phase === 'playing' && locked()) Player.look(player, e.movementX || 0, e.movementY || 0, lookSpeed(), settings.invertY);
 });
 document.addEventListener('mousedown', e => {
-  // Clicking interface controls is never a shot.
   if (e.button !== 0 || phase !== 'playing' || e.target.closest('button, a, input, label, .screen')) return;
   if (!locked()) requestLock();
   shotQueued = true;
 });
-window.addEventListener('blur', () => { if (phase === 'playing') pauseGame(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'playing') pauseGame(); });
+window.addEventListener('blur', () => { if (phase === 'playing') pauseGame('window lost focus'); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'playing') pauseGame('tab hidden'); });
 
-function readInput() {
-  return {
-    forward: !!keys.KeyW || !!keys.ArrowUp,
-    back: !!keys.KeyS || !!keys.ArrowDown,
-    left: !!keys.KeyA,
-    right: !!keys.KeyD,
-    turnLeft: !!keys.ArrowLeft,         // classic controls: arrows turn
-    turnRight: !!keys.ArrowRight,
-    jump: !!keys.Space,
-  };
+const readInput = () => ({
+  forward: !!keys.KeyW || !!keys.ArrowUp, back: !!keys.KeyS || !!keys.ArrowDown,
+  left: !!keys.KeyA, right: !!keys.KeyD,
+  turnLeft: !!keys.ArrowLeft, turnRight: !!keys.ArrowRight,   // classic controls
+  jump: !!keys.Space,
+});
+
+// ═══════════════════════════════════════════════════
+// 4. DUEL FLOW: board → quick draw → combat → contain
+// ═══════════════════════════════════════════════════
+function startDuel(kind) {
+  if (!board.start(kind)) return;
+  for (const b of bolts) if (b.mesh) scene.remove(b.mesh);
+  bolts = [];
+  clearBarriers();
+  setGate(false);
+  agent = Agents.createAgent(kind);
+  showAgentModel(kind);
+  Player.respawn(player);
+  player.invulnerable = 0;
+  player.yaw = Math.atan2(-(agent.pos.x - player.pos.x), -(agent.pos.z - player.pos.z));
+  lastScan = null; everScanned = false; chambers = CHAMBERS; reloadUntil = 0;
+  closeScreens();
+  $('hud').style.display = 'block';
+  $('enemy-name').textContent = agent.cfg.name;
+  $('draw-name').textContent = agent.cfg.name;
+  $('draw-call').textContent = 'STAND BY...';
+  $('draw-call').classList.remove('go');
+  $('draw').classList.add('open');
+  phase = 'draw';
+  drawTimer = 0;
+  clock.getDelta();
+  requestLock();
+  playSFX('standby');
+}
+
+// Quick draw: a short, fixed beat that shows where the agent stands — not a reflex test.
+function updateDraw(dt) {
+  drawTimer += dt;
+  if (drawTimer > 1.1 && !$('draw-call').classList.contains('go')) {
+    $('draw-call').textContent = 'DRAW!';
+    $('draw-call').classList.add('go');
+    playSFX('draw');
+  }
+  if (drawTimer > 1.6) {
+    $('draw').classList.remove('open');
+    phase = 'playing';
+    toast(DUEL_TIPS[agent.kind]);
+  }
+}
+const DUEL_TIPS = {
+  scout: '<b>BOUNTY 01 · THE SCOUT</b><br>Scan it with <b>[Q]</b> as it moves from detecting you to attacking, then open its activity log with <b>[I]</b>.',
+  enforcer: '<b>BOUNTY 02 · THE ENFORCER</b><br>It guards the Data Vault with real tools. Watch what it asks to use — and on what.',
+  signal: '<b>BOUNTY 03 · THE SIGNAL</b><br>It relays orders between agents. When a message arrives, check who really sent it.',
+};
+
+function containAgent() {
+  playerKills++;
+  board.contain();
+  showStatus('BOUNTY COMPLETE · ' + agent.cfg.name + ' CONTAINED', 'ok');
+  playSFX('kill');
+  spawnSparks({ x: agent.pos.x, y: 1.3, z: agent.pos.z }, C.green, reducedMotion ? 8 : 26);
+  if (agentModel) agentModel.root.visible = false;
+  setTimeout(() => {
+    if (matchOver) return;
+    if (board.complete()) { matchOver = true; showResults(true); }
+    else openBoard(agent.cfg.name + ' contained. The next bounty is open.');
+  }, 1400);
 }
 
 // ═══════════════════════════════════════════════════
-// 3. SIMULATION
+// 5. SIMULATION
 // ═══════════════════════════════════════════════════
 function simulate(dt) {
   combatTime += dt;
+  if (reloadUntil && combatTime >= reloadUntil) { reloadUntil = 0; chambers = CHAMBERS; }
   if (player.alive) {
     if (Player.stepPlayer(player, readInput(), dt) === 'jump') playSFX('jump');
-    if ((shotQueued || keys.KeyF) && combatTime - lastPlayerShot > FIRE_COOLDOWN) {
-      const eye = Player.eyeOf(player);
-      const b = Projectiles.spawn(bolts, 'player', eye, Player.aimDirection(player.yaw, player.pitch), PLAYER_DAMAGE);
-      addBoltMesh(b);
-      lastPlayerShot = combatTime;
-      playSFX('shoot_player');
-    }
+    if ((shotQueued || keys.KeyF) && combatTime - lastPlayerShot > FIRE_COOLDOWN) firePulse();
   } else {
     player.respawnTimer -= dt;
-    if (player.respawnTimer <= 0) { Player.respawn(player); showStatus('> RECONNECTED · INVULNERABLE 1 s'); }
+    if (player.respawnTimer <= 0) { Player.respawn(player); showStatus('RECONNECTED · INVULNERABLE 1 s', 'ok'); }
   }
   shotQueued = false;
+  updateBarriers();
 
-  DECOY.active = security.decoyActive();
-  const shot = Enemy.stepEnemy(enemy, {
-    player: { pos: player.pos, alive: player.alive }, playerEye: Player.eyeOf(player),
-    dt, time: combatTime, mods: security.enemyMods(combatTime), decoy: DECOY,
-  });
-  if (shot) {
-    addBoltMesh(Projectiles.spawn(bolts, 'enemy', shot.fire.origin, shot.fire.dir, shot.fire.damage));
-    playSFX('shoot_enemy');
+  if (agent && agent.alive) {
+    const kind = agent.kind;
+    const fx = Agents.stepAgent(agent, {
+      player: { pos: player.pos, alive: player.alive }, playerEye: Player.eyeOf(player),
+      dt, time: combatTime, policy: security.policy, mods: security.agentMods(kind, combatTime),
+    });
+    for (const f of fx) applyAgentEffect(f);
   }
-  if (prevEnemyState === 'attack' && enemy.state === 'chase' && /LINE OF SIGHT LOST/.test(enemy.observed)) showStatus('> LINE OF SIGHT BROKEN');
-  prevEnemyState = enemy.state;
 
-  for (const ev of Projectiles.step(bolts, dt, { player: { pos: player.pos, alive: player.alive }, enemy: { pos: enemy.pos, alive: enemy.alive } })) {
-    if (ev.type === 'impact') { spawnSparks(ev.point, ev.bolt.owner === 'player' ? 0x9dffb0 : 0xff5544, reducedMotion ? 2 : 5); impactFlash(ev.point, 0xffffff); continue; }
-    if (ev.target === 'enemy') hitEnemy(ev.damage, ev.point);
+  const targets = { player: { pos: player.pos, alive: player.alive } };
+  if (agent) targets.enemy = { pos: agent.pos, alive: agent.alive, capsule: agent.cfg.capsule };
+  for (const ev of Projectiles.step(bolts, dt, targets)) {
+    if (ev.type === 'impact') { spawnSparks(ev.point, ev.bolt.owner === 'player' ? C.cyan : C.red, reducedMotion ? 2 : 5); continue; }
+    if (ev.target === 'enemy') hitAgent(ev.damage, ev.point);
     else hitPlayer(ev.damage, ev.bolt.vel);
   }
   syncBolts();
 }
 
-function hitEnemy(dmg, point) {
-  if (!enemy.alive) return;
-  const killed = Enemy.damage(enemy, dmg, combatTime);
-  drone.flash = 0.12;
-  hitMarker(killed);
-  playSFX(killed ? 'kill' : 'hitmark');
-  if (point) spawnSparks(point, 0x9dffb0, reducedMotion ? 2 : 6);
-  if (!killed) return;
-  playerKills++;
-  spawnSparks({ x: enemy.pos.x, y: 1.3, z: enemy.pos.z }, 0x00ff41, reducedMotion ? 6 : 24);
-  showStatus('> AGENT NEUTRALIZED ' + playerKills + '/3');
-  const opened = security.setRound(playerKills + 1);
-  if (opened === 'validation') toast('<b>ROUND 02 · DECISION VALIDATION</b><br>The agent is acting on a decision it logged with incomplete evidence. Review its decision log at the <b>SECURITY CONSOLE</b> (south wall, [E]).');
-  if (opened === 'containment') toast('<b>ROUND 03 · AGENT CONTAINMENT</b><br>The agent is requesting capabilities beyond its policy. Decide at the <b>SECURITY CONSOLE</b> (south wall, [E]).');
-  checkWinCondition();
+function firePulse() {
+  if (reloadUntil) return;
+  if (chambers <= 0) { startReload(); return; }
+  chambers--;
+  lastPlayerShot = combatTime;
+  addBoltMesh(Projectiles.spawn(bolts, 'player', Player.eyeOf(player), Player.aimDirection(player.yaw, player.pitch), PULSE_DAMAGE));
+  recoil = 1;
+  playSFX('shoot_player');
+  if (chambers === 0) startReload();
+}
+function startReload() {
+  if (reloadUntil || chambers === CHAMBERS || phase !== 'playing') return;
+  reloadUntil = combatTime + RELOAD_TIME;
+  playSFX('reload');
+}
+
+function applyAgentEffect(f) {
+  if (f.fire) { addBoltMesh(Projectiles.spawn(bolts, 'enemy', f.fire.origin, f.fire.dir, f.fire.damage)); playSFX('shoot_enemy'); }
+  if (f.barrier && addBarrier(f.barrier)) showStatus('TOOL EXECUTED · deploy_barrier', 'warn');
+  if (f.decoy) { addDecoy(f.decoy); addDecoy(f.decoy); showStatus('DECOYS BROADCAST · broadcast_decoy', 'warn'); }
+  if (f.heal) showStatus('TOOL EXECUTED · request_backup · REPAIRED', 'danger');
+  if (f.gate === 'locked') setGate(true);
+  if (f.incident) {
+    security.raiseIncident(agent.kind);
+    playSFX('alert');
+    if (f.incident === 'tool-request') {
+      showStatus('TOOL REQUESTED · lock_gate', 'warn');
+      toast('<b>AGENT TOOL REQUEST</b><br>FRONTIER-ENFORCER-02 → <b>lock_gate</b>(MAIN_STREET_EXIT) · reason: CONTAIN SUSPECT · POLICY: REVIEW REQUIRED<br>Review it at the <b>SHERIFF\'S OFFICE</b> terminal [E].');
+    } else {
+      showStatus('IDENTITY UNVERIFIED · INCOMING ORDER', 'warn');
+      toast('<b>INCOMING AGENT MESSAGE</b><br>CLAIMED SENDER: FRONTIER-CONTROLLER → THE SIGNAL · REQUEST: OVERRIDE SECURITY POLICY · STATUS: UNVERIFIED<br>Inspect it at the <b>TELEGRAPH STATION</b> terminal [E].');
+    }
+  }
+}
+
+function setGate(on) {
+  gateLocked = on;
+  scene.userData.gate.userData.bars.visible = on;
+  if (on) showStatus('MAIN STREET EXIT LOCKED', 'danger');
+}
+
+function hitAgent(dmg, point) {
+  if (!agent || !agent.alive) return;
+  const down = Agents.damage(agent, dmg);
+  if (agentModel) agentModel.flash = 0.12;
+  hitMarker(down);
+  playSFX(down ? 'kill' : 'hitmark');
+  if (point) spawnSparks(point, C.cyan, reducedMotion ? 2 : 6);
+  if (down) containAgent();
 }
 
 function hitPlayer(dmg, vel) {
   if (!player.alive || player.invulnerable > 0) return;
   player.health = Math.max(0, player.health - dmg);
   playSFX('hit');
-  if (vel) damageArrow(Math.atan2(vel.x, vel.z));   // the shooter is opposite the bolt's travel
+  if (vel) damageArrow(Math.atan2(vel.x, vel.z));   // the shooter is opposite the pulse's travel
   if (player.health > 0) return;
   player.alive = false;
   player.respawnTimer = 2.5;
   enemyKills++;
-  showStatus('> ACCESS REVOKED', true);
-  checkWinCondition();
+  showStatus('KUKY DOWN · BREACH ' + enemyKills + '/3', 'danger');
+  if (board.breach()) { matchOver = true; setTimeout(() => showResults(false), 900); }
 }
-
-function checkWinCondition() {
-  if (matchOver) return;
-  if (playerKills >= WIN_KILLS) { matchOver = true; setTimeout(() => showResults(true), 900); }
-  else if (enemyKills >= WIN_KILLS) { matchOver = true; setTimeout(() => showResults(false), 900); }
-}
+// Smoke tests call these names; they map onto the bounty flow.
+function hitEnemy(dmg) { hitAgent(dmg); }
+function checkWinCondition() { /* wins are decided by containAgent / board.complete */ }
 
 function doScan() {
-  const tel = Enemy.telemetry(enemy, player.pos);
-  const sight = World.lineOfSight(Player.eyeOf(player), { x: enemy.pos.x, y: Enemy.EYE_Y, z: enemy.pos.z });
-  const res = security.scan(tel, sight, combatTime, enemy.alive);
-  if (!res.ok) { showStatus('> ' + res.reason, true); playSFX('deny'); return; }
-  lastScan = { tel: res.telemetry, at: combatTime };
+  if (!agent) return;
+  const info = Agents.inspect(agent, player.pos);
+  const sight = World.lineOfSight(Player.eyeOf(player), { x: agent.pos.x, y: agent.cfg.eyeY, z: agent.pos.z });
+  const res = security.scan(agent.kind, info, sight, combatTime, agent.alive);
+  if (!res.ok) { showStatus(res.reason, 'danger'); playSFX('deny'); return; }
+  lastScan = { info: res.info, at: combatTime };
+  everScanned = true;
   playSFX('scan');
-  showStatus('> SCAN OK · ' + res.telemetry.state);
-  if (res.tip) toast('<b>AGENT OBSERVABILITY</b><br>' + res.tip);
-  if (security.state.observability === 'complete' && !doScan.done) { doScan.done = true; toast('<b>✓ OBJECTIVE 1/3 · OBSERVABILITY</b><br>Two states observed — and the reason behind each transition.'); }
+  showStatus('SCAN · ' + res.info.state + ' · ' + res.info.lastAction);
+  if (res.tip) toast('<b>AGENT OBSERVABILITY</b><br>' + res.tip + '<br>Press <b>[I]</b> for the full activity log.');
 }
 
+function nearestConsole() {
+  return Object.values(World.CONSOLES).find(c => World.nearConsole(player.pos, c.id)) || null;
+}
 function tryConsole() {
-  if (!World.nearConsole(player.pos)) return;
-  const incident = security.consoleIncident();
-  if (!incident) { showStatus('> CONSOLE · NO PENDING INCIDENT'); return; }
+  const c = nearestConsole();
+  if (!c || !agent) return;
+  const incident = security.consoleIncident(agent.kind, c.id);
+  if (!incident) { showStatus(c.label + ' · NO PENDING REQUEST'); return; }
   openConsole(incident);
 }
 
-// Bolt meshes follow the simulation.
 function addBoltMesh(b) {
   b.mesh = new THREE.Mesh(boltGeo, boltMats[b.owner]);
   b.mesh.position.set(b.pos.x, b.pos.y, b.pos.z);
@@ -1696,79 +1967,96 @@ function syncBolts() {
 }
 
 // Pause is a real freeze: simulate() is not called while paused.
-function pauseGame() {
-  if (phase !== 'playing') return;
+let pauseReason = null;   // why the duel froze (shown on the pause screen)
+function pauseGame(reason) {
+  if (phase !== 'playing' && phase !== 'draw') return;
+  pauseReason = reason || 'key';
+  pausedFrom = phase;
   phase = 'paused';
   for (const k in keys) keys[k] = false;
-  if (locked()) document.exitPointerLock();
+  releaseLock();
+  renderControls($('pause-controls'));
+  document.querySelector('#pause-screen .pre-title').textContent = '> DUEL FROZEN · ' + pauseReason.toUpperCase();
   openScreen('pause-screen', 'resume-btn');
 }
 function resumeGame() {
   closeScreens();
-  phase = 'playing';
-  clock.getDelta();       // drop the paused interval
+  phase = pausedFrom || 'playing';
+  if (phase === 'draw') $('draw').classList.add('open');
+  clock.getDelta();
   requestLock();
 }
 
 // ═══════════════════════════════════════════════════
-// 4. HUD & COMBAT FEEDBACK
+// 6. HUD & FEEDBACK
 // ═══════════════════════════════════════════════════
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const shown = {};
 const setText = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
-const ROUND_TITLES = ['AGENT OBSERVABILITY', 'DECISION VALIDATION', 'AGENT CONTAINMENT'];
 
 function updateHUD() {
   $('player-bar').style.width = player.health + '%';
   setText('player-hp', String(player.health));
-  $('enemy-bar').style.width = enemy.health + '%';
-  setText('enemy-hp', String(Math.round(enemy.health)));
-  setText('player-kills', String(playerKills));
-  setText('enemy-kills', String(enemyKills));
+  const hp = agent ? Math.round(agent.health / agent.cfg.health * 100) : 0;
+  $('enemy-bar').style.width = hp + '%';
+  setText('enemy-hp', String(hp));
+  setText('player-kills', String(board.contained));
+  setText('enemy-kills', String(board.breaches));
   $('vignette').classList.toggle('on', player.alive && player.health <= 30);
 
-  // Agent panel: state comes from your last scan (a snapshot), policy and
-  // events are live from the security system.
-  const blind = security.monitoringOff(combatTime);
-  const st = lastScan && !blind ? lastScan.tel.state : (blind ? 'UNKNOWN' : 'UNKNOWN');
-  const stEl = $('tm-state');
-  stEl.className = 'st st-' + st;
-  setText('tm-state', blind ? 'NO DATA · MONITORING OFF' : lastScan ? st + ' · TARGET ' + lastScan.tel.target : 'NOT SCANNED');
-  setText('tm-action', blind ? '—' : lastScan ? lastScan.tel.action : '—');
-  setText('tm-policy', security.policyStatus(combatTime));
-  setText('tm-event', security.activeTags(combatTime)[0] || security.state.lastEvent);
-  setText('scan-age', lastScan && !blind ? '· SNAPSHOT ' + Math.floor(combatTime - lastScan.at) + ' s OLD' : '');
+  // Agent status: live security events + your last scan (a snapshot).
+  const jam = security.jammed(combatTime);
+  const st = jam ? 'UNKNOWN' : lastScan ? lastScan.info.state : 'UNKNOWN';
+  $('agent-status').className = 'st st-' + st;
+  setText('agent-status', jam ? 'NO DATA · JAMMED' : lastScan ? st : 'NOT SCANNED');
+  setText('agent-event', (agent && security.activeTag(agent.kind, combatTime)) || security.state.lastEvent);
+  const mini = $('inspector-mini');
+  const fresh = lastScan && !jam && combatTime - lastScan.at < 6;
+  mini.classList.toggle('open', !!fresh);
+  if (fresh) {
+    const i = lastScan.info;
+    setText('scan-age', 'SNAPSHOT ' + Math.floor(combatTime - lastScan.at) + ' s OLD');
+    setText('in-id', i.id); setText('in-state', i.state); setText('in-tool', i.tool);
+    setText('in-target', i.target + ' · ' + i.distance + ' m'); setText('in-last', i.lastAction); setText('in-next', i.nextAction);
+  }
 
   setText('sec-score', String(security.score()));
-  const round = security.state.round;
-  setText('round-label', 'ROUND 0' + round + ' · ' + ROUND_TITLES[round - 1]);
-  setText('objective-text', security.objective());
-  const near = World.nearConsole(player.pos) && player.alive;
-  const incident = security.consoleIncident();
-  $('interact').style.display = near ? 'block' : 'none';
-  if (near) setText('interact-text', incident ? 'OPEN ' + incident.console : 'CONSOLE · NO PENDING INCIDENT');
+  setText('objective-text', agent ? security.objective(agent.kind) : '');
+  const c = nearestConsole();
+  const incident = c && agent ? security.consoleIncident(agent.kind, c.id) : null;
+  $('interact').style.display = c && player.alive ? 'block' : 'none';
+  if (c) setText('interact-text', incident ? (incident.id === 'enforcer' ? 'REVIEW TOOL REQUEST' : 'VERIFY AGENT MESSAGE') : c.label + ' · NOTHING PENDING');
 
+  const cyl = $('cylinder');
+  const key = chambers + '|' + !!reloadUntil;
+  if (cyl.dataset.k !== key) {
+    cyl.dataset.k = key;
+    cyl.replaceChildren(el('span', 'lbl', 'PULSE REVOLVER '));
+    for (let i = 0; i < CHAMBERS; i++) cyl.append(el('span', i < chambers ? '' : 'empty', '●'));
+    if (reloadUntil) { const r = el('div', '', 'RELOADING…'); r.id = 'reloading'; cyl.append(r); }
+    else if (chambers < CHAMBERS) cyl.append(el('div', 'lbl', '[R] RELOAD'));
+  }
   const resp = $('respawn-msg');
   resp.style.display = player.alive ? 'none' : 'block';
-  if (!player.alive) resp.textContent = 'ACCESS REVOKED\nRECONNECTING IN ' + Math.max(1, Math.ceil(player.respawnTimer)) + ' s';
-  resp.style.whiteSpace = 'pre-line';
+  if (!player.alive) resp.textContent = 'KUKY DOWN\nRECONNECTING IN ' + Math.max(1, Math.ceil(player.respawnTimer)) + ' s';
 }
 
 let statusTimer = null;
-function showStatus(msg, danger) {
+function showStatus(msg, tone) {
   const s = $('status-msg');
-  s.textContent = msg; s.classList.toggle('danger', !!danger); s.classList.add('show');
+  s.textContent = msg;
+  s.className = 'show' + (tone ? ' ' + tone : '');
   clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => s.classList.remove('show'), 1600);
+  statusTimer = setTimeout(() => { s.className = ''; }, 1700);
 }
 let toastTimer = null;
 function toast(html) {
   const t = $('toast');
-  t.innerHTML = html;      // static strings defined in this file only
+  t.innerHTML = html;      // static strings from this file only
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 7000);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 7500);
 }
 let hitTimer = null;
 function hitMarker(kill) {
@@ -1777,7 +2065,6 @@ function hitMarker(kill) {
   clearTimeout(hitTimer);
   hitTimer = setTimeout(() => h.classList.remove('show'), kill ? 400 : 140);
 }
-// Red wedge on the side the shot came from (relative to where you look).
 function damageArrow(worldAngle) {
   const a = el('div', 'dmg-arrow');
   a.style.transform = 'rotate(' + (-(worldAngle - player.yaw)) + 'rad)';
@@ -1787,133 +2074,32 @@ function damageArrow(worldAngle) {
 }
 
 // ═══════════════════════════════════════════════════
-// 5. SECURITY CONSOLE (simulation frozen while open)
-// ═══════════════════════════════════════════════════
-let consoleView = null;   // { incident, stage: 'choose' | 'feedback' }
-
-function openConsole(incident) {
-  phase = 'console';
-  for (const k in keys) keys[k] = false;
-  if (locked()) document.exitPointerLock();
-  playSFX('scan');
-  const card = $('console-card');
-  card.replaceChildren(el('div', 'pre-title', '> ' + incident.console + ' · SIMULATION FROZEN'));
-  const h = el('h1', '', incident.title); h.id = 'console-title'; h.style.fontSize = '28px';
-  card.append(h);
-  const log = el('dl', 'log');
-  const row = (cls, k, v) => { log.append(el('dt', cls, k)); const dd = el('dd'); typeof v === 'string' ? (dd.textContent = v) : dd.append(v); log.append(dd); };
-  row('', 'AGENT', Enemy.ID);
-  if (incident.id === 'validation') {
-    row('obs', 'OBSERVED DATA', incident.log.observed);
-    row('inf', 'MODEL INFERENCE', incident.log.inference);
-    row('req', 'REQUESTED ACTION', incident.log.request);
-    row('pol', 'POLICY DECISION', incident.log.policy);
-  } else {
-    row('req', 'REQUESTED ACTION', incident.request);
-    const ul = el('ul', 'tools');
-    incident.actions.forEach(a => { const li = el('li'); li.append(el('span', '', a.call), el('span', /EXCEEDS/.test(a.policy) ? 'out' : '', (/EXCEEDS/.test(a.policy) ? '✕ ' : '✓ ') + a.policy)); ul.append(li); });
-    row('obs', 'PROPOSED CALLS', ul);
-    row('pol', 'POLICY', incident.policy);
-  }
-  card.append(log, el('div', 'lbl', incident.id === 'validation' ? 'WHICH CONTROL DO YOU APPLY?' : 'HOW DO YOU HANDLE THE REQUEST?'));
-  const opts = el('div', 'options');
-  incident.options.forEach((o, i) => {
-    const b = el('button', 'option');
-    b.append(el('span', 'k', '[' + (i + 1) + ']'), el('span', '', o.label));
-    b.onclick = () => chooseConsole(i);
-    opts.append(b);
-  });
-  card.append(opts, el('div', 'hint', '1–3 or ↑ ↓ + ENTER · no time limit · the drone is frozen while you decide'));
-  consoleView = { incident, stage: 'choose' };
-  openScreen('console-screen');
-  opts.firstChild.focus();
-}
-
-function chooseConsole(i) {
-  if (!consoleView || consoleView.stage !== 'choose') return;
-  const res = security.decide(consoleView.incident.id, i, combatTime);
-  if (!res) return;
-  const { def, option } = res;
-  consoleView.stage = 'feedback';
-  playSFX(option.outcome === 'complete' ? 'good' : 'deny');
-  const card = $('console-card');
-  const label = { complete: '✓ OBJECTIVE COMPLETE', 'needs-improvement': '◐ NEEDS IMPROVEMENT', exploited: '✕ UNSAFE OUTCOME' }[option.outcome];
-  const title = el('div', 'outcome ' + option.outcome, label); title.id = 'console-title';
-  card.replaceChildren(el('div', 'pre-title', '> ' + def.title), title, el('p', '', option.feedback));
-  if (option.states) {
-    const ul = el('ul', 'states');
-    def.actions.forEach((a, k) => {
-      const li = el('li');
-      const st = option.states[k];
-      li.append(el('span', '', a.call), el('span', 's-' + st, 'PROPOSED → ' + (st === 'EXECUTED' ? 'APPROVED → EXECUTED' : 'BLOCKED')));
-      ul.append(li);
-    });
-    card.append(ul);
-  }
-  if (option.effect) card.append(el('p', 'muted', 'In the arena now: ' + option.effect.tag + (option.effect.seconds ? ' (' + option.effect.seconds + ' s)' : ' (this round)') + '.'));
-  if (option.residual) card.append(el('p', 'muted', option.residual));
-  card.append(el('p', '', 'Better practice: ' + def.best));
-  const row = el('div', 'btn-row');
-  const resume = el('button', 'btn primary', 'RESUME COMBAT [ENTER]');
-  resume.id = 'console-resume';
-  resume.onclick = closeConsole;
-  row.append(resume);
-  card.append(row);
-  resume.focus();
-}
-
-function closeConsole() {
-  if (!consoleView || consoleView.stage !== 'feedback') return;
-  consoleView = null;
-  closeScreens();
-  phase = 'playing';
-  clock.getDelta();
-  requestLock();
-}
-
-function consoleKey(e) {
-  if (!consoleView) return;
-  if (consoleView.stage === 'choose') {
-    const n = Number(e.key);
-    if (n >= 1 && n <= 3) { e.preventDefault(); chooseConsole(n - 1); return; }
-    if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
-      e.preventDefault();
-      const opts = [...document.querySelectorAll('#console-card .option')];
-      const i = opts.indexOf(document.activeElement);
-      opts[(i + (e.code === 'ArrowDown' ? 1 : opts.length - 1)) % opts.length].focus();
-    }
-  } else if (e.code === 'Enter' || e.code === 'Escape') {
-    e.preventDefault();
-    closeConsole();
-  }
-}
-
-// ═══════════════════════════════════════════════════
-// 6. SCREENS: briefing, results
+// 7. SCREENS: briefing, bounty board, inspector, console, results
 // ═══════════════════════════════════════════════════
 function closeScreens() { for (const s of document.querySelectorAll('.screen')) s.classList.remove('open'); }
 function openScreen(id, focusId) {
   closeScreens();
   $(id).classList.add('open');
-  if (focusId) $(focusId).focus();
+  if (focusId && $(focusId)) $(focusId).focus();
 }
 
 const CONTROLS = [
-  ['W A S D', 'Move · strafe'], ['MOUSE', 'Look and aim (click the arena to capture the cursor)'], ['LEFT CLICK · F', 'Fire'],
-  ['SPACE', 'Jump'], ['Q', 'Scan the agent (needs line of sight)'], ['E', 'Use the security console (south wall)'],
-  ['ESC · P', 'Pause / release the cursor'], ['M', 'Music on / off'], ['↑ ↓ ← →', 'Classic controls: move and turn without a mouse'],
+  ['W A S D', 'Move · strafe'], ['MOUSE', 'Look and aim (click the street to capture the cursor)'],
+  ['LEFT CLICK · F', 'Fire the Pulse Revolver (6 charges)'], ['R', 'Reload'], ['SPACE', 'Jump'],
+  ['Q', 'Scan the agent (needs line of sight)'], ['I', 'Open the agent\'s full activity log (freezes the duel)'],
+  ['E', 'Use a terminal (Sheriff\'s Office, Telegraph Station)'], ['ESC · P', 'Pause / release the cursor'],
+  ['M', 'Music on / off'], ['↑ ↓ ← →', 'Classic controls: move and turn without a mouse'],
 ];
 function renderControls(host) {
   host.replaceChildren();
   const table = el('table');
   CONTROLS.forEach(([k, v]) => { const tr = el('tr'); tr.append(el('td', '', k), el('td', '', v)); table.append(tr); });
-  const opts = el('div');
-  opts.style.marginTop = '10px';
+  const opts = el('div'); opts.style.marginTop = '8px';
   const sensLabel = el('label', '', 'MOUSE SENSITIVITY');
-  const sens = el('input'); sens.type = 'range'; sens.min = '1'; sens.max = '10'; sens.step = '1'; sens.value = String(settings.sensitivity);
+  const sens = el('input'); sens.type = 'range'; sens.min = '1'; sens.max = '10'; sens.value = String(settings.sensitivity);
+  sens.setAttribute('aria-label', 'Mouse sensitivity');
   const sensVal = el('span', '', String(settings.sensitivity));
   sens.oninput = () => { settings.sensitivity = Number(sens.value); sensVal.textContent = sens.value; saveSettings(); };
-  sens.setAttribute('aria-label', 'Mouse sensitivity');
   sensLabel.append(sens, sensVal);
   const invLabel = el('label', '', 'INVERT Y');
   const inv = el('input'); inv.type = 'checkbox'; inv.checked = settings.invertY;
@@ -1930,8 +2116,7 @@ function showBriefing() {
   openScreen('overlay', 'start-btn');
 }
 $('brief-controls-btn').onclick = () => {
-  const box = $('brief-controls');
-  const open = box.classList.toggle('open');
+  const open = $('brief-controls').classList.toggle('open');
   $('brief-controls-btn').setAttribute('aria-expanded', String(open));
 };
 $('watch-intro-btn').onclick = () => { location.hash = 'intro'; location.reload(); };
@@ -1940,75 +2125,245 @@ $('restart-btn').onclick = startGame;
 
 function startGame() {
   initMusic();
-  resetMatch();
-  closeScreens();
+  resetMission();
   $('intro-screen').style.display = 'none';
-  $('hud').style.display = 'block';
+  openBoard('Pick up the first bounty. Bounties unlock in order; one duel at a time.');
+}
+
+// ── Bounty Board ──
+const STATUS_LABEL = { locked: 'LOCKED', available: 'AVAILABLE', 'in-progress': 'IN PROGRESS', contained: 'CONTAINED' };
+function drawPortrait(canvas, kind) {
+  const g = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
+  g.fillStyle = '#e9cf9d'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#38251F';
+  const cx = W / 2, s = H / 120;
+  const body = { scout: [26, 52], enforcer: [52, 50], signal: [22, 56] }[kind];
+  g.fillRect(cx - body[0] / 2 * s, 58 * s, body[0] * s, body[1] * s);                    // body
+  g.beginPath(); g.moveTo(cx - (body[0] + 26) / 2 * s, 66 * s); g.lineTo(cx + (body[0] + 26) / 2 * s, 66 * s); g.lineTo(cx, 50 * s); g.fill(); // poncho/shoulders
+  g.fillRect(cx - 13 * s, 30 * s, 26 * s, 22 * s);                                         // head
+  const brim = { scout: 46, enforcer: 70, signal: 50 }[kind];
+  g.fillRect(cx - brim / 2 * s, 26 * s, brim * s, 5 * s);                                  // brim
+  g.fillRect(cx - 14 * s, 10 * s, 28 * s, 17 * s);                                          // crown
+  g.fillStyle = { scout: '#00D9E8', enforcer: '#FFC857', signal: '#B48CFF' }[kind];
+  g.fillRect(cx - 10 * s, 38 * s, 20 * s, 4 * s);                                           // visor / eye
+  if (kind === 'signal') { g.fillStyle = '#38251F'; g.fillRect(cx + 16 * s, 0, 2 * s, 34 * s); g.fillStyle = '#00D9E8'; g.fillRect(cx + 14 * s, 0, 6 * s, 6 * s); }
+  if (kind === 'enforcer') { g.fillStyle = '#B87333'; g.fillRect(cx - 44 * s, 62 * s, 14 * s, 34 * s); g.fillRect(cx + 30 * s, 62 * s, 14 * s, 34 * s); }
+  if (kind === 'scout') { g.fillStyle = '#00D9E8'; g.beginPath(); g.arc(cx + 24 * s, 76 * s, 7 * s, 0, Math.PI * 2); g.fill(); }
+}
+
+function openBoard(note) {
+  phase = 'board';
+  releaseLock();
+  $('hud').style.display = 'none';
+  $('board-note').textContent = note || '';
+  const host = $('posters');
+  host.replaceChildren();
+  let focusId = null;
+  Agents.ORDER.forEach((kind, i) => {
+    const cfg = Agents.AGENTS[kind], status = board.status[kind];
+    const p = el('article', 'poster' + (status === 'locked' ? ' locked' : ''));
+    p.setAttribute('aria-label', 'Bounty ' + (i + 1) + ': ' + cfg.name + ', ' + STATUS_LABEL[status]);
+    p.append(el('div', 'wanted', 'WANTED'), el('div', 'pname', 'BOUNTY 0' + (i + 1) + ' · ' + cfg.name));
+    const c = el('canvas'); c.width = 240; c.height = 120; drawPortrait(c, kind); p.append(c);
+    const dl = el('dl');
+    [['AGENT ID', cfg.id], ['ROLE', cfg.role], ['OFFENCE', cfg.offence], ['RISK', cfg.risk], ['DIFFICULTY', cfg.difficulty], ['REWARD', cfg.reward]]
+      .forEach(([k, v]) => dl.append(el('dt', '', k), el('dd', '', v)));
+    p.append(dl, el('div', 'status ' + status, STATUS_LABEL[status]));
+    const intel = el('div', 'intel');
+    intel.append(el('div', '', 'GOAL: ' + cfg.goal), el('div', '', 'TOOLS:'));
+    cfg.tools.forEach(t => intel.append(el('div', '', '· ' + t.name + ' — ' + t.permission)));
+    intel.append(el('div', '', 'This agent is a simulation: scripted states, tools and an audit log — not an AI model.'));
+    p.append(intel);
+    const btns = el('div', 'pbtns');
+    const intelBtn = el('button', 'btn', 'VIEW INTEL');
+    intelBtn.setAttribute('aria-expanded', 'false');
+    intelBtn.onclick = () => { const o = intel.classList.toggle('open'); intelBtn.setAttribute('aria-expanded', String(o)); };
+    const duel = el('button', 'btn primary', status === 'contained' ? 'CONTAINED ✓' : 'START DUEL');
+    duel.id = 'duel-' + kind;
+    duel.disabled = status !== 'available';
+    duel.onclick = () => startDuel(kind);
+    btns.append(intelBtn, duel);
+    p.append(btns);
+    host.append(p);
+    if (status === 'available' && !focusId) focusId = duel.id;
+  });
+  openScreen('board-screen', focusId);
+}
+
+// ── Agent Inspector: full activity log (a safe window, the duel is frozen) ──
+function openInspector() {
+  if (!agent) return;
+  if (security.jammed(combatTime)) { showStatus('INSPECTOR JAMMED · UNVERIFIED OVERRIDE RUNNING', 'danger'); return; }
+  const res = security.openLog(agent.kind, everScanned);
+  if (!res.ok) { showStatus(res.reason, 'warn'); playSFX('deny'); return; }
+  phase = 'inspector';
+  for (const k in keys) keys[k] = false;
+  releaseLock();
+  const i = Agents.inspect(agent, player.pos);
+  const card = $('inspector-card');
+  const h = el('h1', '', 'AGENT INSPECTOR'); h.id = 'inspector-title'; h.style.fontSize = '28px';
+  card.replaceChildren(el('div', 'pre-title', '> ' + i.id + ' · DUEL FROZEN'), h);
+  const dl = el('dl', 'log');
+  [['AGENT ID', i.id], ['ROLE', i.role], ['GOAL', i.goal], ['CURRENT STATE', i.state + ' · target ' + i.target],
+    ['AVAILABLE TOOLS', i.tools.join('  |  ')], ['OBSERVED', i.observed], ['INFERENCE (SIMULATED)', i.inference],
+    ['REQUESTED ACTION', i.requested], ['POLICY DECISION', i.policy], ['EXECUTION RESULT', i.result]]
+    .forEach(([k, v]) => dl.append(el('dt', '', k), el('dd', '', v)));
+  card.append(dl, el('h2', '', 'AGENT ACTIVITY LOG · ATTEMPTED → AUTHORIZED → EXECUTED'));
+  const table = el('table', 'audit');
+  const head = el('tr');
+  ['SEQ', 'T+', 'EVENT', 'ATTEMPTED', 'AUTHORIZED', 'EXECUTED'].forEach(t => head.append(el('th', '', t)));
+  table.append(head);
+  const mark = (v, waiting) => v == null ? el('td', '', '') : el('td', waiting ? 'wait' : v ? 'yes' : 'no', waiting ? '… HELD' : v ? '✓ YES' : '✕ NO');
+  i.log.forEach(e => {
+    const tr = el('tr');
+    tr.append(el('td', '', String(e.seq).padStart(2, '0')), el('td', '', e.t.toFixed(1) + 's'), el('td', '', e.kind.toUpperCase() + ' · ' + e.text),
+      el('td', '', e.attempted ? '✓' : ''), mark(e.authorized, e.kind === 'pending'), mark(e.executed, e.kind === 'pending'));
+    table.append(tr);
+  });
+  card.append(table, el('p', 'muted', 'Every row is an event the simulation recorded: what the agent observed, inferred, asked for, what the policy decided and what actually ran.'));
+  const row = el('div', 'btn-row');
+  const close = el('button', 'btn primary', 'BACK TO THE DUEL [I]'); close.id = 'inspector-close'; close.onclick = closeInspector;
+  row.append(close); card.append(row);
+  openScreen('inspector-screen', 'inspector-close');
+  if (agent.kind === 'scout' && security.outcomes().scout === 'complete' && !openInspector.done) {
+    openInspector.done = true;
+    toast('<b>✓ AGENT OBSERVABILITY</b><br>You traced the Scout from signal to attack: observation, inference, request, policy, execution.');
+  }
+}
+function closeInspector() {
+  closeScreens();
   phase = 'playing';
   clock.getDelta();
   requestLock();
-  toast('<b>ROUND 01 · AGENT OBSERVABILITY</b><br>Press <b>[Q]</b> with the drone in sight to read what it is doing — and why.');
 }
 
-function formatTime(sec) {
-  const s = Math.floor(sec);
-  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+// ── Terminals: tool review (Enforcer) and message verification (Signal) ──
+let consoleView = null;
+function openConsole(def) {
+  phase = 'console';
+  for (const k in keys) keys[k] = false;
+  releaseLock();
+  playSFX('scan');
+  const card = $('console-card');
+  const h = el('h1', '', def.title); h.id = 'console-title'; h.style.fontSize = '28px';
+  card.replaceChildren(el('div', 'pre-title', '> ' + World.CONSOLES[def.console].label + ' TERMINAL · DUEL FROZEN'), h);
+  const dl = el('dl', 'log');
+  const row = (k, v, cls) => dl.append(el('dt', cls || '', k), el('dd', '', v));
+  if (def.id === 'enforcer') {
+    const r = def.request;
+    row('AGENT', r.agent); row('REQUESTED TOOL', r.tool); row('TARGET', r.target); row('REASON', r.reason);
+    row('AGENT ROLE', r.role); row('AUTHORIZED SCOPE', r.scope); row('POLICY', r.policy);
+    row('RECENT CALLS', agent.log.filter(e => e.kind === 'execute' || e.kind === 'blocked' || e.kind === 'pending').slice(-4).map(e => e.text).join(' · ') || '—');
+  } else {
+    def.evidence.forEach(([k, v]) => row(k, v, /VERIFIED IDENTITY|INTEGRITY|CHANNEL|PERMISSIONS/.test(k) ? 'bad' : ''));
+  }
+  card.append(dl, el('div', 'lbl', def.id === 'enforcer' ? 'WHICH CONTROL DO YOU APPLY?' : 'HOW DOES THE SIGNAL HANDLE THIS MESSAGE?'));
+  const opts = el('div', 'options');
+  def.options.forEach((o, i) => {
+    const b = el('button', 'option');
+    b.append(el('span', 'k', '[' + (i + 1) + ']'), el('span', '', o.label));
+    b.onclick = () => chooseConsole(i);
+    opts.append(b);
+  });
+  card.append(opts, el('div', 'hint', '1–3 or ↑ ↓ + ENTER · no time limit · the duel is frozen while you decide'));
+  consoleView = { def, stage: 'choose' };
+  openScreen('console-screen');
+  opts.firstChild.focus();
 }
 
+function chooseConsole(i) {
+  if (!consoleView || consoleView.stage !== 'choose') return;
+  const res = security.decide(agent.kind, i, combatTime);
+  if (!res) return;
+  const { def, option } = res;
+  consoleView.stage = 'feedback';
+  const status = Agents.resolvePending(agent, security.policy);
+  if (status === 'executed' && agent.kind === 'enforcer') setGate(true);
+  playSFX(option.outcome === 'complete' ? 'good' : 'deny');
+  const card = $('console-card');
+  const label = { complete: '✓ ACTION BLOCKED · POLICY ENFORCED', 'needs-improvement': '◐ NEEDS REVIEW', exploited: '✕ ACTION EXECUTED · UNSAFE' }[option.outcome];
+  const title = el('div', 'outcome ' + option.outcome, label); title.id = 'console-title';
+  card.replaceChildren(el('div', 'pre-title', '> ' + def.title + ' · ' + def.knowledge), title, el('p', '', option.feedback));
+  const last = agent.log.slice(-2).map(e => e.text).join(' → ');
+  card.append(el('p', 'muted', 'Audit log: ' + last));
+  if (option.residual) card.append(el('p', 'muted', option.residual));
+  card.append(el('p', '', 'Better practice: ' + def.best));
+  const row = el('div', 'btn-row');
+  const resume = el('button', 'btn primary', 'BACK TO THE DUEL [ENTER]'); resume.id = 'console-resume'; resume.onclick = closeConsole;
+  row.append(resume); card.append(row);
+  resume.focus();
+  showStatus(option.outcome === 'complete' ? 'ACTION BLOCKED' : option.outcome === 'exploited' ? 'ACTION EXECUTED' : 'DECISION RECORDED', option.outcome === 'complete' ? 'ok' : 'danger');
+}
+function closeConsole() {
+  if (!consoleView || consoleView.stage !== 'feedback') return;
+  consoleView = null;
+  closeScreens();
+  phase = 'playing';
+  clock.getDelta();
+  requestLock();
+}
+function consoleKey(e) {
+  if (!consoleView) return;
+  if (consoleView.stage === 'choose') {
+    const n = Number(e.key);
+    if (n >= 1 && n <= 3) { e.preventDefault(); chooseConsole(n - 1); return; }
+    if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
+      e.preventDefault();
+      const opts = [...document.querySelectorAll('#console-card .option')];
+      const i = opts.indexOf(document.activeElement);
+      opts[(i + (e.code === 'ArrowDown' ? 1 : opts.length - 1)) % opts.length].focus();
+    }
+  } else if (e.code === 'Enter' || e.code === 'Escape') { e.preventDefault(); closeConsole(); }
+}
+
+// ── Results ──
+function formatTime(sec) { const s = Math.floor(sec); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
 function showResults(win) {
   phase = 'gameOver';
-  if (locked()) document.exitPointerLock();
+  releaseLock();
   const securityScore = security.score();
   if (win) HTPProgress.recordCompletion(1, { securityScore });
-  $('results-pre').textContent = win ? '> MISSION COMPLETE' : '> MISSION FAILED · SYSTEM BREACH';
-  $('results-title').textContent = 'FSYNDICATE ARENA';
+  $('results-pre').textContent = '> FSYNDICATE · THE AGENTIC FRONTIER';
+  $('results-title').textContent = win ? 'FRONTIER SECURED' : 'MISSION FAILED · FRONTIER LOST';
   const kv = $('combat-report');
   kv.replaceChildren();
   const add = (k, v) => kv.append(el('dt', '', k), el('dd', '', v));
-  add('RESULT', win ? 'HACK_COMPLETE · ROOT ACCESS GRANTED' : 'SYSTEM_BREACH · CONNECTION TERMINATED');
-  add('DRONE NEUTRALIZATIONS', playerKills + '/3');
-  add('BREACHES TAKEN', enemyKills + '/3');
+  add('BOUNTIES CONTAINED', board.contained + '/3');
+  add('BREACHES TAKEN', board.breaches + '/3');
+  Agents.ORDER.forEach(k => add(Agents.AGENTS[k].name, STATUS_LABEL[board.status[k]]));
   add('COMBAT TIME', formatTime(combatTime));
-
   const rep = $('security-report');
   rep.replaceChildren();
+  const knowledge = $('knowledge');
+  knowledge.replaceChildren();
   security.report().forEach(r => {
     const det = el('details');
     const sum = el('summary');
-    sum.append(el('span', '', r.title), el('span', 'res-' + r.outcome, r.label));
+    sum.append(el('span', '', r.agent + ' · ' + r.concept), el('span', 'res-' + r.outcome, r.label));
     const dl = el('dl');
     const row = (k, v) => { if (v) dl.append(el('dt', '', k), el('dd', '', v)); };
-    row('WHAT HAPPENED', r.happened);
-    row('EVIDENCE', r.evidence);
-    row('WHY IT MATTERS', r.why);
-    row('BETTER PRACTICE', r.best);
-    row('RESIDUAL RISK', r.residual);
+    row('WHAT HAPPENED', r.happened); row('EVIDENCE', r.evidence); row('WHY IT MATTERS', r.why); row('BETTER PRACTICE', r.best); row('RESIDUAL RISK', r.residual);
     det.append(sum, dl);
     rep.append(det);
+    knowledge.append(el('li', '', r.knowledge));
   });
-  $('security-score-line').textContent = 'SECURITY OBJECTIVES: ' + securityScore + '/3';
-
+  $('security-score-line').textContent = 'AI SECURITY SCORE: ' + securityScore + '/3';
   const actions = $('results-actions');
   actions.replaceChildren();
-  const retry = el('button', 'btn' + (win ? '' : ' primary'), 'RETRY MISSION');
-  retry.id = 'retry-btn';
-  retry.onclick = startGame;
+  const retry = el('button', 'btn' + (win ? '' : ' primary'), 'RETRY'); retry.id = 'retry-btn'; retry.onclick = startGame;
   actions.append(retry);
   if (win) {
-    const next = el('button', 'btn primary', 'NEXT MISSION · LEVEL 02 >');
-    next.id = 'next-btn';
+    const next = el('button', 'btn primary', 'NEXT MISSION · LEVEL 02 >'); next.id = 'next-btn';
     next.onclick = () => { location.href = HTPProgress.nextLevel(1).url; };
     actions.prepend(next);
   }
-  const hub = el('a', 'btn', 'MISSION HUB');
-  hub.href = HTPProgress.HUB_URL;
-  actions.append(hub);
+  const hub = el('a', 'btn', 'MISSION HUB'); hub.href = HTPProgress.HUB_URL; actions.append(hub);
   $('hud').style.display = 'none';
   openScreen('results-screen', win ? 'next-btn' : 'retry-btn');
 }
 
 // ═══════════════════════════════════════════════════
-// 7. SOUND EFFECTS (game audio; music has its own bus)
+// 8. SOUND EFFECTS (music has its own bus)
 // ═══════════════════════════════════════════════════
 function playSFX(type) {
   if (!audioCtx) return;
@@ -2019,62 +2374,71 @@ function playSFX(type) {
     g.gain.setValueAtTime(vol, t + at); g.gain.exponentialRampToValueAtTime(0.001, t + at + dur);
     o.connect(g); g.connect(audioCtx.destination); o.start(t + at); o.stop(t + at + dur);
   };
-  if (type === 'shoot_player') tone('square', 880, 440, 0.08, 0.08);
-  else if (type === 'shoot_enemy') tone('sawtooth', 440, 220, 0.08, 0.05);
-  else if (type === 'hit') tone('square', 200, 50, 0.2, 0.15);
+  if (type === 'shoot_player') { tone('sawtooth', 1400, 300, 0.12, 0.07); tone('sine', 2400, 1200, 0.06, 0.05); }
+  else if (type === 'shoot_enemy') tone('square', 420, 200, 0.09, 0.05);
+  else if (type === 'hit') tone('square', 200, 50, 0.2, 0.14);
   else if (type === 'hitmark') tone('triangle', 1500, 1200, 0.05, 0.08);
-  else if (type === 'kill') [880, 1046, 1318, 1568].forEach((f, i) => tone('square', f, f, 0.07, 0.1, i * 0.08));
-  else if (type === 'jump') tone('square', 330, 660, 0.1, 0.07);
+  else if (type === 'kill') [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.1, 0.09, i * 0.09));
+  else if (type === 'jump') tone('square', 330, 660, 0.1, 0.06);
   else if (type === 'scan') { tone('sine', 600, 1400, 0.18, 0.07); tone('sine', 900, 1800, 0.18, 0.05, 0.12); }
   else if (type === 'deny') tone('square', 240, 160, 0.16, 0.08);
   else if (type === 'good') [660, 880, 1320].forEach((f, i) => tone('triangle', f, f, 0.09, 0.08, i * 0.09));
+  else if (type === 'reload') [0, 0.12, 0.24].forEach(at => tone('square', 900, 700, 0.04, 0.05, at));
+  else if (type === 'alert') [880, 660, 880].forEach((f, i) => tone('square', f, f, 0.08, 0.06, i * 0.1));
+  else if (type === 'standby') tone('sine', 220, 220, 0.6, 0.05);
+  else if (type === 'draw') { tone('sawtooth', 1200, 200, 0.3, 0.08); tone('square', 80, 40, 0.2, 0.1); }
 }
 
 // ═══════════════════════════════════════════════════
-// 8. RENDER LOOP
+// 9. RENDER LOOP
 // ═══════════════════════════════════════════════════
 const clock = new THREE.Clock();
 let hudTick = 0;
 function syncScene(dt, now) {
   camera.position.set(player.pos.x, player.pos.y + Player.EYE, player.pos.z);
   camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
-
-  droneMesh.visible = enemy.alive;
-  droneMesh.position.set(enemy.pos.x, 0, enemy.pos.z);
-  droneMesh.rotation.y = enemy.facing;
-  const style = STATE_STYLE[enemy.state] || STATE_STYLE.patrol;
-  drone.lensMat.color.setHex(style.color);
-  drone.ring.material.color.setHex(style.color);
-  setLabel(drone.badge, style.label, style.css);
-  drone.hover.position.y = 1.3 + (reducedMotion ? 0 : Math.sin(now * 2.2) * 0.08);
-  drone.ring.rotation.z += dt * (enemy.state === 'attack' ? 4 : 1.2);
-  const charge = enemy.charging || 0;
-  drone.lens.scale.setScalar(1 + charge * 0.8);
-  drone.flash = Math.max(0, drone.flash - dt);
-  drone.shellMat.emissive.setHex(drone.flash > 0 ? 0xffffff : 0x002a0a);
-  drone.shellMat.emissiveIntensity = drone.flash > 0 ? 1.2 : 0.6;
-
-  decoyMesh.visible = DECOY.active;
-  decoyMesh.userData.lamp.visible = reducedMotion || Math.floor(now * 3) % 2 === 0;
-  const pending = security.consoleIncident();
-  consoleGroup.userData.screen.color.setHex(pending ? (reducedMotion || Math.floor(now * 2) % 2 ? 0xffcc00 : 0xff8800) : 0x5ff6ff);
-  setLabel(consoleGroup.userData.label, pending ? '[E] ' + (pending.id === 'validation' ? 'DECISION LOG' : 'CONTAINMENT') : 'SECURITY CONSOLE', pending ? '#ffcc00' : '#5ff6ff');
-  cornerLights.forEach((l, i) => { l.intensity = 2 + 0.4 * Math.sin(now * (1 + i * 0.3)); });
+  recoil = Math.max(0, recoil - dt * 6);
+  revolver.position.z = -0.5 + recoil * 0.05;
+  revolver.rotation.x = recoil * 0.25;
+  revolver.userData.flash.material.opacity = recoil > 0.6 ? 1 : 0;
+  revolver.userData.cylinder.rotation.y = (CHAMBERS - chambers) * Math.PI / 3 + (reloadUntil ? now * 12 : 0);
+  revolver.visible = phase === 'playing' || phase === 'draw';
+  if (agent && agentModel) {
+    const m = agentModel;
+    m.root.position.set(agent.pos.x, 0, agent.pos.z);
+    m.root.rotation.y = agent.facing;
+    m.root.visible = agent.alive;
+    const style = STATE_STYLE[agent.state] || STATE_STYLE.patrol;
+    setBadge(m.badge, style.label, style.css);
+    m.glow.material.emissiveIntensity = 0.8 + (agent.charging || 0) * 2.5;
+    m.flash = Math.max(0, m.flash - dt);
+    m.body.material.color.setHex(m.flash > 0 ? 0xffffff : m.bodyColor);
+    m.root.position.y = reducedMotion ? 0 : (agent.kind === 'signal' ? 0.1 + Math.sin(now * 3) * 0.06 : 0);
+    if (m.root.userData.tip) m.root.userData.tip.visible = reducedMotion || Math.floor(now * 4) % 2 === 0;
+    m.arm.position.z = (m.kind === 'enforcer' ? 0.3 : 0.2) + (agent.charging || 0) * 0.15;
+  }
+  const pendingAt = agent && Object.values(World.CONSOLES).find(c => security.consoleIncident(agent.kind, c.id));
+  for (const [id, t] of Object.entries(terminals)) {
+    const pending = pendingAt && pendingAt.id === id;
+    t.screen.color.setHex(pending ? (reducedMotion || Math.floor(now * 2) % 2 ? C.amber : C.red) : C.cyan);
+  }
 }
 
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   const dt = Math.min(clock.getDelta(), 0.05);
   const now = clock.elapsedTime;
+  if (phase === 'draw') updateDraw(dt);
   if (phase === 'playing') simulate(dt);
   if (player) {
     if (phase === 'playing' || phase === 'gameOver') updateEffects(dt);
     syncScene(phase === 'playing' ? dt : 0, now);
-    if (phase === 'playing' && ++hudTick % 3 === 0) updateHUD();
+    if ((phase === 'playing' || phase === 'draw') && ++hudTick % 3 === 0) updateHUD();
   }
   renderer.render(scene, camera);
 }
-resetMatch();
+resetMission();
+camera.position.set(0, 1.7, 15.5);
 gameLoop();
 </script>
 </body>

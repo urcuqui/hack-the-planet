@@ -1,4 +1,4 @@
-// FSYNDICATE Arena: KUKY's movement. WASD moves relative to where you look,
+// FSYNDICATE — The Agentic Frontier: KUKY's movement. WASD moves relative to where you look,
 // the mouse (or the classic arrow keys) turns, diagonals are normalised, and
 // everything is per second so it feels the same at any frame rate.
 (function (root, factory) {
