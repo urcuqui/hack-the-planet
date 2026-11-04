@@ -30,7 +30,7 @@
   // Per-level "best" fields and whether a higher or lower value is better.
   const BEST_RULES = {
     1: { securityScore: 'max' },
-    2: { integrity: 'max' },
+    2: { integrity: 'max', firstTryDiagnoses: 'max' },
     4: { position: 'min', timeMs: 'min', securityScore: 'max' },
   };
 

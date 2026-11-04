@@ -188,8 +188,8 @@ const MISSIONS = {
   },
   2: {
     accent: '#ff3300',
-    theme: '2D EXPLORATION · AI SECURITY BATTLES',
-    objective: 'Hunt six rogue AI robots and pick the right patch for each flaw. Patch all 6 before your integrity hits 0%.',
+    theme: 'AI INCIDENT LAB · INVESTIGATE. PATCH. VERIFY.',
+    objective: 'Investigate six misbehaving AI systems: read the evidence, diagnose, apply controls and verify them — before system integrity hits 0%.',
   },
   3: {
     accent: '#ff6eb4',
@@ -227,6 +227,7 @@ function metaText(level, entry) {
   const best = entry.best || {};
   if (level.id === 1 && Number.isFinite(best.securityScore)) parts.push('Best AI security ' + best.securityScore + '/3');
   if (level.id === 2 && Number.isFinite(best.integrity)) parts.push('Best integrity ' + best.integrity + '%');
+  if (level.id === 2 && Number.isFinite(best.firstTryDiagnoses)) parts.push('Best first-try diagnoses ' + best.firstTryDiagnoses + '/6');
   if (level.id === 4 && Number.isFinite(best.position)) parts.push('Best finish P' + best.position);
   if (level.id === 4 && Number.isFinite(best.timeMs)) parts.push('Best time ' + formatTime(best.timeMs));
   if (level.id === 4 && Number.isFinite(best.securityScore)) parts.push('Best AI security ' + best.securityScore + '/3');

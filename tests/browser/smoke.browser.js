@@ -88,46 +88,48 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       page.assertNoErrors('level1');
     });
 
-    await t.test('level 2: label fix, defeat + restart, victory records once', async () => {
+    await t.test('level 2: incident lab — explicit inspect, defeat + restart, six verified incidents', async () => {
       await page.goto(base + '/level2.html');
       assert.equal(await page.eval('audioCtx'), null, 'no audio before a gesture');
-      await page.click('.start-btn');
+      await page.click('#start-btn');
       await page.waitFor('gamePhase === "playing"');
+      assert.equal(await page.eval('document.getElementById("hud-name").textContent'), 'KUKY');
+      assert.match(await page.eval('document.getElementById("hud-status").textContent'), /CRITICAL · 6 OPEN/);
 
-      // Wrong answer shows the full option label and keeps the battle going.
-      await page.eval('startBattle(robots[0]); battle.phase = "select"; battle.selected = 0; confirmBattleAnswer();');
-      assert.match(await page.eval('battle.resultText'), new RegExp(await page.eval('robots[0].options[0]').then(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))));
-      await page.key('Enter');
-      assert.equal(await page.eval('gamePhase + "/" + battle.phase'), 'battle/select');
+      // Standing next to a robot does not start anything; [E] does.
+      await page.eval('player.x = robots[0].x + 30; player.y = robots[0].y;');
+      await sleep(600);
+      assert.equal(await page.eval('gamePhase'), 'playing', 'proximity alone never opens the analyzer');
+      await page.key('KeyE');
+      assert.equal(await page.eval('gamePhase'), 'analyzer');
+      await page.key('Escape');
+      assert.equal(await page.eval('gamePhase'), 'playing');
 
-      // Drain integrity to zero → defeat.
-      await page.eval('for (let i = 0; i < 9; i++) { battle.phase = "select"; battle.selected = 0; confirmBattleAnswer(); }');
-      assert.equal(await page.eval('playerHP'), 0);
-      await page.waitFor('gamePhase === "defeat"', 4000);
-      assert.equal(await page.eval('getComputedStyle(document.getElementById("end-nav")).display'), 'flex');
-      await page.key('Enter');
+      // Drain integrity with wrong diagnoses → defeat → restart.
+      await page.eval(`(() => { const c = Cases.CASES[0]; lab.open(c.id); c.evidence.forEach(e => lab.viewEvidence(c.id, e.id));
+        for (let i = 0; i < 10; i++) lab.diagnose(c.id, 'f1'); syncCounters(); showResults(false); })()`);
+      assert.equal(await page.eval('gamePhase'), 'defeat');
+      assert.equal(await page.eval('document.getElementById("results-title").textContent'), 'SYSTEM COMPROMISED');
+      await page.key('Enter');                       // RESTART MISSION is focused
       await page.waitFor('gamePhase === "playing"');
-      assert.deepEqual(await page.eval('[playerHP, caughtCount, robots.every(r => r.alive)]'), [100, 0, true]);
+      assert.deepEqual(await page.eval('[playerHP, caughtCount]'), [100, 0]);
       assert.equal(await progress(page).then(p => p.levels[2]), undefined, 'defeat does not complete the level');
 
-      // Patching a robot with an obstacle behind the player must not push the
-      // player into it (previously a softlock). Obstacle tile (2,2), robot at (3,2).
-      await page.eval(`robots[0].x = 112; robots[0].y = 80; player.x = 104; player.y = 80;
-        startBattle(robots[0]); battle.phase = 'select'; battle.selected = robots[0].correct; confirmBattleAnswer(); endBattle();`);
-      assert.equal(await page.eval('[[0,0],[7,0],[-7,0],[0,7],[0,-7]].some(([dx, dy]) => solidAt(player.x + dx, player.y + dy))'), false);
-      await page.eval('restartLevel()');
-
-      // Patch all six; extra endBattle calls must not double count.
-      await page.eval(`robots.forEach(r => {
-        startBattle(r); battle.phase = 'select'; battle.selected = r.correct; confirmBattleAnswer();
-        endBattle(); endBattle();
-      })`);
-      await page.waitFor('gamePhase === "victory"', 3000);
+      // Solve all six; extra verify calls must not double count.
+      await page.eval(`Cases.CASES.forEach(c => {
+        lab.open(c.id); c.evidence.forEach(e => lab.viewEvidence(c.id, e.id));
+        const d = c.diagnose;
+        lab.diagnose(c.id, d.type === 'single' || d.type === 'multi' ? d.answer : d.type === 'pair' ? Object.fromEntries(d.parts.map(p => [p.id, p.answer])) : Object.fromEntries(d.claims.map(x => [x.id, x.answer])));
+        lab.applyMitigation(c.id, [...new Set(c.mitigation.requires.map(r => c.mitigation.options.find(o => o.tags.includes(Array.isArray(r) ? r[0] : r)).id))]);
+        lab.verify(c.id); lab.verify(c.id);
+      }); syncCounters(); showResults(true);`);
       assert.equal(await page.eval('caughtCount'), 6);
       const p = await progress(page);
       assert.equal(p.levels[2].completed, true);
       assert.equal(p.levels[2].best.integrity, 100);
-      assert.equal(await page.eval('document.getElementById("end-primary").textContent'), '[ ENTER ] LEVEL 03 >');
+      assert.equal(p.levels[2].best.firstTryDiagnoses, 6);
+      assert.equal(await page.eval('document.getElementById("next-btn").textContent'), 'NEXT MISSION · LEVEL 03 >');
+      assert.equal(await page.eval('document.querySelectorAll("#results-report details").length'), 6);
       page.assertNoErrors('level2');
     });
 
