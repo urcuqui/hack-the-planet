@@ -247,105 +247,140 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('level1');
     });
 
-    await sub('level 2: defeat by wrong patches, restart, then patch all six by walking', async () => {
+    await sub('level 2: incident lab — walk, inspect, diagnose, mitigate, verify with real input', async () => {
       if (await page.eval('location.pathname') !== '/level2.html') await page.goto(base + '/level2.html');
-      const MAP = await page.eval('MAP');
-      const free = (c, r) => MAP[r] && MAP[r][c] === 0;
-      const bfs = (from, goals) => {
-        const prev = new Map([[from.join(), null]]);
-        const queue = [from];
-        while (queue.length) {
-          const [c, r] = queue.shift();
-          if (goals.has(c + ',' + r)) {
-            const path = [];
-            for (let k = c + ',' + r; k; k = prev.get(k)) path.unshift(k.split(',').map(Number));
-            return path;
-          }
-          for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            const n = [c + dc, r + dr];
-            if (free(...n) && !prev.has(n.join())) { prev.set(n.join(), c + ',' + r); queue.push(n); }
-          }
-        }
-        return null;
-      };
-      const keys = keyboard(page);
-      const answer = async digit => { await page.key('Digit' + digit); await page.key('Enter'); };
-
-      // Walks to the nearest live robot until a battle starts. Two robots spawn
-      // on obstacle tiles, so any free tile next to a robot is a goal.
-      const walkToBattle = async () => {
-        const end = Date.now() + 60000;
-        let last = null, still = 0;
-        for (;;) {
-          const s = await page.eval('({ g: gamePhase, x: player.x, y: player.y, robots: robots.filter(r => r.alive).map(r => [r.x, r.y]) })');
-          if (s.g !== 'playing') break;
-          assert.ok(Date.now() < end, 'reach a robot within 60 s');
-          const goals = new Set();
-          for (const [rx, ry] of s.robots) {
-            const c = Math.floor(rx / 32), r = Math.floor(ry / 32);
-            for (const [dc, dr] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) if (free(c + dc, r + dr)) goals.add((c + dc) + ',' + (r + dr));
-          }
-          const path = bfs([Math.floor(s.x / 32), Math.floor(s.y / 32)], goals);
-          assert.ok(path, 'every live robot is reachable');
-          const near = s.robots.reduce((a, b) => Math.hypot(a[0] - s.x, a[1] - s.y) < Math.hypot(b[0] - s.x, b[1] - s.y) ? a : b);
-          const [tx, ty] = path.length > 1 ? [path[1][0] * 32 + 16, path[1][1] * 32 + 16] : near;
-          await keys.set('KeyD', tx - s.x > 3); await keys.set('KeyA', tx - s.x < -3);
-          await keys.set('KeyS', ty - s.y > 3); await keys.set('KeyW', ty - s.y < -3);
-          still = last && Math.hypot(s.x - last[0], s.y - last[1]) < 0.5 ? still + 1 : 0;
-          assert.ok(still < 60, `player stuck at ${s.x.toFixed(0)},${s.y.toFixed(0)}`);
-          last = [s.x, s.y];
-          await sleep(30);
-        }
-        await keys.releaseAll();
-        await page.waitFor('gamePhase === "battle"');
-        await page.key('Enter');                     // skip the scan text
-        await page.waitFor('battle.phase === "select"');
-      };
-
-      await page.click('.start-btn');
+      await page.click('#start-btn');
       await page.waitFor('gamePhase === "playing"');
       assert.equal(await page.eval('audioCtx.state'), 'running');
+      const keys = keyboard(page);
 
-      // Ten wrong patches, retrying early with Enter; the last one leaves a gap
-      // so an earlier auto-retry timer would fire before the defeat timer.
-      await walkToBattle();
-      debug('first battle');
-      const correct = await page.eval('battle.robot.correct');
-      const wrong = (correct + 1) % 4 + 1;
-      for (let i = 0; i < 10; i++) {
-        if (i === 9) await sleep(600);
-        await answer(wrong);
-        assert.match(await page.eval('battle.resultText'), /WRONG PATCH/);
-        if (i < 9) { await page.key('Enter'); assert.equal(await page.eval('battle.phase'), 'select', 'Enter retries'); }
-      }
-      assert.equal(await page.eval('playerHP'), 0);
-      while (await page.eval('gamePhase') !== 'defeat') {
-        assert.notEqual(await page.eval('battle.phase'), 'select', 'no answering at 0% integrity');
-        await sleep(50);
-      }
-      assert.equal(await page.eval('getComputedStyle(document.getElementById("end-nav")).display'), 'flex');
-      await page.key('Enter');
-      await page.waitFor('gamePhase === "playing"');
-      assert.deepEqual(await page.eval('[playerHP, caughtCount, robots.every(r => r.alive)]'), [100, 0, true]);
-
-      debug('defeated and restarted');
-      for (let n = 1; n <= 6; n++) {
-        await walkToBattle();
-        debug('battle', n);
-        await answer(await page.eval('battle.robot.correct') + 1);
-        assert.match(await page.eval('battle.resultText'), /PATCHED/);
-        await page.key('Enter');
-        await page.waitFor(`caughtCount === ${n}`);
-        if (n < 6) {
-          await page.waitFor('gamePhase === "playing"');
-          const blocked = await page.eval('[[0,0],[7,0],[-7,0],[0,7],[0,-7]].some(([dx, dy]) => solidAt(player.x + dx, player.y + dy))');
-          assert.equal(blocked, false, `after battle ${n} the player is not pushed into a wall`);
+      // Walk (WASD) along the lab's own path to a robot.
+      const walkTo = async idx => {
+        const end = Date.now() + 60000;
+        for (;;) {
+          const s = await page.eval(`(() => { const r = robots[${idx}]; const p = World.path(World.cellOf(player), World.cellOf(r));
+            return { d: Math.hypot(player.x - r.x, player.y - r.y), x: player.x, y: player.y,
+              next: p && p.length > 1 ? World.center(p[1]) : { x: r.x, y: r.y } }; })()`);
+          if (s.d < 36) break;
+          assert.ok(Date.now() < end, 'reach robot ' + idx);
+          await keys.set('KeyD', s.next.x - s.x > 3); await keys.set('KeyA', s.next.x - s.x < -3);
+          await keys.set('KeyS', s.next.y - s.y > 3); await keys.set('KeyW', s.next.y - s.y < -3);
+          await sleep(25);
         }
+        await keys.releaseAll();
+      };
+      const digitFor = async expr => page.eval(expr);   // index → Digit key
+      const press = async n => page.key('Digit' + (n + 1));
+
+      // Solve one case through the analyzer UI. opts: { wrongFirst, failVerify }
+      const solveCase = async (idx, opts = {}) => {
+        await walkTo(idx);
+        await sleep(400);
+        assert.equal(await page.eval('gamePhase'), 'playing', 'proximity alone never starts an investigation');
+        await page.key('KeyE');
+        assert.equal(await page.eval('gamePhase'), 'analyzer');
+        const c = `Cases.CASES[${idx}]`;
+        const nEv = await page.eval(c + '.evidence.length');
+        for (let i = 0; i < nEv; i++) await press(i);           // inspect every piece of evidence
+        assert.equal(await page.eval('document.getElementById("diagnose-btn").disabled'), false);
+        await page.click('#diagnose-btn');
+        const type = await page.eval(c + '.diagnose.type');
+        const pick = async correct => {
+          if (type === 'single') {
+            await press(await digitFor(`${c}.diagnose.options.findIndex(o => ${correct ? '' : '!'}(o.id === ${c}.diagnose.answer))`));
+          } else if (type === 'multi') {
+            const want = await page.eval(`${c}.diagnose.options.map((o, i) => ${c}.diagnose.answer.includes(o.id) ? i : -1).filter(i => i >= 0)`);
+            for (const i of (correct ? want : [await page.eval(`${c}.diagnose.options.findIndex(o => !${c}.diagnose.answer.includes(o.id))`)])) await press(i);
+          } else if (type === 'pair') {
+            const idxs = await page.eval(`(() => { let n = 0; return ${c}.diagnose.parts.map(p => { const i = n + p.options.findIndex(o => o.id === p.answer); n += p.options.length; return i; }); })()`);
+            for (const i of idxs) await press(i);
+          } else {
+            const sel = await page.eval(`${c}.diagnose.claims.map((cl, ci) => '[data-opt="' + ci + '-' + ${c}.diagnose.labels.indexOf(cl.answer) + '"]')`);
+            for (const q of sel) await page.click('#analyzer-card ' + q);
+          }
+        };
+        if (opts.wrongFirst) {
+          await pick(false);
+          await page.click('#confirm-diagnosis');
+          assert.match(await page.eval('document.getElementById("analyzer-card").textContent'), /DOESN'T FIT THE EVIDENCE/);
+          assert.doesNotMatch(await page.eval('document.querySelector(".result").textContent'), new RegExp(await page.eval(c + '.concept'), 'i'), 'the answer is not revealed');
+          await page.key('Enter');                                // TRY AGAIN (focused)
+          // A multi-select keeps the earlier picks; clear them.
+          if (type === 'multi') for (const i of await page.eval(`[...document.querySelectorAll('#analyzer-card [aria-pressed="true"]')].map(b => Number(b.dataset.opt))`)) await press(i);
+        }
+        await pick(true);
+        await page.click('#confirm-diagnosis');
+        assert.match(await page.eval('document.getElementById("analyzer-card").textContent'), /DIAGNOSIS CONFIRMED/);
+        await page.key('Enter');                                  // CHOOSE CONTROLS
+        const controlIdx = (useful) => page.eval(useful
+          ? `[...new Set(${c}.mitigation.requires.map(r => ${c}.mitigation.options.findIndex(o => o.tags.includes(Array.isArray(r) ? r[0] : r))))]`
+          : `${c}.mitigation.options.map((o, i) => o.note ? i : -1).filter(i => i >= 0)`);
+        if (opts.failVerify) {
+          for (const i of await controlIdx(false)) await press(i);
+          await page.click('#apply-controls');
+          await page.click('#run-verification');
+          await page.waitFor('an && an.verifyResult && an.shownSteps >= an.verifyResult.steps.length', 5000);
+          assert.match(await page.eval('document.getElementById("analyzer-card").textContent'), /VERIFICATION FAILED/);
+          assert.equal(await page.eval(`lab.get(${c}.id).status`), 'needs-review');
+          await page.key('Enter');                                // ADJUST CONTROLS
+          for (const i of await controlIdx(false)) await press(i);  // untick the useless ones
+        }
+        for (const i of await controlIdx(true)) await press(i);
+        await page.click('#apply-controls');
+        assert.equal(await page.eval('lab.verifiedCount()'), await page.eval(`Object.values(lab.cases).filter(s => s.status === 'verified').length`));
+        const before = await page.eval('lab.verifiedCount()');
+        await page.click('#run-verification');
+        await page.waitFor('document.getElementById("back-to-lab")', 6000);
+        assert.equal(await page.eval('lab.verifiedCount()'), before + 1, 'verification is what resolves it');
+        await page.click('#back-to-lab');
+      };
+
+      // Defeat with real keys: wrong diagnoses until integrity runs out, then restart.
+      await walkTo(0);
+      await page.key('KeyE');
+      await press(0); await press(1);
+      await page.click('#diagnose-btn');
+      for (let i = 0; i < 10; i++) {
+        await press(0);
+        await page.click('#confirm-diagnosis');
+        if (i < 9) await page.key('Enter');                       // TRY AGAIN
       }
-      await page.waitFor('gamePhase === "victory"', 3000);
-      assert.equal((await progress(page)).levels[2].completed, true);
+      assert.equal(await page.eval('lab.integrity'), 0);
+      await page.key('Escape');
+      await page.waitFor('gamePhase === "defeat"');
+      await page.key('Enter');                                    // RESTART MISSION (focused)
+      await page.waitFor('gamePhase === "playing"');
+      assert.deepEqual(await page.eval('[lab.integrity, lab.verifiedCount()]'), [100, 0]);
+
+      // Pause, incident log, music.
+      await page.key('Escape');
+      assert.equal(await page.eval('gamePhase'), 'paused');
+      const pos = await page.eval('[player.x, player.y]');
+      await page.keyDown('KeyD'); await sleep(300); await page.keyUp('KeyD');
+      assert.deepEqual(await page.eval('[player.x, player.y]'), pos, 'nothing moves while paused');
+      await page.key('Escape');
+      await page.key('Tab');
+      assert.equal(await page.eval('gamePhase'), 'log');
+      assert.equal(await page.eval('document.querySelectorAll("#log-rows .log-row").length'), 6);
+      await page.key('Tab');
+      assert.equal(await page.eval('gamePhase'), 'playing');
+      await page.key('KeyM');
+      await sleep(400);
+      assert.equal(await page.eval('__audibleAfter(audioCtx, 0.6)'), 0, 'M silences the music');
+      await page.key('KeyM');
+
+      // All six incidents, one wrong diagnosis and one failed verification along the way.
+      for (let i = 0; i < 6; i++) await solveCase(i, { wrongFirst: i === 1, failVerify: i === 3 });
+      await page.waitFor('gamePhase === "victory"', 4000);
+      assert.equal(await page.eval('lab.integrity'), 80, 'two mistakes cost 20%');
+      assert.match(await page.eval('document.getElementById("hud-status").textContent'), /STABILIZED · 0 OPEN/);
+      assert.equal(await page.eval('document.querySelectorAll("#results-knowledge li").length'), 6);
+      const p = await progress(page);
+      assert.equal(p.levels[2].completed, true);
+      assert.equal(p.levels[2].best.firstTryDiagnoses, 5);
+      assert.equal(await page.eval('document.activeElement.id'), 'next-btn');
       const loaded = page.waitForEvent('Page.loadEventFired');
-      await page.key('Enter');                       // [ ENTER ] LEVEL 03 >
+      await page.key('Enter');
       await loaded;
       assert.equal(await page.eval('location.pathname'), '/level3.html');
       page.assertNoErrors('level2');

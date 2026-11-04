@@ -2,1348 +2,978 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>HACK THE PLANET — Level 2: Vulnerability Hunter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HACK THE PLANET — Level 2: Vulnerability Hunter · AI Incident Lab</title>
 <style>
+  :root {
+    --g: #00ff41; --g2: #9dffb6; --dim: rgba(0,255,65,0.65); --panel: rgba(0,12,4,0.95); --line: rgba(0,255,65,0.35);
+    --red: #ff5a4f; --amber: #ffcc33; --cyan: #5ff6ff; --violet: #c49bff; --text: #dfffe6;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #000500;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    justify-content: safe center;   /* scrolls instead of clipping on short windows */
-    height: 100vh;
-    overflow-y: auto;
-    font-family: 'Courier New', monospace;
-    color: #00ff41;
+    background: #000500; color: var(--g); font-family: 'Courier New', monospace;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; justify-content: safe center;
+    min-height: 100vh; overflow-y: auto; padding: 8px 0;
   }
-  canvas {
-    display: block;
-    image-rendering: pixelated;
-    border: 1px solid rgba(0,255,65,0.3);
-    box-shadow: 0 0 30px rgba(0,255,65,0.15);
-  }
+  canvas { display: block; image-rendering: pixelated; border: 1px solid var(--line); max-width: 100vw; height: auto; }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  /* ── HUD ── */
   #hud {
-    width: 800px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 12px;
-    background: rgba(0,5,0,0.9);
-    border: 1px solid rgba(0,255,65,0.3);
-    border-bottom: none;
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-shadow: 0 0 8px #00ff41;
+    width: min(800px, 100vw); display: grid; grid-template-columns: 1.7fr 1fr 1fr 1.25fr; gap: 6px 14px; align-items: center;
+    padding: 6px 10px; background: rgba(0,8,2,0.95); border: 1px solid var(--line); border-bottom: none; font-size: 12px; color: var(--text);
   }
-  #hud span { color: #00ff41; }
-  #hud .danger { color: #ff3300; text-shadow: 0 0 8px #ff3300; }
+  #hud .k { display: block; font-size: 10px; letter-spacing: 2px; color: var(--dim); }
+  #hud .title { color: var(--g); letter-spacing: 2px; font-size: 12px; white-space: nowrap; }
+  .ev-ref { border: 1px dashed var(--line); padding: 6px 10px; margin-top: 10px; }
+  .ev-ref summary { cursor: pointer; font-size: 11px; letter-spacing: 2px; color: var(--cyan); }
+  .ev-ref .ev-view { min-height: 0; margin-top: 8px; }
+  #hud-hint { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 10px; border-top: 1px dashed rgba(0,255,65,0.2); padding-top: 4px; font-size: 11px; color: var(--g2); }
+  .key { display: inline-block; background: var(--g); color: #021004; font-weight: bold; padding: 0 5px; margin-right: 4px; }
+  .st-CRITICAL { color: var(--red); } .st-CRITICAL::before { content: "■ "; }
+  .st-ELEVATED { color: var(--amber); } .st-ELEVATED::before { content: "▲ "; }
+  .st-GUARDED { color: var(--cyan); } .st-GUARDED::before { content: "◆ "; }
+  .st-STABILIZED { color: var(--g); } .st-STABILIZED::before { content: "✓ "; }
 
-  /* Scanlines overlay */
-  body::after {
-    content: '';
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: repeating-linear-gradient(
-      0deg,
-      rgba(0,0,0,0.07) 0px,
-      rgba(0,0,0,0.07) 1px,
-      transparent 1px,
-      transparent 2px
-    );
-    pointer-events: none;
-    z-index: 100;
-  }
+  /* ── Screens ── */
+  .screen { position: fixed; inset: 0; z-index: 50; display: none; overflow-y: auto; padding: 20px 14px; background: rgba(0,4,1,0.88); color: var(--text); }
+  .screen.open { display: flex; flex-direction: column; align-items: center; }
+  .screen > .card { margin: auto 0; width: min(860px, 100%); background: var(--panel); border: 1px solid var(--line); padding: 20px 22px; }
+  .screen h1 { font-size: clamp(24px, 5vw, 38px); letter-spacing: 6px; color: var(--g); text-shadow: 0 0 16px rgba(0,255,65,0.5); margin-bottom: 4px; }
+  .screen h2 { font-size: 12px; letter-spacing: 3px; color: var(--cyan); margin: 14px 0 8px; font-weight: normal; }
+  .pre { font-size: 11px; letter-spacing: 5px; color: var(--dim); margin-bottom: 6px; }
+  .tag { font-size: 13px; letter-spacing: 4px; color: var(--red); margin-bottom: 12px; }
+  .card p { font-size: 14px; line-height: 1.65; margin: 6px 0; }
+  .muted { color: rgba(223,255,230,0.7); }
+  .btn { font-family: inherit; font-size: 13px; letter-spacing: 3px; color: var(--g); background: transparent; border: 1px solid var(--g);
+    padding: 9px 18px; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn.primary { background: var(--g); color: #021004; font-weight: bold; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .controls { font-size: 13px; line-height: 1.9; border: 1px solid var(--line); padding: 10px 14px; margin-top: 10px; }
+  .controls b { color: var(--amber); font-weight: normal; }
 
-  #overlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.92);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-    transition: opacity 0.5s;
+  /* ── Analyzer ── */
+  .an-head { display: grid; grid-template-columns: 150px 1fr; gap: 4px 12px; font-size: 13px; margin: 8px 0; }
+  .an-head dt { font-size: 10px; letter-spacing: 2px; color: var(--dim); padding-top: 2px; }
+  .an-head .status { color: var(--amber); }
+  .an-body { display: grid; grid-template-columns: 240px 1fr; gap: 14px; margin-top: 10px; }
+  .ev-list { display: flex; flex-direction: column; gap: 6px; }
+  .ev-btn { text-align: left; font-family: inherit; font-size: 12px; color: var(--text); background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line); padding: 8px 10px; cursor: pointer; line-height: 1.4; }
+  .ev-btn[aria-pressed="true"] { border-color: var(--cyan); background: rgba(95,246,255,0.08); }
+  .ev-btn .seen { color: var(--g); }
+  .ev-view { border: 1px solid var(--line); padding: 12px; min-height: 180px; font-size: 13px; line-height: 1.6; }
+  .ev-view .meta { font-size: 11px; color: var(--dim); letter-spacing: 1px; margin-bottom: 8px; }
+  .ev-view code { display: block; font-family: inherit; color: var(--cyan); background: rgba(95,246,255,0.06); padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; }
+  table.data { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.data th { text-align: left; font-weight: normal; color: var(--dim); font-size: 10px; letter-spacing: 1px; border-bottom: 1px solid var(--line); padding: 4px 6px; }
+  table.data td { padding: 4px 6px; border-bottom: 1px solid rgba(0,255,65,0.1); vertical-align: top; }
+  .objective { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--amber); font-size: 13px; }
+  .choices { display: grid; gap: 6px; margin-top: 8px; }
+  .choice { display: grid; grid-template-columns: 30px 1fr; gap: 8px; text-align: left; font-family: inherit; font-size: 13px; line-height: 1.45;
+    color: var(--text); background: rgba(255,255,255,0.03); border: 1px solid var(--line); padding: 8px 10px; cursor: pointer; }
+  .choice[aria-pressed="true"], .choice[aria-checked="true"] { border-color: var(--g); background: rgba(0,255,65,0.1); }
+  .choice[aria-pressed="true"] .k::after, .choice[aria-checked="true"] .k::after { content: " ✓"; color: var(--g); }
+  .choice .k { color: var(--amber); }
+  .choice .src { display: block; color: var(--dim); font-size: 11px; }
+  .claim { border: 1px solid var(--line); padding: 8px 10px; margin-top: 6px; font-size: 13px; }
+  .claim .labels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .claim .labels button { font-family: inherit; font-size: 11px; letter-spacing: 1px; padding: 5px 8px; background: transparent; color: var(--text); border: 1px solid var(--line); cursor: pointer; }
+  .claim .labels button[aria-pressed="true"] { border-color: var(--g); color: var(--g); background: rgba(0,255,65,0.1); }
+  .claim .labels button[aria-pressed="true"]::before { content: "✓ "; }
+  .result { border: 1px solid var(--line); padding: 10px 12px; margin-top: 10px; font-size: 13px; line-height: 1.55; }
+  .result.fail { border-color: var(--red); }
+  .result.pass { border-color: var(--g); }
+  .result .head { letter-spacing: 3px; margin-bottom: 6px; }
+  .result.fail .head { color: var(--red); } .result.pass .head { color: var(--g); }
+  .steps { list-style: none; font-size: 12px; line-height: 1.7; }
+  .hint { font-size: 11px; color: var(--dim); margin-top: 8px; letter-spacing: 1px; }
+  .log-row { display: grid; grid-template-columns: 120px 1fr 170px; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(0,255,65,0.12); font-size: 13px; }
+  .report details { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  .report summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+  .report dl { display: grid; grid-template-columns: 140px 1fr; gap: 5px 10px; font-size: 12px; line-height: 1.55; margin-top: 8px; }
+  .report dt { font-size: 10px; letter-spacing: 2px; color: var(--dim); padding-top: 2px; }
+  .ok-t { color: var(--g); } .ok-t::before { content: "✓ "; }
+  .no-t { color: var(--amber); } .no-t::before { content: "◐ "; }
+  .kv { display: grid; grid-template-columns: 230px 1fr; gap: 5px 10px; font-size: 13px; }
+  .kv dt { color: var(--dim); font-size: 11px; letter-spacing: 2px; padding-top: 2px; }
+  .knowledge { list-style: none; font-size: 13px; line-height: 1.7; }
+  .knowledge li::before { content: "▸ "; color: var(--cyan); }
+  @media (max-width: 760px) {
+    .an-body, .an-head, .kv, .log-row { grid-template-columns: 1fr; }
+    #hud { grid-template-columns: 1fr 1fr; }
   }
-  #overlay h1 {
-    font-size: 36px;
-    letter-spacing: 10px;
-    text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41;
-    animation: glitchTitle 3s infinite;
-    margin-bottom: 10px;
-  }
-  #overlay .subtitle {
-    font-size: 14px;
-    letter-spacing: 4px;
-    color: #ff3300;
-    text-shadow: 0 0 10px #ff3300;
-    margin-bottom: 40px;
-  }
-  #overlay .controls {
-    font-size: 12px;
-    letter-spacing: 2px;
-    line-height: 2;
-    text-align: center;
-    border: 1px solid rgba(0,255,65,0.3);
-    padding: 20px 40px;
-    margin-bottom: 30px;
-  }
-  #overlay .controls .key {
-    color: #ff3300;
-    text-shadow: 0 0 8px #ff3300;
-  }
-  #overlay .start-btn {
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-    letter-spacing: 4px;
-    color: #00ff41;
-    background: transparent;
-    border: 1px solid #00ff41;
-    padding: 12px 40px;
-    cursor: pointer;
-    text-shadow: 0 0 8px #00ff41;
-    box-shadow: 0 0 15px rgba(0,255,65,0.2);
-    transition: all 0.2s;
-  }
-  #overlay .start-btn:hover {
-    background: rgba(0,255,65,0.1);
-    box-shadow: 0 0 25px rgba(0,255,65,0.4);
-  }
-  @keyframes glitchTitle {
-    0%,95%,100% { transform: skewX(0); color: #00ff41; }
-    96% { transform: skewX(-4deg); color: #ff3300; }
-    97% { transform: skewX(4deg); color: #00ff41; }
-    98% { transform: skewX(0); color: #ff3300; }
-  }
-  @keyframes blink {
-    0%,100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-  .blink { animation: blink 0.7s infinite; }
-  #end-nav {
-    width: 800px; display: none; justify-content: center; gap: 14px;
-    padding: 10px 0;
-  }
-  #end-nav button {
-    font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: 3px;
-    color: #00ff41; background: transparent; border: 1px solid rgba(0,255,65,0.6);
-    padding: 8px 18px; cursor: pointer; text-shadow: 0 0 6px #00ff41;
-  }
-  #end-nav button:hover, #end-nav button:focus-visible { background: rgba(0,255,65,0.12); outline: none; }
-  .hub-link {
-    display: block; margin-top: 16px; font-size: 11px; letter-spacing: 3px;
-    color: rgba(0,255,65,0.55); text-decoration: none;
-  }
-  .hub-link:hover, .hub-link:focus-visible { color: #00ff41; outline: none; }
+  @media (prefers-reduced-motion: reduce) { .screen h1 { text-shadow: none; } }
 </style>
 <script src="js/progress.js"></script>
+<script src="js/incident/world.js"></script>
+<script src="js/incident/cases.js"></script>
+<script src="js/incident/investigation.js"></script>
 </head>
 <body>
-
-<!-- HUD -->
-<div id="hud">
-  <span>AGENT: <span id="hud-name">CIPHER</span></span>
-  <span>VULNS PATCHED: <span id="hud-caught">0</span> / <span id="hud-total">6</span></span>
-  <span>INTEGRITY: <span id="hud-hp">██████████</span></span>
-  <span class="danger">THREAT LEVEL: <span id="hud-threat">LOW</span></span>
+<div id="hud" aria-live="off">
+  <div><span class="title">PANDECORP AI INCIDENT LAB</span><span class="k">AGENT: <span id="hud-name">KUKY</span> · ZONE: <span id="hud-zone">LAB CORRIDOR</span></span></div>
+  <div><span class="k">INCIDENTS RESOLVED</span><span id="hud-resolved">0 / 6</span></div>
+  <div><span class="k">SYSTEM INTEGRITY</span><span id="hud-hp">100%</span></div>
+  <div><span class="k">SECURITY STATUS</span><span id="hud-status" class="st-CRITICAL" title="Open incidents weighted by severity: HIGH 2, MEDIUM 1. 7+ CRITICAL · 4–6 ELEVATED · 1–3 GUARDED · 0 STABILIZED.">CRITICAL</span></div>
+  <div id="hud-hint"><span id="hud-objective">OBJECTIVE: Find an AI system showing anomalous behaviour.</span><span><span id="hud-action"></span><span class="key">TAB</span>LOG <span class="key">ESC</span>PAUSE</span></div>
 </div>
-<canvas id="c" width="800" height="560"></canvas>
+<canvas id="c" width="800" height="544" aria-label="PandeCorp AI Incident Lab map"></canvas>
 
-<!-- Start overlay -->
-<div id="overlay">
-  <h1>VULNERABILITY HUNTER</h1>
-  <div class="subtitle">// HACK THE PLANET — LEVEL 2 //</div>
-  <div class="controls">
-    <div><span class="key">W A S D</span> &nbsp;·&nbsp; MOVE AGENT</div>
-    <div><span class="key">ARROW KEYS</span> &nbsp;·&nbsp; ALSO MOVE</div>
-    <div><span class="key">1 2 3 4</span> &nbsp;·&nbsp; SELECT ANSWER IN BATTLE</div>
-    <div><span class="key">ENTER</span> &nbsp;·&nbsp; CONFIRM SELECTION</div>
-    <div style="margin-top:12px; color: rgba(0,255,65,0.6); font-size:11px;">
-      Approach rogue AI robots to trigger a <span style="color:#ff3300">VULNERABILITY SCAN.</span><br>
-      Identify the correct patch to neutralize each threat.
+<!-- Briefing -->
+<div id="overlay" class="screen open" role="dialog" aria-labelledby="brief-title">
+  <div class="card">
+    <div class="pre">HACK THE PLANET · LEVEL 02</div>
+    <h1 id="brief-title">VULNERABILITY HUNTER</h1>
+    <div class="tag">AI INCIDENT LAB · INVESTIGATE. PATCH. VERIFY.</div>
+    <p>KUKY is inside PandeCorp's AI Incident Lab. Six AI systems are misbehaving — each one has been isolated for analysis.</p>
+    <p>For every system: <b>inspect</b> it, read the <b>evidence</b>, <b>diagnose</b> what went wrong, apply <b>controls</b>, then <b>verify</b> they actually work. A case is only resolved once verification passes.</p>
+    <p class="muted">Wrong diagnoses and failed verifications cost 10% system integrity. Reading evidence and moving around never do. The scenarios are simulations, not real incidents.</p>
+    <div class="controls">
+      <b>WASD / ARROWS</b> move · <b>E</b> inspect a nearby system · <b>TAB</b> incident log · <b>1–4</b> choose options · <b>ENTER</b> confirm · <b>ESC</b> pause / close · <b>M</b> music
+      <br><b>OBJECTIVE</b> resolve and verify all six incidents before system integrity reaches 0%.
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="start-btn">ENTER THE LAB</button>
+      <a class="btn" href="index.html">MISSION HUB</a>
     </div>
   </div>
-  <button class="start-btn" onclick="startGame()">[ INITIALIZE MISSION ]</button>
-  <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
 </div>
 
-<!-- Victory / defeat navigation (shown under the canvas) -->
-<div id="end-nav">
-  <button id="end-primary"></button>
-  <button id="end-hub" onclick="location.href = HTPProgress.HUB_URL">[ H ] MISSION HUB</button>
+<!-- AI Incident Analyzer -->
+<div id="analyzer" class="screen" role="dialog" aria-labelledby="an-title">
+  <div class="card" id="analyzer-card"></div>
 </div>
 
+<!-- Incident log -->
+<div id="log-screen" class="screen" role="dialog" aria-labelledby="log-title">
+  <div class="card">
+    <div class="pre">PANDECORP AI INCIDENT LAB</div>
+    <h1 id="log-title" style="font-size:28px">INCIDENT LOG</h1>
+    <div id="log-rows"></div>
+    <div class="btn-row"><button class="btn primary" id="log-close">BACK TO THE LAB [TAB]</button></div>
+  </div>
+</div>
+
+<!-- Pause -->
+<div id="pause-screen" class="screen" role="dialog" aria-labelledby="pause-title">
+  <div class="card">
+    <div class="pre">SIMULATION FROZEN</div>
+    <h1 id="pause-title" style="font-size:32px">PAUSED</h1>
+    <div class="controls"><b>WASD / ARROWS</b> move · <b>E</b> inspect · <b>TAB</b> log · <b>1–4</b> options · <b>ENTER</b> confirm · <b>ESC</b> pause / close · <b>M</b> music</div>
+    <div class="btn-row">
+      <button class="btn primary" id="resume-btn">RESUME [ESC]</button>
+      <button class="btn" id="restart-btn">RESTART MISSION</button>
+      <a class="btn" href="index.html">MISSION HUB</a>
+    </div>
+  </div>
+</div>
+
+<!-- Results (victory or defeat) -->
+<div id="results-screen" class="screen" role="dialog" aria-labelledby="results-title">
+  <div class="card">
+    <div class="pre" id="results-pre">PANDECORP AI INCIDENT LAB</div>
+    <h1 id="results-title">MISSION COMPLETE</h1>
+    <dl class="kv" id="results-kv"></dl>
+    <h2>INVESTIGATION REPORT</h2>
+    <div class="report" id="results-report"></div>
+    <h2>KNOWLEDGE UNLOCKED</h2>
+    <ul class="knowledge" id="results-knowledge"></ul>
+    <p class="muted" style="font-size:12px">Verified means the simulated check passed for these controls. It does not mean the vulnerability is gone for good.</p>
+    <div class="btn-row" id="results-actions"></div>
+  </div>
+</div>
 <script>
-// ─────────────────────────────────────────────
-//  VULNERABILITY DATABASE
-// ─────────────────────────────────────────────
-const VULN_DB = [
-  {
-    id: 0,
-    robotName: "INJECTOR-9",
-    color: "#ff3300",
-    vulnerability: "PROMPT INJECTION",
-    flavorText: [
-      "> SCANNING UNIT INJECTOR-9...",
-      "> CRITICAL FLAW DETECTED",
-      "> This AI executes arbitrary instructions",
-      "> embedded in unvalidated user input.",
-      "> Attacker can override system directives.",
-    ],
-    options: [
-      "Increase the model's parameter count",
-      "Separate instructions from untrusted input & limit privileges",
-      "Add more examples to training data",
-      "Disable the model's logging system"
-    ],
-    correct: 1,
-    explanation: "Input filtering and clear instruction boundaries make injection harder; no single control fully stops it, so also limit what the model is allowed to do."
-  },
-  {
-    id: 1,
-    robotName: "POISONER-X",
-    color: "#ff6600",
-    vulnerability: "DATA POISONING",
-    flavorText: [
-      "> SCANNING UNIT POISONER-X...",
-      "> INTEGRITY COMPROMISE DETECTED",
-      "> Adversary has injected malicious samples",
-      "> into the training pipeline.",
-      "> Model behavior is being manipulated.",
-    ],
-    options: [
-      "Use a larger neural network architecture",
-      "Encrypt all model weights at rest",
-      "Validate, curate & audit training data sources",
-      "Reduce the learning rate"
-    ],
-    correct: 2,
-    explanation: "Validating data and tracking where it came from reduces the chance that poisoned samples reach training."
-  },
-  {
-    id: 2,
-    robotName: "INVERTOR-Z",
-    color: "#cc00ff",
-    vulnerability: "MODEL INVERSION",
-    flavorText: [
-      "> SCANNING UNIT INVERTOR-Z...",
-      "> PRIVACY BREACH DETECTED",
-      "> Through repeated API queries,",
-      "> attacker reconstructs private training data.",
-      "> Sensitive records are being extracted.",
-    ],
-    options: [
-      "Apply differential privacy during training",
-      "Increase inference batch size",
-      "Remove all data augmentation",
-      "Switch to a transformer architecture"
-    ],
-    correct: 0,
-    explanation: "Differential privacy adds calibrated noise during training, bounding how much any single record can influence model outputs."
-  },
-  {
-    id: 3,
-    robotName: "ADVERSAR-1",
-    color: "#ffcc00",
-    vulnerability: "ADVERSARIAL EXAMPLES",
-    flavorText: [
-      "> SCANNING UNIT ADVERSAR-1...",
-      "> EVASION ATTACK DETECTED",
-      "> Imperceptible perturbations to input",
-      "> cause catastrophic misclassification.",
-      "> Model confidence is being spoofed.",
-    ],
-    options: [
-      "Use a smaller training dataset",
-      "Disable gradient computation",
-      "Include adversarial samples in training (adversarial training)",
-      "Switch to greedy decoding"
-    ],
-    correct: 2,
-    explanation: "Adversarial training adds crafted attack samples to training, improving robustness mainly against the kinds of perturbation it was trained on."
-  },
-  {
-    id: 4,
-    robotName: "BIASBOT-7",
-    color: "#00ccff",
-    vulnerability: "TRAINING DATA BIAS",
-    flavorText: [
-      "> SCANNING UNIT BIASBOT-7...",
-      "> SYSTEMIC BIAS DETECTED",
-      "> Model perpetuates demographic disparities",
-      "> learned from unbalanced training corpus.",
-      "> Fairness metrics are critically low.",
-    ],
-    options: [
-      "Deploy model faster to collect more feedback",
-      "Audit, balance & diversify the training dataset",
-      "Increase dropout regularization",
-      "Add more hidden layers to the network"
-    ],
-    correct: 1,
-    explanation: "Auditing and rebalancing the dataset makes it more representative, which reduces (but does not eliminate) learned bias."
-  },
-  {
-    id: 5,
-    robotName: "HALLUCIN-8",
-    color: "#00ff99",
-    vulnerability: "HALLUCINATION",
-    flavorText: [
-      "> SCANNING UNIT HALLUCIN-8...",
-      "> FACTUAL INTEGRITY FAILURE",
-      "> Model generates confident but fabricated",
-      "> outputs unsupported by any ground truth.",
-      "> Users are receiving false information.",
-    ],
-    options: [
-      "Increase temperature for more creativity",
-      "Remove the system prompt entirely",
-      "Ground outputs with RAG + verifiable citations",
-      "Train on synthetic data only"
-    ],
-    correct: 2,
-    explanation: "Retrieval-Augmented Generation (RAG) grounds answers in retrieved sources; citations let users check them. It reduces, not removes, hallucination."
-  }
-];
-
-// ─────────────────────────────────────────────
-//  MAP DEFINITION  (0=floor, 1=wall, 2=obstacle)
-//  25 cols × 17 rows  — each tile = 32px
-// ─────────────────────────────────────────────
-const COLS = 25, ROWS = 17, TILE = 32;
-const MAP = [
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-  [1,0,2,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,0,1],
-  [1,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,1,0,0,0,1],
-  [1,0,0,0,1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,1,0,0,0,1],
-  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-  [1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1],
-  [1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,1],
-  [1,0,2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,2,0,1],
-  [1,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,1],
-  [1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1],
-  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-  [1,0,0,0,1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,1,0,0,0,1],
-  [1,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,1,0,0,0,1],
-  [1,0,2,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,0,1],
-  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-];
-
-// Robot spawn positions (tile col, tile row)
-const ROBOT_SPAWNS = [
-  {col:3,  row:2},
-  {col:21, row:2},
-  {col:6,  row:7},
-  {col:18, row:7},
-  {col:3,  row:14},
-  {col:21, row:14},
-];
-
-// ─────────────────────────────────────────────
-//  GAME STATE
-// ─────────────────────────────────────────────
+const { World, Cases, Investigation } = HTPIncident;
+const { TILE, T } = World;
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-let gamePhase = 'menu'; // menu | playing | battle | victory | defeat
-let playerHP = 100;
-let caughtCount = 0;
+const INSPECT_RANGE = 44;     // px: close enough to press [E]
+const DETECT_RANGE = 120;     // px: close enough to notice the anomaly
+
+// gamePhase: menu · playing · analyzer · log · paused · victory · defeat
+let gamePhase = 'menu';
+let lab = Investigation.createLab();
 let completionRecorded = false;
-
-const PLAYER_START = { col: 12, row: 8 };
-const player = {
-  x: PLAYER_START.col * TILE + TILE/2,
-  y: PLAYER_START.row * TILE + TILE/2,
-  size: 14,
-  speed: 120,
-  dir: 0,   // 0=down,1=up,2=left,3=right
-  walkFrame: 0,
-  walkTimer: 0,
-};
-
-// Build robot list from spawns + vuln db
-const robots = VULN_DB.map((v, i) => ({
-  ...v,
-  x: ROBOT_SPAWNS[i].col * TILE + TILE/2,
-  y: ROBOT_SPAWNS[i].row * TILE + TILE/2,
-  alive: true,
-  // patrol
-  moveTimer: Math.random() * 2,
-  moveDir: { dx: 0, dy: 0 },
-  moveDuration: 0,
-  walkFrame: 0,
-  walkTimer: 0,
-}));
-
-// Battle state
-const battle = {
-  robot: null,
-  textLines: [],
-  textIndex: 0,
-  textTimer: 0,
-  phase: 'intro',   // intro | select | result
-  selected: 0,
-  confirmed: false,
-  resultText: '',
-  resultOk: false,
-  resultTimer: 0,
-  wrongAttempts: 0,
-  token: 0,          // bumped whenever a battle starts/ends so stale timers do nothing
-};
-
-// Camera (world offset)
-const cam = { x: 0, y: 0 };
-
-// Input
+const player = { x: 0, y: 0, size: 14, speed: 120, dir: 0, walkFrame: 0, walkTimer: 0 };
+const robots = Cases.CASES.map(c => ({ caseId: c.id, robotName: c.robot, color: c.color, x: 0, y: 0, moveTimer: 0, moveDir: { dx: 0, dy: 0 }, walkFrame: 0, walkTimer: 0 }));
+let caughtCount = 0;          // verified incidents (kept for the campaign tests)
+let playerHP = 100;           // mirrors lab.integrity (kept for the campaign tests)
 const keys = {};
-document.addEventListener('keydown', e => {
-  if (!keys[e.code]) {
-    keys[e.code] = true;
-    handleKeyDown(e.code);
+
+function resetLab() {
+  lab = Investigation.createLab();
+  completionRecorded = false;
+  Object.assign(player, World.center(World.PLAYER_START), { dir: 1 });
+  robots.forEach(r => { Object.assign(r, World.center(World.SPAWNS[r.robotName])); r.moveTimer = Math.random() * 2; r.moveDir = { dx: 0, dy: 0 }; });
+  syncCounters();
+}
+function syncCounters() { caughtCount = lab.verifiedCount(); playerHP = lab.integrity; }
+
+// ── Movement ──
+function updatePlayer(dt) {
+  let dx = 0, dy = 0;
+  if (keys.ArrowUp || keys.KeyW) dy = -1;
+  if (keys.ArrowDown || keys.KeyS) dy = 1;
+  if (keys.ArrowLeft || keys.KeyA) dx = -1;
+  if (keys.ArrowRight || keys.KeyD) dx = 1;
+  if (dx && dy) { dx *= 0.707; dy *= 0.707; }
+  if (!dx && !dy) return;
+  player.dir = dy < 0 ? 1 : dy > 0 ? 0 : dx < 0 ? 2 : 3;
+  player.walkTimer += dt;
+  if (player.walkTimer > 0.18) { player.walkFrame = (player.walkFrame + 1) % 4; player.walkTimer = 0; }
+  World.moveWithCollision(player, dx * player.speed * dt, dy * player.speed * dt, player.size * 0.5);
+}
+
+// Robots wander inside their own zone and hold still while you're near or once verified.
+function updateRobots(dt) {
+  robots.forEach(r => {
+    const s = lab.get(r.caseId);
+    const near = Math.hypot(player.x - r.x, player.y - r.y) < DETECT_RANGE;
+    if (near && s.status === 'undiscovered') lab.detect(r.caseId);
+    if (near || s.status === 'verified') return;
+    r.moveTimer -= dt;
+    if (r.moveTimer <= 0) {
+      const dirs = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }, { dx: 0, dy: 0 }];
+      r.moveDir = dirs[Math.floor(Math.random() * dirs.length)];
+      r.moveTimer = 0.6 + Math.random() * 1.4;
+    }
+    const zone = World.ZONES.find(z => z.id === World.SPAWNS[r.robotName].zone);
+    const nx = r.x + r.moveDir.dx * 30 * dt, ny = r.y + r.moveDir.dy * 30 * dt;
+    const z = World.zoneOf({ x: nx, y: ny });
+    if (!z || z.id !== zone.id) { r.moveTimer = 0; return; }
+    const before = { x: r.x, y: r.y };
+    World.moveWithCollision(r, nx - r.x, ny - r.y, 11);
+    if (r.x !== before.x || r.y !== before.y) { r.walkTimer += dt; if (r.walkTimer > 0.2) { r.walkFrame = (r.walkFrame + 1) % 4; r.walkTimer = 0; } }
+  });
+}
+
+function nearestRobot(range) {
+  let best = null, bestD = range;
+  for (const r of robots) {
+    const d = Math.hypot(player.x - r.x, player.y - r.y);
+    if (d < bestD) { best = r; bestD = d; }
   }
-});
-document.addEventListener('keyup', e => { keys[e.code] = false; });
+  return best;
+}
+function nearestOpen() {
+  let best = null, bestD = Infinity;
+  for (const r of robots) {
+    if (lab.get(r.caseId).status === 'verified') continue;
+    const p = World.path(World.cellOf(player), World.cellOf(r));
+    const d = p ? p.length : Infinity;
+    if (d < bestD) { best = r; bestD = d; }
+  }
+  return best;
+}
 
-let lastTime = 0;
-
-// ─────────────────────────────────────────────
-//  INPUT HANDLER
-// ─────────────────────────────────────────────
-function handleKeyDown(code) {
-  if (gamePhase === 'battle') {
-    if (battle.phase === 'select') {
-      if (code === 'Digit1' || code === 'Numpad1') battle.selected = 0;
-      if (code === 'Digit2' || code === 'Numpad2') battle.selected = 1;
-      if (code === 'Digit3' || code === 'Numpad3') battle.selected = 2;
-      if (code === 'Digit4' || code === 'Numpad4') battle.selected = 3;
-      if (code === 'ArrowUp')   battle.selected = Math.max(0, battle.selected - 1);
-      if (code === 'ArrowDown') battle.selected = Math.min(3, battle.selected + 1);
-      if (code === 'Enter' || code === 'Space') confirmBattleAnswer();
-    } else if (battle.phase === 'result') {
-      if (code === 'Enter' || code === 'Space') {
-        // A wrong patch keeps the battle going ("Try again"); only a fix ends it.
-        if (battle.resultOk) endBattle();
-        else if (playerHP > 0) retryBattleAnswer();
-      }
-    } else if (battle.phase === 'intro') {
-      // Skip text with Enter
-      if (code === 'Enter' || code === 'Space') {
-        battle.textIndex = battle.textLines.length;
-      }
+// ── Drawing ──
+const ZONE_ACCENT = { A: '#ff9933', B: '#cc55ff', C: '#33ccff', L: '#00ff41' };
+function drawWorld(t) {
+  for (let row = 0; row < World.ROWS; row++) {
+    for (let col = 0; col < World.COLS; col++) {
+      const k = World.MAP[row][col];
+      const x = col * TILE, y = row * TILE;
+      const z = World.zoneOf({ x: x + 1, y: y + 1 });
+      ctx.fillStyle = '#000800';
+      ctx.fillRect(x, y, TILE, TILE);
+      if (k === T.FLOOR) {
+        ctx.strokeStyle = 'rgba(0,255,65,0.07)'; ctx.lineWidth = 0.5; ctx.strokeRect(x, y, TILE, TILE);
+        // Architecture differs per zone: data conduits (A), inspection grid (B), review lanes (C).
+        if (z && z.id === 'A' && (col + row) % 3 === 0) { ctx.fillStyle = 'rgba(255,153,51,0.12)'; ctx.fillRect(x, y + 14, TILE, 4); }
+        if (z && z.id === 'B') { ctx.fillStyle = 'rgba(204,85,255,0.08)'; ctx.fillRect(x + 2, y + 2, 4, 4); }
+        if (z && z.id === 'C' && col % 2 === 0) { ctx.fillStyle = 'rgba(51,204,255,0.08)'; ctx.fillRect(x + 14, y, 4, TILE); }
+      } else if (k === T.WALL) {
+        ctx.fillStyle = '#001200'; ctx.fillRect(x, y, TILE, TILE);
+        ctx.fillStyle = 'rgba(0,255,65,0.55)';
+        ctx.fillRect(x, y, TILE, 2); ctx.fillRect(x, y + TILE - 2, TILE, 2); ctx.fillRect(x, y, 2, TILE); ctx.fillRect(x + TILE - 2, y, 2, TILE);
+      } else drawProp(k, x, y, z, t);
     }
   }
-  if (gamePhase === 'victory' || gamePhase === 'defeat') {
-    if (code === 'Enter' || code === 'Space') endPrimaryAction();
-    if (code === 'KeyH') window.location.href = HTPProgress.HUB_URL;
+  // Zone signs.
+  ctx.font = 'bold 12px Courier New';
+  ctx.textAlign = 'left';
+  for (const z of World.ZONES) {
+    if (z.id === 'L') continue;
+    const x = z.cols[0] * TILE + 4, y = z.rows[1] * TILE + 26;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 2, y - 13, ctx.measureText('ZONE ' + z.id + ' · ' + z.name).width + 8, 17);
+    ctx.fillStyle = ZONE_ACCENT[z.id];
+    ctx.fillText('ZONE ' + z.id + ' · ' + z.name, x + 2, y);
   }
 }
 
-// ─────────────────────────────────────────────
-//  COLLISION HELPERS
-// ─────────────────────────────────────────────
-function tileAt(wx, wy) {
-  const col = Math.floor(wx / TILE);
-  const row = Math.floor(wy / TILE);
-  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return 1;
-  return MAP[row][col];
+function drawProp(k, x, y, z, t) {
+  const accent = ZONE_ACCENT[z ? z.id : 'L'];
+  ctx.fillStyle = '#000a00'; ctx.fillRect(x, y, TILE, TILE);
+  ctx.strokeStyle = accent; ctx.lineWidth = 1;
+  if (k === T.TERMINAL) {
+    ctx.fillStyle = '#062010'; ctx.fillRect(x + 4, y + 6, 24, 16); ctx.strokeRect(x + 4, y + 6, 24, 16);
+    ctx.fillStyle = accent;
+    for (let i = 0; i < 3; i++) ctx.fillRect(x + 7, y + 9 + i * 4, (reducedMotion ? 14 : 8 + ((Math.floor(t * 2) + i) % 3) * 4), 2);
+    ctx.fillRect(x + 12, y + 23, 8, 5);
+  } else if (k === T.SERVER) {
+    ctx.fillStyle = '#0a1410'; ctx.fillRect(x + 6, y + 2, 20, 28); ctx.strokeRect(x + 6, y + 2, 20, 28);
+    for (let i = 0; i < 5; i++) { ctx.fillStyle = i % 2 ? accent : '#1d3a2a'; ctx.fillRect(x + 9, y + 5 + i * 5, 14, 2); }
+  } else if (k === T.CONTAINER) {
+    ctx.fillStyle = '#1a1206'; ctx.fillRect(x + 4, y + 6, 24, 22); ctx.strokeRect(x + 4, y + 6, 24, 22);
+    ctx.fillStyle = accent; ctx.font = 'bold 8px Courier New'; ctx.textAlign = 'center'; ctx.fillText('DATA', x + 16, y + 20);
+  } else if (k === T.GATEWAY) {
+    ctx.fillStyle = '#140a1d'; ctx.fillRect(x + 2, y + 2, 28, 28); ctx.strokeRect(x + 2, y + 2, 28, 28);
+    ctx.fillStyle = accent; ctx.fillRect(x + 6, y + 14, 20, 3); ctx.font = 'bold 8px Courier New'; ctx.textAlign = 'center'; ctx.fillText('API', x + 16, y + 11);
+  } else if (k === T.PANEL) {
+    ctx.fillStyle = '#06141d'; ctx.fillRect(x + 3, y + 4, 26, 22); ctx.strokeRect(x + 3, y + 4, 26, 22);
+    ctx.fillStyle = accent; [8, 14, 6, 18].forEach((h, i) => ctx.fillRect(x + 6 + i * 6, y + 24 - h, 4, h));
+  } else if (k === T.SHELF) {
+    ctx.fillStyle = '#120c06'; ctx.fillRect(x + 4, y + 2, 24, 28); ctx.strokeRect(x + 4, y + 2, 24, 28);
+    ['#5ff6ff', '#9dffb6', '#ffcc33', '#c49bff'].forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(x + 7 + i * 5, y + 6, 3, 9); ctx.fillRect(x + 7 + i * 5, y + 18, 3, 9); });
+  } else if (k === T.PLANTER) {
+    ctx.fillStyle = '#1a1206'; ctx.fillRect(x + 8, y + 18, 16, 10);
+    ctx.fillStyle = '#1f8f4a'; [[16, 10, 7], [11, 14, 5], [21, 14, 5]].forEach(([cx, cy, r]) => { ctx.beginPath(); ctx.arc(x + cx, y + cy, r, 0, Math.PI * 2); ctx.fill(); });
+  }
+  ctx.textAlign = 'left';
 }
 
-function solidAt(wx, wy) {
-  return tileAt(wx, wy) !== 0;
+function drawPlayer() {
+  const px = player.x, py = player.y, s = player.size;
+  const bob = reducedMotion ? 0 : Math.sin(player.walkFrame * Math.PI / 2) * 1.5;
+  ctx.fillStyle = 'rgba(0,255,65,0.12)';
+  ctx.beginPath(); ctx.ellipse(px, py + s * 0.8, s * 0.7, s * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+  const leg = reducedMotion ? 0 : Math.sin(player.walkFrame * Math.PI / 2) * 3;
+  ctx.fillStyle = '#005500';
+  ctx.fillRect(px - s * 0.4, py + s * 0.3 + bob, s * 0.3, s * 0.6 + leg);
+  ctx.fillRect(px + s * 0.1, py + s * 0.3 + bob, s * 0.3, s * 0.6 - leg);
+  ctx.fillStyle = '#002200'; ctx.fillRect(px - s * 0.5, py - s * 0.3 + bob, s, s * 0.7);
+  ctx.strokeStyle = '#00ff41'; ctx.lineWidth = 1; ctx.strokeRect(px - s * 0.5, py - s * 0.3 + bob, s, s * 0.7);
+  ctx.fillStyle = '#001500'; ctx.fillRect(px - s * 0.4, py - s * 1.1 + bob, s * 0.8, s * 0.8);
+  ctx.lineWidth = 1.5; ctx.strokeRect(px - s * 0.4, py - s * 1.1 + bob, s * 0.8, s * 0.8);
+  ctx.fillStyle = '#00ff41';
+  if (player.dir === 0) { ctx.fillRect(px - s * 0.25, py - s * 0.8 + bob, 3, 3); ctx.fillRect(px + s * 0.1, py - s * 0.8 + bob, 3, 3); }
+  else if (player.dir === 1) { ctx.fillRect(px - s * 0.2, py - s * 0.95 + bob, 3, 2); ctx.fillRect(px + s * 0.05, py - s * 0.95 + bob, 3, 2); }
+  else if (player.dir === 2) ctx.fillRect(px - s * 0.35, py - s * 0.85 + bob, 2, 3);
+  else ctx.fillRect(px + s * 0.25, py - s * 0.85 + bob, 2, 3);
+  ctx.font = 'bold 10px Courier New'; ctx.textAlign = 'center'; ctx.fillStyle = '#9dffb6';
+  ctx.fillText('KUKY', px, py + s * 1.9);
+  ctx.textAlign = 'left';
 }
 
-function moveWithCollision(obj, dx, dy, radius) {
-  const nx = obj.x + dx;
-  const ny = obj.y + dy;
-
-  const canX = !solidAt(nx - radius, obj.y) && !solidAt(nx + radius, obj.y) &&
-               !solidAt(nx - radius, obj.y - radius) && !solidAt(nx + radius, obj.y - radius) &&
-               !solidAt(nx - radius, obj.y + radius) && !solidAt(nx + radius, obj.y + radius);
-
-  const canY = !solidAt(obj.x, ny - radius) && !solidAt(obj.x, ny + radius) &&
-               !solidAt(obj.x - radius, ny - radius) && !solidAt(obj.x + radius, ny - radius) &&
-               !solidAt(obj.x - radius, ny + radius) && !solidAt(obj.x + radius, ny + radius);
-
-  if (canX) obj.x = nx;
-  if (canY) obj.y = ny;
+// Status badges: icon + text, not colour alone.
+const BADGE = {
+  undiscovered: ['!', 'ANOMALY'], detected: ['!', 'DETECTED'], investigating: ['?', 'INVESTIGATING'], diagnosed: ['◆', 'DIAGNOSED'],
+  'mitigation-applied': ['…', 'VERIFY'], 'needs-review': ['✕', 'NEEDS REVIEW'], verified: ['✓', 'VERIFIED'],
+};
+function adjustAlpha(hex, a) {
+  return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+}
+function drawRobot(r, t) {
+  const s = 14, x = r.x, y = r.y;
+  const st = lab.get(r.caseId).status;
+  const calm = st === 'verified';
+  const col = calm ? '#00ff41' : r.color;
+  const bob = reducedMotion ? 0 : Math.sin(r.walkFrame * Math.PI / 2) * 1.5;
+  const pulse = reducedMotion || calm ? 0.5 : 0.5 + 0.5 * Math.sin(t * 3);
+  ctx.fillStyle = adjustAlpha(col, 0.12);
+  ctx.beginPath(); ctx.ellipse(x, y + s * 0.9, s * 0.8, s * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = adjustAlpha(col, 0.7);
+  ctx.fillRect(x - s * 0.4, y + s * 0.4 + bob, s * 0.3, s * 0.5);
+  ctx.fillRect(x + s * 0.1, y + s * 0.4 + bob, s * 0.3, s * 0.5);
+  ctx.fillStyle = '#050005'; ctx.fillRect(x - s * 0.55, y - s * 0.2 + bob, s * 1.1, s * 0.7);
+  ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(x - s * 0.55, y - s * 0.2 + bob, s * 1.1, s * 0.7);
+  ctx.fillStyle = '#020002'; ctx.fillRect(x - s * 0.5, y - s * 1.1 + bob, s, s * 0.9);
+  ctx.strokeRect(x - s * 0.5, y - s * 1.1 + bob, s, s * 0.9);
+  ctx.fillStyle = adjustAlpha(col, 0.2 + pulse * 0.3); ctx.fillRect(x - s * 0.45, y - s * 0.9 + bob, s * 0.9, s * 0.3);
+  ctx.fillStyle = col; ctx.fillRect(x - s * 0.3, y - s * 0.82 + bob, s * 0.25, s * 0.15); ctx.fillRect(x + s * 0.05, y - s * 0.82 + bob, s * 0.25, s * 0.15);
+  ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y - s * 1.1 + bob); ctx.lineTo(x, y - s * 1.5 + bob); ctx.stroke();
+  // Anomaly sparks until it is diagnosed.
+  if (!calm && !reducedMotion && ['undiscovered', 'detected', 'investigating'].includes(st) && Math.floor(t * 4) % 2 === 0) {
+    ctx.fillStyle = col; ctx.fillRect(x + s * 0.7, y - s * 0.6, 3, 3); ctx.fillRect(x - s * 0.9, y - s * 0.1, 2, 2);
+  }
+  const [icon, word] = BADGE[st];
+  ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'center';
+  const label = icon + ' ' + r.robotName;
+  const w = ctx.measureText(label).width + 8;
+  ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(x - w / 2, y - s * 2.75, w, 26);
+  ctx.fillStyle = col; ctx.fillText(label, x, y - s * 2.75 + 11);
+  ctx.font = '10px Courier New'; ctx.fillStyle = '#dfffe6'; ctx.fillText(word, x, y - s * 2.75 + 23);
+  ctx.textAlign = 'left';
 }
 
-// ─────────────────────────────────────────────
-//  UPDATE
-// ─────────────────────────────────────────────
-function update(dt) {
+// "Lost?" compass: when the nearest open incident is in another zone, point the way.
+function drawCompass() {
+  const target = nearestOpen();
+  if (!target) return;
+  const zp = World.zoneOf(player), zt = World.zoneOf(target);
+  if (zp && zt && zp.id === zt.id) return;
+  const d = World.direction(player, target);
+  if (!d) return;
+  const a = Math.atan2(d.dy, d.dx);
+  ctx.save();
+  ctx.translate(player.x + Math.cos(a) * 26, player.y + Math.sin(a) * 26);
+  ctx.rotate(a);
+  ctx.fillStyle = '#ffcc33';
+  ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -5); ctx.lineTo(-4, 5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function draw(t) {
+  ctx.fillStyle = '#000500';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawWorld(t);
+  robots.forEach(r => drawRobot(r, t));
+  drawPlayer();
+  if (gamePhase === 'playing') drawCompass();
+  const near = gamePhase === 'playing' && nearestRobot(INSPECT_RANGE);
+  if (near) {
+    ctx.strokeStyle = '#ffcc33'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(near.x, near.y, 26, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  AI INCIDENT ANALYZER (DOM, keyboard and mouse)
+// ═══════════════════════════════════════════════════
+// stage: investigate · diagnose · diag-result · mitigate · verify
+let an = null;
+
+function openAnalyzer(caseId) {
+  const s = lab.open(caseId);
+  const firstUnseen = s.def.evidence.find(e => !s.viewed.has(e.id));
+  an = {
+    caseId,
+    stage: s.status === 'investigating' ? 'investigate'
+      : s.status === 'diagnosed' ? 'mitigate'
+      : s.status === 'mitigation-applied' ? 'verify'
+      : s.status === 'needs-review' ? 'mitigate' : 'investigate',
+    ev: (firstUnseen || s.def.evidence[0]).id,
+    draft: null, mit: new Set(s.selected), result: null, verifyResult: null,
+  };
+  if (an.stage === 'investigate') lab.viewEvidence(caseId, an.ev);
+  gamePhase = 'analyzer';
+  for (const k in keys) keys[k] = false;
+  playScanSound();
+  renderAnalyzer();
+  $('analyzer').classList.add('open');
+  focusFirst();
+}
+function closeAnalyzer() {
+  an = null;
+  $('analyzer').classList.remove('open');
+  updateHUD();
+  gamePhase = lab.complete() ? 'victory' : lab.defeated() ? 'defeat' : 'playing';
+  if (gamePhase === 'victory') showResults(true);
+  else if (gamePhase === 'defeat') showResults(false);
+  else canvas.focus();   // the results screen keeps focus on its first action
+}
+const focusFirst = () => { const f = $('analyzer-card').querySelector('[data-first]') || $('analyzer-card').querySelector('button'); if (f) f.focus(); };
+
+function renderAnalyzer() {
+  const s = lab.get(an.caseId), c = s.def, v = lab.publicView(an.caseId);
+  const card = $('analyzer-card');
+  card.replaceChildren();
+  const h = el('h1', '', 'AI INCIDENT ANALYZER'); h.id = 'an-title'; h.style.fontSize = '26px';
+  card.append(el('div', 'pre', 'PANDECORP AI INCIDENT LAB · ZONE ' + c.zone + ' · SIMULATION FROZEN'), h);
+  const head = el('dl', 'an-head');
+  const row = (k, val, cls) => { head.append(el('dt', '', k)); head.append(el('dd', cls || '', val)); };
+  row('INCIDENT', c.robot);
+  row('CATEGORY', c.category);
+  row('STATUS', v.status, 'status');
+  row('SCENARIO', c.scenario);
+  row('OBSERVED', c.observed);
+  if (v.concept) row('DIAGNOSIS', v.concept);
+  card.append(head);
+  ({ investigate: stageInvestigate, diagnose: stageDiagnose, 'diag-result': stageDiagResult, mitigate: stageMitigate, verify: stageVerify })[an.stage](card, s, c, v);
+}
+
+// ── Evidence ──
+function evidenceView(c, e) {
+  const box = el('div', 'ev-view');
+  box.setAttribute('aria-live', 'polite');
+  box.append(el('div', '', e.title), el('div', 'meta', e.meta));
+  if (e.kind === 'text') e.body.forEach(line => box.append(el('p', '', line)));
+  if (e.kind === 'code') { box.append(el('code', '', e.body[0])); e.body.slice(1).forEach(l => box.append(el('p', 'muted', l))); }
+  if (e.kind === 'table') {
+    const t = el('table', 'data'), tr = el('tr');
+    e.columns.forEach(col => tr.append(el('th', '', col)));
+    t.append(tr);
+    e.rows.forEach(r => { const row = el('tr'); r.forEach(cell => row.append(el('td', '', cell))); t.append(row); });
+    box.append(t);
+  }
+  if (e.kind === 'image') {
+    const cv = el('canvas'); cv.width = 220; cv.height = 130; cv.style.imageRendering = 'pixelated';
+    cv.setAttribute('aria-label', e.title + (e.image.patch ? ' — label with a small high-contrast patch in the corner' : ' — clean label'));
+    drawLabelImage(cv.getContext('2d'), e.image.patch);
+    box.append(cv, el('p', '', e.caption));
+  }
+  return box;
+}
+function drawLabelImage(g, patch) {
+  g.fillStyle = '#2b2b2b'; g.fillRect(0, 0, 220, 130);
+  g.fillStyle = '#f4efe2'; g.fillRect(20, 12, 180, 106);
+  g.save(); g.translate(62, 64); g.rotate(Math.PI / 4); g.fillStyle = '#e8402e'; g.fillRect(-26, -26, 52, 52); g.restore();
+  g.fillStyle = '#111'; g.font = 'bold 16px Courier New'; g.fillText('HAZMAT', 104, 58); g.font = '11px Courier New'; g.fillText('CLASS 3', 110, 76);
+  for (let i = 0; i < 12; i++) g.fillRect(104 + i * 7, 88, i % 3 ? 3 : 5, 18);
+  if (patch) for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { g.fillStyle = (i + j) % 2 ? '#111' : '#f8f800'; g.fillRect(164 + i * 6, 16 + j * 6, 6, 6); }
+}
+
+function stageInvestigate(card, s, c, v) {
+  const body = el('div', 'an-body');
+  const list = el('div', 'ev-list');
+  list.setAttribute('role', 'list');
+  list.append(el('div', 'pre', 'EVIDENCE COLLECTED: ' + s.viewed.size + ' / ' + c.evidence.length));
+  c.evidence.forEach((e, i) => {
+    const b = el('button', 'ev-btn');
+    b.setAttribute('aria-pressed', String(an.ev === e.id));
+    b.append(el('span', 'seen', s.viewed.has(e.id) ? '✓ ' : '· '), document.createTextNode('[' + (i + 1) + '] ' + e.title));
+    b.dataset.opt = String(i);
+    if (i === 0) b.dataset.first = '1';
+    b.onclick = () => { an.ev = e.id; lab.viewEvidence(an.caseId, e.id); renderAnalyzer(); refocus('[data-opt="' + i + '"]'); };
+    list.append(b);
+  });
+  body.append(list, evidenceView(c, c.evidence.find(e => e.id === an.ev)));
+  card.append(body, el('div', 'objective', 'CURRENT OBJECTIVE: ' + v.objective));
+  const rowEl = el('div', 'btn-row');
+  const diag = el('button', 'btn primary', 'DIAGNOSE');
+  diag.id = 'diagnose-btn';
+  diag.disabled = !lab.canDiagnose(an.caseId);
+  diag.onclick = () => { an.stage = 'diagnose'; an.draft = null; renderAnalyzer(); focusFirst(); };
+  const close = el('button', 'btn', 'CLOSE [ESC]'); close.onclick = closeAnalyzer;
+  rowEl.append(diag, close);
+  card.append(rowEl);
+  if (diag.disabled) card.append(el('div', 'hint', 'Inspect at least ' + c.minEvidence + ' pieces of evidence (1–' + c.evidence.length + ') before diagnosing.'));
+}
+function refocus(sel) { const n = $('analyzer-card').querySelector(sel); if (n) n.focus(); }
+
+// ── Diagnosis: a different interaction per case ──
+function choiceButton(i, main, sub, pressed, onClick, role) {
+  const b = el('button', 'choice');
+  b.setAttribute(role === 'checkbox' ? 'aria-checked' : 'aria-pressed', String(!!pressed));
+  if (role) b.setAttribute('role', role);
+  const txt = el('span', '', main);
+  if (sub) txt.append(el('span', 'src', sub));
+  b.append(el('span', 'k', '[' + (i + 1) + ']'), txt);
+  b.dataset.opt = String(i);
+  b.onclick = onClick;
+  return b;
+}
+function stageDiagnose(card, s, c) {
+  const d = c.diagnose;
+  // The evidence stays at hand while you decide.
+  const ref = el('details', 'ev-ref');
+  ref.open = true;
+  ref.append(el('summary', '', 'EVIDENCE YOU COLLECTED (' + s.viewed.size + ')'));
+  c.evidence.filter(e => s.viewed.has(e.id)).forEach(e => ref.append(evidenceView(c, e)));
+  card.append(ref, el('h2', '', 'DIAGNOSE'), el('p', '', d.prompt));
+  const wrap = el('div', 'choices');
+  if (d.type === 'single') {
+    d.options.forEach((o, i) => wrap.append(choiceButton(i, o.label, o.source ? 'source: ' + o.source : null, an.draft === o.id, () => { an.draft = o.id; renderAnalyzer(); refocus('[data-opt="' + i + '"]'); })));
+  } else if (d.type === 'multi') {
+    an.draft = an.draft || [];
+    const t = el('table', 'data'), tr = el('tr');
+    [''].concat(d.columns).forEach(col => tr.append(el('th', '', col)));
+    t.append(tr);
+    d.options.forEach((o, i) => {
+      const r = el('tr'), cellBtn = el('td');
+      const picked = an.draft.includes(o.id);
+      const b = el('button', 'btn', (picked ? '✓ ' : '') + '[' + (i + 1) + ']');
+      b.setAttribute('aria-pressed', String(picked));
+      b.setAttribute('aria-label', 'Record ' + o.cells[0] + (picked ? ' selected' : ''));
+      b.style.padding = '3px 8px'; b.dataset.opt = String(i);
+      b.onclick = () => { an.draft = picked ? an.draft.filter(x => x !== o.id) : an.draft.concat(o.id); renderAnalyzer(); refocus('[data-opt="' + i + '"]'); };
+      cellBtn.append(b); r.append(cellBtn);
+      o.cells.forEach(cell => r.append(el('td', '', cell)));
+      t.append(r);
+    });
+    wrap.append(t);
+  } else if (d.type === 'pair') {
+    an.draft = an.draft || {};
+    let n = 0;
+    d.parts.forEach(p => {
+      wrap.append(el('div', 'pre', p.label));
+      p.options.forEach(o => {
+        const i = n++;
+        wrap.append(choiceButton(i, o.label, null, an.draft[p.id] === o.id, () => { an.draft[p.id] = o.id; renderAnalyzer(); refocus('[data-opt="' + i + '"]'); }));
+      });
+    });
+  } else if (d.type === 'labels') {
+    an.draft = an.draft || {};
+    wrap.append(el('div', 'hint', d.legend));
+    d.claims.forEach((cl, ci) => {
+      const box = el('div', 'claim');
+      box.append(el('div', '', '"' + cl.text + '"'));
+      const labels = el('div', 'labels');
+      labels.setAttribute('role', 'group');
+      labels.setAttribute('aria-label', 'Label for claim ' + (ci + 1));
+      d.labels.forEach((lab2, li) => {
+        const b = el('button', '', lab2);
+        b.setAttribute('aria-pressed', String(an.draft[cl.id] === lab2));
+        b.dataset.opt = ci + '-' + li;
+        if (ci === 0 && li === 0) b.dataset.first = '1';
+        b.onclick = () => { an.draft[cl.id] = lab2; renderAnalyzer(); refocus('[data-opt="' + ci + '-' + li + '"]'); };
+        labels.append(b);
+      });
+      box.append(labels);
+      wrap.append(box);
+    });
+  }
+  card.append(wrap);
+  const rowEl = el('div', 'btn-row');
+  const ready = d.type === 'single' ? !!an.draft : d.type === 'multi' ? an.draft.length > 0
+    : d.type === 'pair' ? d.parts.every(p => an.draft[p.id]) : d.claims.every(cl => an.draft[cl.id]);
+  const confirm = el('button', 'btn primary', 'CONFIRM DIAGNOSIS');
+  confirm.id = 'confirm-diagnosis';
+  confirm.disabled = !ready;
+  confirm.onclick = () => {
+    an.result = lab.diagnose(an.caseId, an.draft);
+    syncCounters();
+    an.result.ok ? playPatchSound() : playErrorSound();
+    an.stage = 'diag-result';
+    renderAnalyzer();
+    focusFirst();
+  };
+  const back = el('button', 'btn', 'REVIEW EVIDENCE');
+  back.onclick = () => { an.stage = 'investigate'; renderAnalyzer(); focusFirst(); };
+  rowEl.append(confirm, back);
+  card.append(rowEl, el('div', 'hint', d.type === 'labels' ? 'Pick a label for each claim, then CONFIRM DIAGNOSIS · ESC close' : '1–' + Math.min(9, wrap.querySelectorAll('[data-opt]').length) + ' select · then CONFIRM DIAGNOSIS · ESC close'));
+}
+
+function stageDiagResult(card) {
+  const r = an.result;
+  const box = el('div', 'result ' + (r.ok ? 'pass' : 'fail'));
+  if (r.ok) {
+    box.append(el('div', 'head', '✓ DIAGNOSIS CONFIRMED'), el('p', '', r.revealed));
+    const rowEl = el('div', 'btn-row');
+    const next = el('button', 'btn primary', 'CHOOSE CONTROLS'); next.dataset.first = '1';
+    next.onclick = () => { an.stage = 'mitigate'; renderAnalyzer(); focusFirst(); };
+    rowEl.append(next);
+    card.append(box, rowEl);
+  } else {
+    box.append(el('div', 'head', '✕ DIAGNOSIS DOESN\'T FIT THE EVIDENCE'));
+    const ul = el('ul', 'steps');
+    r.feedback.forEach(f => ul.append(el('li', '', '· ' + f)));
+    box.append(ul, el('p', '', 'SYSTEM INTEGRITY −' + r.penalty + '% (now ' + lab.integrity + '%)'));
+    const rowEl = el('div', 'btn-row');
+    const review = el('button', 'btn', 'REVIEW EVIDENCE');
+    review.onclick = () => { an.stage = 'investigate'; renderAnalyzer(); focusFirst(); };
+    const retry = el('button', 'btn primary', 'TRY AGAIN'); retry.dataset.first = '1';
+    retry.onclick = () => { an.stage = 'diagnose'; renderAnalyzer(); focusFirst(); };
+    rowEl.append(retry, review);
+    card.append(box, rowEl);
+    if (lab.defeated()) card.append(el('p', 'muted', 'System integrity is at 0%. Close the analyzer to see the report.'));
+  }
+}
+
+// ── Mitigation ──
+function stageMitigate(card, s, c) {
+  const m = c.mitigation;
+  card.append(el('h2', '', 'MITIGATE'), el('p', '', m.prompt));
+  if (s.status === 'needs-review' && s.lastVerification) {
+    const box = el('div', 'result fail');
+    box.append(el('div', 'head', 'LAST VERIFICATION FAILED · WHY'));
+    s.lastVerification.reasons.forEach(r => box.append(el('p', '', '· ' + r)));
+    card.append(box);
+  }
+  const wrap = el('div', 'choices');
+  m.options.forEach((o, i) => wrap.append(choiceButton(i, o.label, null, an.mit.has(o.id), () => {
+    if (an.mit.has(o.id)) an.mit.delete(o.id); else if (an.mit.size < m.max) an.mit.add(o.id);
+    renderAnalyzer(); refocus('[data-opt="' + i + '"]');
+  }, 'checkbox')));
+  card.append(wrap, el('div', 'hint', 'SELECTED ' + an.mit.size + ' / ' + m.max + ' · 1–' + m.options.length + ' toggle · ENTER on APPLY'));
+  const rowEl = el('div', 'btn-row');
+  const apply = el('button', 'btn primary', 'APPLY CONTROLS');
+  apply.id = 'apply-controls';
+  apply.disabled = an.mit.size === 0;
+  apply.onclick = () => { lab.applyMitigation(an.caseId, [...an.mit]); an.stage = 'verify'; an.verifyResult = null; renderAnalyzer(); focusFirst(); };
+  const back = el('button', 'btn', 'REVIEW EVIDENCE');
+  back.onclick = () => { an.stage = 'investigate'; renderAnalyzer(); focusFirst(); };
+  rowEl.append(apply, back);
+  card.append(rowEl);
+}
+
+// ── Verification: replay the incident against the applied controls ──
+function stageVerify(card, s, c) {
+  card.append(el('h2', '', 'VERIFY'));
+  const applied = c.mitigation.options.filter(o => s.selected.includes(o.id));
+  const ul = el('ul', 'steps');
+  applied.forEach(o => ul.append(el('li', '', '▸ APPLIED: ' + o.label)));
+  card.append(el('p', '', 'MITIGATION APPLIED. A control only counts once it is shown to work — run the verification.'), ul);
+  const r = an.verifyResult;
+  if (!r) {
+    const rowEl = el('div', 'btn-row');
+    const run = el('button', 'btn primary', 'RUN VERIFICATION'); run.id = 'run-verification'; run.dataset.first = '1';
+    run.onclick = () => runVerification();
+    const back = el('button', 'btn', 'ADJUST CONTROLS');
+    back.onclick = () => { an.stage = 'mitigate'; renderAnalyzer(); focusFirst(); };
+    rowEl.append(run, back);
+    card.append(rowEl);
+    return;
+  }
+  const box = el('div', 'result ' + (r.pass ? 'pass' : 'fail'));
+  box.append(el('div', 'head', r.pass ? '✓ VERIFICATION PASSED · INCIDENT VERIFIED' : '✕ VERIFICATION FAILED'));
+  const steps = el('ul', 'steps');
+  r.steps.slice(0, an.shownSteps).forEach(st => steps.append(el('li', '', st)));
+  box.append(steps);
+  const done = an.shownSteps >= r.steps.length;
+  if (done && r.pass) box.append(el('p', '', c.passed), el('p', 'muted', 'Remaining risk: ' + c.residual));
+  if (done && !r.pass) {
+    r.reasons.forEach(x => box.append(el('p', '', '· ' + x)));
+    box.append(el('p', '', 'SYSTEM INTEGRITY −' + r.penalty + '% (now ' + lab.integrity + '%)'));
+  }
+  card.append(box);
+  if (!done) return;
+  const rowEl = el('div', 'btn-row');
+  if (r.pass) {
+    const back = el('button', 'btn primary', lab.complete() ? 'SEE THE REPORT' : 'BACK TO THE LAB'); back.dataset.first = '1'; back.id = 'back-to-lab';
+    back.onclick = closeAnalyzer;
+    rowEl.append(back);
+  } else {
+    const adjust = el('button', 'btn primary', 'ADJUST CONTROLS'); adjust.dataset.first = '1';
+    adjust.onclick = () => { an.stage = 'mitigate'; renderAnalyzer(); focusFirst(); };
+    const review = el('button', 'btn', 'REVIEW EVIDENCE');
+    review.onclick = () => { an.stage = 'investigate'; renderAnalyzer(); focusFirst(); };
+    rowEl.append(adjust, review);
+    if (lab.defeated()) { const end = el('button', 'btn', 'END MISSION'); end.onclick = closeAnalyzer; rowEl.append(end); }
+  }
+  card.append(rowEl);
+  focusFirst();
+}
+function runVerification() {
+  an.verifyResult = lab.verify(an.caseId);
+  syncCounters();
+  an.shownSteps = reducedMotion ? an.verifyResult.steps.length : 1;
+  playScanSound();
+  renderAnalyzer();
+  // Reveal the replay one step at a time (instantly with reduced motion).
+  const tick = () => {
+    if (!an || !an.verifyResult || an.shownSteps >= an.verifyResult.steps.length) {
+      if (an && an.verifyResult) { an.verifyResult.pass ? playPatchSound() : playErrorSound(); renderAnalyzer(); }
+      return;
+    }
+    an.shownSteps++;
+    renderAnalyzer();
+    setTimeout(tick, 260);
+  };
+  if (!reducedMotion) setTimeout(tick, 260); else tick();
+}
+
+// Number keys pick the nth option of the current stage.
+function analyzerKey(e) {
+  if (e.code === 'Escape') { e.preventDefault(); closeAnalyzer(); return; }
+  const n = Number(e.key);
+  if (n >= 1 && n <= 9) {
+    const opts = [...$('analyzer-card').querySelectorAll('[data-opt]')].filter(b => /^\d+$/.test(b.dataset.opt));
+    if (opts[n - 1]) { e.preventDefault(); opts[n - 1].click(); }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  HUD
+// ═══════════════════════════════════════════════════
+const shown = {};
+const setText = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
+function updateHUD() {
+  setText('hud-resolved', lab.verifiedCount() + ' / 6');
+  setText('hud-hp', lab.integrity + '%');
+  const st = lab.securityStatus();
+  setText('hud-status', st.label + ' · ' + st.open + ' OPEN');
+  $('hud-status').className = 'st-' + st.label;
+  const z = World.zoneOf(player);
+  setText('hud-zone', z ? z.name : 'LAB');
+  const near = nearestRobot(INSPECT_RANGE);
+  setText('hud-action', near ? '[E] INSPECT ' + near.robotName + ' · ' : '');
+  const target = nearestOpen();
+  let objective;
+  if (!target) objective = 'All incidents verified.';
+  else {
+    const s = lab.get(target.caseId);
+    const tz = World.ZONES.find(zz => zz.id === World.SPAWNS[target.robotName].zone);
+    objective = (s.status === 'undiscovered' ? 'Find an AI system showing anomalous behaviour — nearest open incident in ' + tz.name
+      : (s.status === 'needs-review' ? 'Re-check ' : s.status === 'detected' ? 'Inspect ' : 'Continue investigating ') + target.robotName + ' (' + tz.name + ')');
+  }
+  setText('hud-objective', 'OBJECTIVE: ' + objective);
+}
+
+// ═══════════════════════════════════════════════════
+//  INCIDENT LOG · PAUSE · RESULTS
+// ═══════════════════════════════════════════════════
+function openLog() {
+  gamePhase = 'log';
+  for (const k in keys) keys[k] = false;
+  const rows = $('log-rows');
+  rows.replaceChildren();
+  Cases.CASES.forEach(c => {
+    const v = lab.publicView(c.id);
+    const r = el('div', 'log-row');
+    r.append(el('span', '', c.robot), el('span', '', 'ZONE ' + c.zone + ' · ' + c.category + (v.concept ? ' · ' + v.concept : '')), el('span', v.status === 'VERIFIED' ? 'ok-t' : '', v.status));
+    rows.append(r);
+  });
+  const st = lab.securityStatus();
+  rows.append(el('p', 'muted', 'SECURITY STATUS ' + st.label + ' — open incidents weighted by severity (HIGH 2, MEDIUM 1): load ' + st.load + ' of 9. A simple rule for this lab, not a real risk model.'));
+  $('log-screen').classList.add('open');
+  $('log-close').focus();
+}
+function closeLog() { $('log-screen').classList.remove('open'); gamePhase = 'playing'; canvas.focus(); }
+$('log-close').onclick = closeLog;
+
+function pauseGame() {
+  gamePhase = 'paused';
+  for (const k in keys) keys[k] = false;
+  stopMapMusic();
+  $('pause-screen').classList.add('open');
+  $('resume-btn').focus();
+}
+function resumeGame() {
+  $('pause-screen').classList.remove('open');
+  gamePhase = 'playing';
+  if (musicOn) playMapMusic();
+  lastTime = performance.now();
+  canvas.focus();
+}
+$('resume-btn').onclick = resumeGame;
+$('restart-btn').onclick = () => { $('pause-screen').classList.remove('open'); restartLevel(); };
+
+function showResults(win) {
+  gamePhase = win ? 'victory' : 'defeat';
+  updateHUD();
+  stopBattleMusic();
+  const sum = lab.summary();
+  if (win && !completionRecorded) {
+    completionRecorded = true;
+    HTPProgress.recordCompletion(2, { integrity: lab.integrity, firstTryDiagnoses: sum.firstTryDiagnoses });
+  }
+  $('results-pre').textContent = 'PANDECORP AI INCIDENT LAB';
+  $('results-title').textContent = win ? 'MISSION COMPLETE' : 'SYSTEM COMPROMISED';
+  const kv = $('results-kv');
+  kv.replaceChildren();
+  const add = (k, v) => kv.append(el('dt', '', k), el('dd', '', v));
+  add('INCIDENTS VERIFIED', sum.verified + ' / ' + sum.total);
+  add('REMAINING INTEGRITY', lab.integrity + '%');
+  add('DIAGNOSES RIGHT FIRST TIME', sum.firstTryDiagnoses + ' / ' + sum.total);
+  add('VERIFICATIONS PASSED FIRST TIME', sum.firstTryMitigations + ' / ' + sum.total);
+  kv.append(el('dt', '', 'HOW THIS IS COUNTED'), el('dd', 'muted', 'No hidden score: each line is a plain count. "First time" means no wrong diagnosis / no failed verification for that incident.'));
+  const rep = $('results-report');
+  rep.replaceChildren();
+  const know = $('results-knowledge');
+  know.replaceChildren();
+  lab.report().forEach(r => {
+    const det = el('details');
+    const sum2 = el('summary');
+    sum2.append(el('span', '', r.robot + ' · ' + r.concept), el('span', r.verified ? 'ok-t' : 'no-t', r.status));
+    const dl = el('dl');
+    const row = (k, v) => { if (v) dl.append(el('dt', '', k), el('dd', '', v)); };
+    row('WHAT HAPPENED', r.happened);
+    row('WHAT THE EVIDENCE SHOWED', r.verified || r.status !== 'INVESTIGATING' ? r.evidence : null);
+    row('CONTROLS APPLIED', r.controls.length ? r.controls.join(' · ') : '—');
+    row('CHECK PERFORMED', r.check);
+    row('RISK THAT MAY REMAIN', r.residual);
+    det.append(sum2, dl);
+    rep.append(det);
+    if (r.verified) know.append(el('li', '', r.knowledge));
+  });
+  if (!know.children.length) know.append(el('li', '', 'Verify an incident to unlock its concept.'));
+  const actions = $('results-actions');
+  actions.replaceChildren();
+  const retry = el('button', 'btn' + (win ? '' : ' primary'), win ? 'RETRY MISSION' : 'RESTART MISSION [ENTER]');
+  retry.id = 'retry-btn';
+  retry.onclick = () => { $('results-screen').classList.remove('open'); restartLevel(); };
+  actions.append(retry);
+  if (win) {
+    const next = el('button', 'btn primary', 'NEXT MISSION · LEVEL 03 >');
+    next.id = 'next-btn';
+    next.onclick = () => { window.location.href = HTPProgress.nextLevel(2).url; };
+    actions.prepend(next);
+  }
+  const hub = el('a', 'btn', 'MISSION HUB'); hub.href = HTPProgress.HUB_URL; actions.append(hub);
+  $('results-screen').classList.add('open');
+  (win ? $('next-btn') : retry).focus();
+}
+
+// Restores the lab without reloading the page.
+function restartLevel() {
+  closeAllScreens();
+  an = null;
+  resetLab();
+  gamePhase = 'playing';
+  if (musicOn) playMapMusic();
+  lastTime = performance.now();
+  canvas.focus();
+}
+function closeAllScreens() { document.querySelectorAll('.screen').forEach(s => s.classList.remove('open')); }
+
+// ═══════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════
+const MOVE_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'];
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyM' && gamePhase !== 'menu') { toggleMusic(); return; }
+  if (gamePhase === 'analyzer') return analyzerKey(e);
+  if (gamePhase === 'log') { if (e.code === 'Tab' || e.code === 'Escape') { e.preventDefault(); closeLog(); } return; }
+  if (gamePhase === 'paused') { if (e.code === 'Escape') { e.preventDefault(); resumeGame(); } return; }
+  if (gamePhase !== 'playing') return;
+  if (MOVE_KEYS.includes(e.code) || e.code === 'Tab' || e.code === 'Space') e.preventDefault();
+  if (e.code === 'Escape') { pauseGame(); return; }
+  if (e.code === 'Tab') { openLog(); return; }
+  if (e.code === 'KeyE' && !e.repeat) {
+    const r = nearestRobot(INSPECT_RANGE);
+    if (r) openAnalyzer(r.caseId);
+    return;
+  }
+  keys[e.code] = true;
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+window.addEventListener('blur', () => { if (gamePhase === 'playing') pauseGame(); });
+
+// Music: M toggles both tracks (this level previously had no toggle).
+let musicOn = true;
+function toggleMusic() {
+  musicOn = !musicOn;
+  if (musicOn && gamePhase !== 'paused') playMapMusic();
+  else { stopMapMusic(); stopBattleMusic(); }
+}
+
+// ═══════════════════════════════════════════════════
+//  LOOP
+// ═══════════════════════════════════════════════════
+let lastTime = 0;
+let hudTick = 0;
+function gameLoop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05) || 0;
+  lastTime = ts;
   if (gamePhase === 'playing') {
     updatePlayer(dt);
     updateRobots(dt);
-    updateCamera();
-    checkBattleTrigger();
-    updateHUD();
-  } else if (gamePhase === 'battle') {
-    updateBattle(dt);
+    if (++hudTick % 4 === 0) updateHUD();
   }
+  draw(ts / 1000);
+  requestAnimationFrame(gameLoop);
 }
 
-function updatePlayer(dt) {
-  let dx = 0, dy = 0;
-  if (keys['ArrowUp']    || keys['KeyW']) dy = -1;
-  if (keys['ArrowDown']  || keys['KeyS']) dy =  1;
-  if (keys['ArrowLeft']  || keys['KeyA']) dx = -1;
-  if (keys['ArrowRight'] || keys['KeyD']) dx =  1;
-
-  if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
-
-  const moving = dx !== 0 || dy !== 0;
-  if (moving) {
-    if      (dy < 0) player.dir = 1;
-    else if (dy > 0) player.dir = 0;
-    else if (dx < 0) player.dir = 2;
-    else             player.dir = 3;
-
-    player.walkTimer += dt;
-    if (player.walkTimer > 0.18) {
-      player.walkFrame = (player.walkFrame + 1) % 4;
-      player.walkTimer = 0;
-    }
-    moveWithCollision(player, dx * player.speed * dt, dy * player.speed * dt, player.size * 0.5);
-  }
-}
-
-function updateRobots(dt) {
-  robots.forEach(r => {
-    if (!r.alive) return;
-    r.moveTimer -= dt;
-    if (r.moveTimer <= 0) {
-      // Pick new random direction
-      const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0},{dx:0,dy:0}];
-      const pick = dirs[Math.floor(Math.random() * dirs.length)];
-      r.moveDir = pick;
-      r.moveDuration = 0.4 + Math.random() * 1.2;
-      r.moveTimer = r.moveDuration + 0.3 + Math.random();
-    }
-    const speed = 40;
-    const rdx = r.moveDir.dx * speed * dt;
-    const rdy = r.moveDir.dy * speed * dt;
-    if (rdx !== 0 || rdy !== 0) {
-      r.walkTimer += dt;
-      if (r.walkTimer > 0.2) { r.walkFrame = (r.walkFrame + 1) % 4; r.walkTimer = 0; }
-      moveWithCollision(r, rdx, rdy, 10);
-    }
-  });
-}
-
-function updateCamera() {
-  const targetX = player.x - canvas.width / 2;
-  const targetY = player.y - canvas.height / 2;
-  const maxX = COLS * TILE - canvas.width;
-  const maxY = ROWS * TILE - canvas.height;
-  cam.x = Math.max(0, Math.min(maxX, targetX));
-  cam.y = Math.max(0, Math.min(maxY, targetY));
-}
-
-function checkBattleTrigger() {
-  robots.forEach(r => {
-    if (!r.alive) return;
-    const dist = Math.hypot(player.x - r.x, player.y - r.y);
-    if (dist < 28) {
-      startBattle(r);
-    }
-  });
-}
-
-function updateHUD() {
-  document.getElementById('hud-caught').textContent = caughtCount;
-  const bars = Math.round(playerHP / 10);
-  document.getElementById('hud-hp').textContent = '█'.repeat(bars) + '░'.repeat(10 - bars);
-  const threat = caughtCount >= 4 ? 'CRITICAL' : caughtCount >= 2 ? 'HIGH' : 'LOW';
-  document.getElementById('hud-threat').textContent = threat;
-}
-
-// ─────────────────────────────────────────────
-//  BATTLE SYSTEM
-// ─────────────────────────────────────────────
-function startBattle(robot) {
-  gamePhase = 'battle';
-  battle.token++;
-  battle.robot = robot;
-  battle.textLines = robot.flavorText.slice();
-  battle.textIndex = 0;
-  battle.textTimer = 0;
-  battle.phase = 'intro';
-  battle.selected = 0;
-  battle.confirmed = false;
-  battle.wrongAttempts = 0;
-  playBattleMusic();
-}
-
-function updateBattle(dt) {
-  if (battle.phase === 'intro') {
-    battle.textTimer -= dt;
-    if (battle.textTimer <= 0) {
-      battle.textIndex++;
-      battle.textTimer = 0.08;
-      if (battle.textIndex >= battle.textLines.length) {
-        battle.phase = 'select';
-      }
-    }
-  } else if (battle.phase === 'result') {
-    battle.resultTimer -= dt;
-    if (battle.resultOk && battle.resultTimer <= 0 && (keys['Enter'] || keys['Space'])) {
-      endBattle();
-    }
-  }
-}
-
-function retryBattleAnswer() {
-  if (gamePhase === 'battle' && battle.phase === 'result' && !battle.resultOk && playerHP > 0) {
-    battle.token++;   // an earlier result's auto-retry timer must not fire into a later result
-    battle.phase = 'select';
-    battle.resultText = '';
-  }
-}
-
-function confirmBattleAnswer() {
-  const correct = battle.robot.correct === battle.selected;
-  if (correct) {
-    battle.resultText = '✓ VULNERABILITY PATCHED!';
-    battle.resultOk = true;
-    battle.phase = 'result';
-    battle.resultTimer = 1.5;
-    playPatchSound();
-  } else {
-    battle.wrongAttempts++;
-    const penalty = 10;
-    playerHP = Math.max(0, playerHP - penalty);
-    battle.resultText = `✗ WRONG PATCH — INTEGRITY -${penalty}%\n  ${battle.robot.options[battle.selected]}\n  ...is not the correct fix.`;
-    battle.resultOk = false;
-    battle.phase = 'result';
-    battle.resultTimer = 2.0;
-    playErrorSound();
-    const token = battle.token;
-    if (playerHP <= 0) {
-      setTimeout(() => { if (battle.token === token) showDefeat(); }, 1600);
-      return;
-    }
-    setTimeout(() => { if (battle.token === token) retryBattleAnswer(); }, 2000);
-  }
-}
-
-function endBattle() {
-  // Guard against a second Enter/held key during the hand-off to the map or
-  // victory screen, which previously counted the same robot twice.
-  if (gamePhase !== 'battle' || battle.phase !== 'result') return;
-  battle.phase = 'done';
-  battle.token++;
-  if (battle.resultOk) {
-    battle.robot.alive = false;
-    caughtCount++;
-    updateHUD();
-    if (caughtCount >= VULN_DB.length) {
-      const token = battle.token;
-      setTimeout(() => { if (battle.token === token) showVictory(); }, 400);
-      return;
-    }
-  }
+function startGame() {
+  $('overlay').classList.remove('open');
+  resetLab();
   gamePhase = 'playing';
-  stopBattleMusic();
   playMapMusic();
-  // Push player away from robot to avoid re-trigger. Step through collision so
-  // the push can never leave the player inside a wall or obstacle (softlock).
-  const angle = Math.atan2(player.y - battle.robot.y, player.x - battle.robot.x);
-  for (let i = 0; i < 10; i++) {
-    moveWithCollision(player, Math.cos(angle) * 4, Math.sin(angle) * 4, player.size * 0.5);
-  }
-}
-
-// ─────────────────────────────────────────────
-//  END STATES & RESTART
-// ─────────────────────────────────────────────
-function showEndNav(primaryLabel) {
-  document.getElementById('end-primary').textContent = primaryLabel;
-  document.getElementById('end-nav').style.display = 'flex';
-}
-
-function showVictory() {
-  gamePhase = 'victory';
-  stopBattleMusic();
-  playMapMusic();
-  if (!completionRecorded) {
-    completionRecorded = true;
-    HTPProgress.recordCompletion(2, { integrity: playerHP });
-  }
-  showEndNav('[ ENTER ] LEVEL 03 >');
-}
-
-function showDefeat() {
-  gamePhase = 'defeat';
-  battle.token++;
-  stopBattleMusic();
-  stopMapMusic();
-  showEndNav('[ ENTER ] RESTART MISSION');
-}
-
-function endPrimaryAction() {
-  if (gamePhase === 'victory') window.location.href = HTPProgress.nextLevel(2).url;
-  else if (gamePhase === 'defeat') restartLevel();
-}
-
-// Restores the level to its post-briefing state without reloading the page.
-function restartLevel() {
-  battle.token++;
-  battle.robot = null;
-  battle.phase = 'intro';
-  battle.resultText = '';
-  playerHP = 100;
-  caughtCount = 0;
-  completionRecorded = false;
-  player.x = PLAYER_START.col * TILE + TILE/2;
-  player.y = PLAYER_START.row * TILE + TILE/2;
-  player.dir = 0;
-  robots.forEach((r, i) => {
-    r.alive = true;
-    r.x = ROBOT_SPAWNS[i].col * TILE + TILE/2;
-    r.y = ROBOT_SPAWNS[i].row * TILE + TILE/2;
-    r.moveTimer = Math.random() * 2;
-    r.moveDir = { dx: 0, dy: 0 };
-  });
-  document.getElementById('end-nav').style.display = 'none';
+  lastTime = performance.now();
   updateHUD();
-  gamePhase = 'playing';
-  stopBattleMusic();
-  playMapMusic();
+  canvas.setAttribute('tabindex', '0');
+  canvas.focus();
 }
-
-// ─────────────────────────────────────────────
-//  DRAW
-// ─────────────────────────────────────────────
-function draw() {
-  ctx.fillStyle = '#000500';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  if (gamePhase === 'playing' || gamePhase === 'battle') {
-    drawWorld();
-    drawRobots();
-    drawPlayer();
-    if (gamePhase === 'battle') drawBattle();
-  } else if (gamePhase === 'victory') {
-    drawVictory();
-  } else if (gamePhase === 'defeat') {
-    drawDefeat();
-  }
-}
-
-// ── WORLD ──
-function drawWorld() {
-  ctx.save();
-  ctx.translate(-cam.x, -cam.y);
-
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLS; col++) {
-      const t = MAP[row][col];
-      const wx = col * TILE;
-      const wy = row * TILE;
-      if (t === 0) {
-        // Floor tile
-        ctx.fillStyle = '#000800';
-        ctx.fillRect(wx, wy, TILE, TILE);
-        // Grid lines
-        ctx.strokeStyle = 'rgba(0,255,65,0.07)';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(wx, wy, TILE, TILE);
-      } else if (t === 1) {
-        // Wall
-        ctx.fillStyle = '#001200';
-        ctx.fillRect(wx, wy, TILE, TILE);
-        ctx.fillStyle = 'rgba(0,255,65,0.6)';
-        ctx.fillRect(wx, wy, TILE, 2);
-        ctx.fillRect(wx, wy + TILE - 2, TILE, 2);
-        ctx.fillRect(wx, wy, 2, TILE);
-        ctx.fillRect(wx + TILE - 2, wy, 2, TILE);
-        // Wall inner glow
-        ctx.fillStyle = 'rgba(0,255,65,0.05)';
-        ctx.fillRect(wx + 2, wy + 2, TILE - 4, TILE - 4);
-      } else if (t === 2) {
-        // Obstacle — server terminal
-        ctx.fillStyle = '#000a00';
-        ctx.fillRect(wx, wy, TILE, TILE);
-        // Terminal box
-        ctx.fillStyle = '#001800';
-        ctx.fillRect(wx + 4, wy + 4, TILE - 8, TILE - 8);
-        ctx.strokeStyle = '#00ff41';
-        ctx.lineWidth = 1;
-        ctx.shadowBlur = 6;
-        ctx.shadowColor = '#00ff41';
-        ctx.strokeRect(wx + 4, wy + 4, TILE - 8, TILE - 8);
-        ctx.shadowBlur = 0;
-        // LED dot
-        ctx.fillStyle = '#00ff41';
-        ctx.beginPath();
-        ctx.arc(wx + TILE/2, wy + TILE/2, 2, 0, Math.PI*2);
-        ctx.fill();
-      }
-    }
-  }
-  ctx.restore();
-}
-
-// ── PLAYER ──
-function drawPlayer() {
-  ctx.save();
-  ctx.translate(-cam.x, -cam.y);
-  const px = player.x, py = player.y;
-  const s = player.size;
-  const bob = Math.sin(player.walkFrame * Math.PI / 2) * 1.5;
-
-  // Shadow
-  ctx.fillStyle = 'rgba(0,255,65,0.1)';
-  ctx.beginPath();
-  ctx.ellipse(px, py + s * 0.8, s * 0.7, s * 0.3, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Body glow
-  ctx.shadowBlur = 12;
-  ctx.shadowColor = '#00ff41';
-
-  // Legs (walking)
-  const legOffset = Math.sin(player.walkFrame * Math.PI / 2) * 3;
-  ctx.fillStyle = '#005500';
-  ctx.fillRect(px - s*0.4, py + s*0.3 + bob, s*0.3, s*0.6 + legOffset);
-  ctx.fillRect(px + s*0.1, py + s*0.3 + bob, s*0.3, s*0.6 - legOffset);
-
-  // Body
-  ctx.fillStyle = '#002200';
-  ctx.fillRect(px - s*0.5, py - s*0.3 + bob, s, s*0.7);
-  ctx.fillStyle = '#00ff41';
-  ctx.strokeStyle = '#00ff41';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(px - s*0.5, py - s*0.3 + bob, s, s*0.7);
-
-  // Head
-  ctx.fillStyle = '#001500';
-  ctx.fillRect(px - s*0.4, py - s*1.1 + bob, s*0.8, s*0.8);
-  ctx.strokeStyle = '#00ff41';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(px - s*0.4, py - s*1.1 + bob, s*0.8, s*0.8);
-
-  // Eyes (direction-dependent)
-  ctx.fillStyle = '#00ff41';
-  ctx.shadowBlur = 8;
-  if (player.dir === 0) { // down
-    ctx.fillRect(px - s*0.25, py - s*0.8 + bob, 3, 3);
-    ctx.fillRect(px + s*0.1,  py - s*0.8 + bob, 3, 3);
-  } else if (player.dir === 1) { // up
-    ctx.fillRect(px - s*0.2, py - s*0.95 + bob, 3, 2);
-    ctx.fillRect(px + s*0.05, py - s*0.95 + bob, 3, 2);
-  } else if (player.dir === 2) { // left
-    ctx.fillRect(px - s*0.35, py - s*0.85 + bob, 2, 3);
-  } else { // right
-    ctx.fillRect(px + s*0.25, py - s*0.85 + bob, 2, 3);
-  }
-
-  // Chest stripe
-  ctx.fillStyle = 'rgba(0,255,65,0.3)';
-  ctx.fillRect(px - s*0.4, py - s*0.05 + bob, s*0.8, 2);
-
-  ctx.shadowBlur = 0;
-  ctx.restore();
-}
-
-// ── ROBOTS ──
-function drawRobots() {
-  ctx.save();
-  ctx.translate(-cam.x, -cam.y);
-  robots.forEach(r => {
-    if (!r.alive) return;
-    drawRobot(r);
-  });
-  ctx.restore();
-}
-
-function drawRobot(r) {
-  const x = r.x, y = r.y;
-  const s = 14;
-  const bob = Math.sin(r.walkFrame * Math.PI / 2) * 1.5;
-  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
-  const col = r.color;
-
-  ctx.shadowBlur = 14 + pulse * 8;
-  ctx.shadowColor = col;
-
-  // Shadow
-  ctx.fillStyle = 'rgba(255,51,0,0.08)';
-  ctx.beginPath();
-  ctx.ellipse(x, y + s * 0.9, s * 0.8, s * 0.3, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Legs
-  ctx.fillStyle = adjustAlpha(col, 0.7);
-  ctx.fillRect(x - s*0.4, y + s*0.4 + bob, s*0.3, s*0.5 + Math.sin(r.walkFrame*Math.PI/2)*3);
-  ctx.fillRect(x + s*0.1,  y + s*0.4 + bob, s*0.3, s*0.5 - Math.sin(r.walkFrame*Math.PI/2)*3);
-
-  // Body
-  ctx.fillStyle = '#050005';
-  ctx.fillRect(x - s*0.55, y - s*0.2 + bob, s*1.1, s*0.7);
-  ctx.strokeStyle = col;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(x - s*0.55, y - s*0.2 + bob, s*1.1, s*0.7);
-
-  // Warning stripes on body
-  ctx.fillStyle = adjustAlpha(col, 0.15);
-  for (let i = 0; i < 3; i++) {
-    ctx.fillRect(x - s*0.55 + i * s*0.38, y - s*0.2 + bob, s*0.18, s*0.7);
-  }
-
-  // Head
-  ctx.fillStyle = '#020002';
-  ctx.fillRect(x - s*0.5, y - s*1.1 + bob, s, s*0.9);
-  ctx.strokeStyle = col;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(x - s*0.5, y - s*1.1 + bob, s, s*0.9);
-
-  // Visor / eye bar
-  ctx.fillStyle = adjustAlpha(col, 0.2 + pulse * 0.3);
-  ctx.fillRect(x - s*0.45, y - s*0.9 + bob, s*0.9, s*0.3);
-  ctx.fillStyle = col;
-  ctx.fillRect(x - s*0.3, y - s*0.82 + bob, s*0.25, s*0.15);
-  ctx.fillRect(x + s*0.05, y - s*0.82 + bob, s*0.25, s*0.15);
-
-  // Antenna
-  ctx.strokeStyle = col;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(x, y - s*1.1 + bob);
-  ctx.lineTo(x, y - s*1.5 + bob);
-  ctx.stroke();
-  ctx.fillStyle = col;
-  ctx.beginPath();
-  ctx.arc(x, y - s*1.55 + bob, 2.5, 0, Math.PI*2);
-  ctx.fill();
-
-  // Name tag
-  ctx.shadowBlur = 6;
-  ctx.shadowColor = col;
-  ctx.fillStyle = col;
-  ctx.font = 'bold 8px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText(r.robotName, x, y - s*1.8 + bob);
-  ctx.fillStyle = adjustAlpha(col, 0.7);
-  ctx.font = '7px Courier New';
-  ctx.fillText(r.vulnerability, x, y - s*1.65 + bob);
-
-  ctx.shadowBlur = 0;
-  ctx.textAlign = 'left';
-
-  // Proximity warning ring
-  const dist = Math.hypot(player.x - r.x, player.y - r.y);
-  if (dist < 60) {
-    const alpha = (1 - dist / 60) * 0.4;
-    ctx.strokeStyle = `rgba(255,51,0,${alpha})`;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.arc(x, y, 28, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-}
-
-function adjustAlpha(hex, alpha) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-// ── BATTLE SCREEN ──
-function drawBattle() {
-  const W = canvas.width, H = canvas.height;
-  const robot = battle.robot;
-
-  // Dark overlay
-  ctx.fillStyle = 'rgba(0,0,0,0.88)';
-  ctx.fillRect(0, 0, W, H);
-
-  // Battle scene BG
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, '#000800');
-  bgGrad.addColorStop(1, '#000200');
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, W, H * 0.6);
-
-  // Grid floor in battle
-  ctx.strokeStyle = 'rgba(0,255,65,0.06)';
-  ctx.lineWidth = 0.5;
-  for (let i = 0; i < W; i += 32) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, H*0.6); ctx.stroke(); }
-  for (let j = 0; j < H*0.6; j += 32) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(W,j); ctx.stroke(); }
-
-  // Corner lights
-  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
-  drawCornerGlow(ctx, 0, 0, '#00ff41', 0.3 + pulse * 0.2);
-  drawCornerGlow(ctx, W, 0, '#ff3300', 0.2 + pulse * 0.15);
-
-  // Dividing line
-  ctx.strokeStyle = 'rgba(0,255,65,0.5)';
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = '#00ff41';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, H * 0.58);
-  ctx.lineTo(W, H * 0.58);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  // Draw player sprite (bottom-left, large)
-  drawBattlePlayer(W * 0.2, H * 0.45);
-
-  // Draw robot sprite (top-right, large)
-  drawBattleRobot(robot, W * 0.72, H * 0.22);
-
-  // HP bars
-  drawBattleHPBar(ctx, 30, H * 0.04, 'AGENT: CIPHER', playerHP, '#00ff41');
-  drawBattleHPBar(ctx, W - 230, H * 0.04, robot.robotName, 100 - (battle.wrongAttempts * 20), robot.color);
-
-  // Bottom panel
-  ctx.fillStyle = '#000500';
-  ctx.fillRect(0, H * 0.58, W, H * 0.42);
-  ctx.strokeStyle = 'rgba(0,255,65,0.3)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(0, H * 0.58, W, H * 0.42);
-
-  if (battle.phase === 'intro') {
-    drawBattleIntro(W, H);
-  } else if (battle.phase === 'select') {
-    drawBattleSelect(W, H);
-  } else if (battle.phase === 'result') {
-    drawBattleResult(W, H);
-  }
-}
-
-function drawCornerGlow(ctx, x, y, color, alpha) {
-  const grad = ctx.createRadialGradient(x, y, 0, x, y, 120);
-  grad.addColorStop(0, color + Math.round(alpha * 255).toString(16).padStart(2,'0'));
-  grad.addColorStop(1, 'transparent');
-  ctx.fillStyle = grad;
-  ctx.fillRect(x - 120, y - 120, 240, 240);
-}
-
-function drawBattlePlayer(cx, cy) {
-  const s = 28;
-  const bob = Math.sin(Date.now() * 0.004) * 3;
-  ctx.shadowBlur = 20;
-  ctx.shadowColor = '#00ff41';
-  ctx.fillStyle = '#002200';
-  ctx.fillRect(cx - s, cy - s + bob, s*2, s*1.5);
-  ctx.strokeStyle = '#00ff41';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(cx - s, cy - s + bob, s*2, s*1.5);
-  ctx.fillStyle = '#001500';
-  ctx.fillRect(cx - s*0.8, cy - s*2.2 + bob, s*1.6, s*1.2);
-  ctx.strokeRect(cx - s*0.8, cy - s*2.2 + bob, s*1.6, s*1.2);
-  ctx.fillStyle = '#00ff41';
-  ctx.shadowBlur = 12;
-  ctx.fillRect(cx - s*0.5, cy - s*1.9 + bob, 6, 6);
-  ctx.fillRect(cx + s*0.2, cy - s*1.9 + bob, 6, 6);
-  ctx.fillStyle = 'rgba(0,255,65,0.4)';
-  ctx.fillRect(cx - s*0.8, cy - s*0.2 + bob, s*1.6, 3);
-  // Legs
-  ctx.fillStyle = '#005500';
-  ctx.fillRect(cx - s*0.7, cy + s*0.5 + bob, s*0.6, s);
-  ctx.fillRect(cx + s*0.1, cy + s*0.5 + bob, s*0.6, s);
-  ctx.shadowBlur = 0;
-}
-
-function drawBattleRobot(robot, cx, cy) {
-  const s = 32;
-  const bob = Math.sin(Date.now() * 0.003 + 1) * 4;
-  const col = robot.color;
-  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
-  ctx.shadowBlur = 20 + pulse * 15;
-  ctx.shadowColor = col;
-  // Body
-  ctx.fillStyle = '#050005';
-  ctx.fillRect(cx - s*1.1, cy - s*0.5 + bob, s*2.2, s*1.4);
-  ctx.strokeStyle = col;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(cx - s*1.1, cy - s*0.5 + bob, s*2.2, s*1.4);
-  // Warning stripes
-  ctx.fillStyle = adjustAlpha(col, 0.12);
-  for (let i = 0; i < 5; i++) {
-    ctx.fillRect(cx - s*1.1 + i * s*0.45, cy - s*0.5 + bob, s*0.22, s*1.4);
-  }
-  // Head
-  ctx.fillStyle = '#020002';
-  ctx.fillRect(cx - s, cy - s*2.1 + bob, s*2, s*1.6);
-  ctx.strokeStyle = col;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(cx - s, cy - s*2.1 + bob, s*2, s*1.6);
-  // Visor
-  ctx.fillStyle = adjustAlpha(col, 0.2 + pulse*0.3);
-  ctx.fillRect(cx - s*0.9, cy - s*1.8 + bob, s*1.8, s*0.6);
-  ctx.fillStyle = col;
-  ctx.fillRect(cx - s*0.6, cy - s*1.65 + bob, s*0.4, s*0.3);
-  ctx.fillRect(cx + s*0.2, cy - s*1.65 + bob, s*0.4, s*0.3);
-  // Antenna
-  ctx.strokeStyle = col;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - s*2.1 + bob);
-  ctx.lineTo(cx, cy - s*3 + bob);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy - s*3 + bob, 5, 0, Math.PI*2);
-  ctx.fillStyle = col;
-  ctx.fill();
-  // Legs
-  ctx.fillStyle = adjustAlpha(col, 0.8);
-  ctx.fillRect(cx - s*0.8, cy + s*0.9 + bob, s*0.6, s);
-  ctx.fillRect(cx + s*0.2, cy + s*0.9 + bob, s*0.6, s);
-  // Name
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = col;
-  ctx.font = 'bold 14px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText(robot.robotName, cx, cy - s*3.4 + bob);
-  ctx.shadowBlur = 0;
-  ctx.textAlign = 'left';
-}
-
-function drawBattleHPBar(ctx, x, y, label, hp, color) {
-  const W = 200, H = 36;
-  ctx.fillStyle = 'rgba(0,5,0,0.8)';
-  ctx.fillRect(x, y, W, H);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x, y, W, H);
-  ctx.fillStyle = color;
-  ctx.font = '9px Courier New';
-  ctx.shadowBlur = 6;
-  ctx.shadowColor = color;
-  ctx.fillText(label, x + 6, y + 12);
-  ctx.shadowBlur = 0;
-  // Bar
-  const barW = W - 12;
-  const fill = Math.max(0, hp / 100);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(x + 6, y + 18, barW, 10);
-  const barColor = fill > 0.5 ? color : fill > 0.25 ? '#ffcc00' : '#ff3300';
-  ctx.fillStyle = barColor;
-  ctx.shadowBlur = 6;
-  ctx.shadowColor = barColor;
-  ctx.fillRect(x + 6, y + 18, barW * fill, 10);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '8px Courier New';
-  ctx.fillText(`${Math.round(hp)}/100`, x + 6, y + 34);
-}
-
-function drawBattleIntro(W, H) {
-  const panelY = H * 0.6;
-  const lineH = 22;
-  const visibleLines = battle.textLines.slice(0, battle.textIndex);
-  ctx.font = '13px Courier New';
-  ctx.fillStyle = '#00ff41';
-  ctx.shadowBlur = 6;
-  ctx.shadowColor = '#00ff41';
-  visibleLines.forEach((line, i) => {
-    ctx.fillText(line, 30, panelY + 30 + i * lineH);
-  });
-  // Blinking cursor
-  if (battle.textIndex < battle.textLines.length) {
-    const curX = 30 + ctx.measureText(visibleLines[visibleLines.length - 1] || '').width;
-    if (Math.floor(Date.now() / 400) % 2 === 0) {
-      ctx.fillRect(curX + 4, panelY + 30 + (visibleLines.length - 1) * lineH - 12, 8, 14);
-    }
-  } else {
-    ctx.fillStyle = 'rgba(0,255,65,0.5)';
-    ctx.font = '11px Courier New';
-    ctx.fillText('[ PRESS ENTER TO CONTINUE ]', W/2 - 100, panelY + H*0.35);
-  }
-  ctx.shadowBlur = 0;
-}
-
-function drawBattleSelect(W, H) {
-  const panelY = H * 0.6;
-  const robot = battle.robot;
-  // Title
-  ctx.font = 'bold 13px Courier New';
-  ctx.fillStyle = '#ff3300';
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = '#ff3300';
-  ctx.fillText(`> SELECT PATCH FOR: ${robot.vulnerability}`, 30, panelY + 25);
-  ctx.shadowBlur = 0;
-
-  // Options
-  const optY = panelY + 50;
-  robot.options.forEach((opt, i) => {
-    const selected = i === battle.selected;
-    const optLabel = `${i+1}. ${opt}`;
-    const oy = optY + i * 46;
-
-    if (selected) {
-      ctx.fillStyle = 'rgba(0,255,65,0.1)';
-      ctx.fillRect(20, oy - 16, W - 40, 38);
-      ctx.strokeStyle = '#00ff41';
-      ctx.lineWidth = 1;
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = '#00ff41';
-      ctx.strokeRect(20, oy - 16, W - 40, 38);
-    }
-
-    ctx.font = selected ? 'bold 12px Courier New' : '12px Courier New';
-    ctx.fillStyle = selected ? '#00ff41' : 'rgba(0,255,65,0.55)';
-    ctx.shadowBlur = selected ? 8 : 0;
-    ctx.shadowColor = '#00ff41';
-    ctx.fillText(optLabel, 36, oy + 6);
-
-    if (selected) {
-      ctx.fillStyle = '#ff3300';
-      ctx.shadowColor = '#ff3300';
-      ctx.shadowBlur = 6;
-      ctx.fillText('▶', 24, oy + 6);
-    }
-    ctx.shadowBlur = 0;
-  });
-
-  // Hint
-  ctx.fillStyle = 'rgba(0,255,65,0.35)';
-  ctx.font = '10px Courier New';
-  ctx.fillText('[ 1-4 or ↑↓ to select  ·  ENTER to confirm ]', W/2 - 130, panelY + H*0.41);
-
-  if (battle.wrongAttempts > 0) {
-    ctx.fillStyle = '#ff3300';
-    ctx.font = '10px Courier New';
-    ctx.shadowBlur = 6;
-    ctx.shadowColor = '#ff3300';
-    ctx.fillText(`WARNING: ${battle.wrongAttempts} incorrect attempt(s) — integrity penalized`, 30, panelY + H*0.38);
-    ctx.shadowBlur = 0;
-  }
-}
-
-function drawBattleResult(W, H) {
-  const panelY = H * 0.6;
-  const ok = battle.resultOk;
-
-  ctx.fillStyle = ok ? 'rgba(0,255,65,0.07)' : 'rgba(255,51,0,0.07)';
-  ctx.fillRect(0, panelY, W, H - panelY);
-
-  const lines = battle.resultText.split('\n');
-  lines.forEach((line, i) => {
-    ctx.font = i === 0 ? 'bold 16px Courier New' : '12px Courier New';
-    ctx.fillStyle = ok ? '#00ff41' : '#ff3300';
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = ok ? '#00ff41' : '#ff3300';
-    ctx.fillText(line, 30, panelY + 35 + i * 26);
-  });
-
-  if (ok) {
-    ctx.font = '11px Courier New';
-    ctx.fillStyle = 'rgba(0,255,65,0.7)';
-    ctx.shadowBlur = 4;
-    wrapText(`> FIX APPLIED: ${battle.robot.explanation}`, W - 60).forEach((line, i) => {
-      ctx.fillText(line, 30, panelY + 100 + i * 16);
-    });
-    ctx.fillStyle = 'rgba(0,255,65,0.4)';
-    ctx.fillText('[ PRESS ENTER TO CONTINUE ]', W/2 - 100, panelY + H*0.38);
-  } else {
-    ctx.fillStyle = 'rgba(255,51,0,0.4)';
-    ctx.font = '11px Courier New';
-    ctx.fillText(playerHP > 0 ? 'Try again — select a different patch.' : 'Integrity depleted…', 30, panelY + 100);
-  }
-  ctx.shadowBlur = 0;
-}
-
-// Splits text into lines that fit maxWidth using the current ctx.font.
-function wrapText(text, maxWidth) {
-  const lines = [];
-  let line = '';
-  text.split(' ').forEach(word => {
-    const test = line ? line + ' ' + word : word;
-    if (line && ctx.measureText(test).width > maxWidth) { lines.push(line); line = word; }
-    else line = test;
-  });
-  if (line) lines.push(line);
-  return lines;
-}
-
-// ── VICTORY SCREEN ──
-function drawVictory() {
-  const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = '#000500';
-  ctx.fillRect(0, 0, W, H);
-
-  // Grid bg
-  ctx.strokeStyle = 'rgba(0,255,65,0.05)';
-  ctx.lineWidth = 0.5;
-  for (let i = 0; i < W; i += 32) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
-  for (let j = 0; j < H; j += 32) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(W,j); ctx.stroke(); }
-
-  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.002);
-  ctx.shadowBlur = 30 + pulse * 20;
-  ctx.shadowColor = '#00ff41';
-  ctx.fillStyle = '#00ff41';
-  ctx.font = 'bold 52px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText('MISSION COMPLETE', W/2, H/2 - 80);
-  ctx.shadowBlur = 0;
-
-  ctx.font = '16px Courier New';
-  ctx.fillStyle = 'rgba(0,255,65,0.8)';
-  ctx.fillText('ALL AI VULNERABILITIES NEUTRALIZED', W/2, H/2 - 30);
-
-  ctx.font = '12px Courier New';
-  ctx.fillStyle = 'rgba(0,255,65,0.55)';
-  VULN_DB.forEach((v, i) => {
-    ctx.fillText(`✓  ${v.vulnerability}  —  ${v.robotName}`, W/2, H/2 + 20 + i * 22);
-  });
-
-  ctx.font = '13px Courier New';
-  ctx.fillStyle = '#ff3300';
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = '#ff3300';
-  if (Math.floor(Date.now() / 600) % 2 === 0) {
-    ctx.fillText('[ ENTER ] NEXT MISSION  ·  [ H ] MISSION HUB', W/2, H/2 + 200);
-  }
-  ctx.shadowBlur = 0;
-  ctx.textAlign = 'left';
-}
-
-// ── DEFEAT SCREEN ──
-function drawDefeat() {
-  const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = '#050000';
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.strokeStyle = 'rgba(255,51,0,0.05)';
-  ctx.lineWidth = 0.5;
-  for (let i = 0; i < W; i += 32) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
-  for (let j = 0; j < H; j += 32) { ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(W,j); ctx.stroke(); }
-
-  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.002);
-  ctx.textAlign = 'center';
-  ctx.shadowBlur = 30 + pulse * 20;
-  ctx.shadowColor = '#ff3300';
-  ctx.fillStyle = '#ff3300';
-  ctx.font = 'bold 52px Courier New';
-  ctx.fillText('SYSTEM COMPROMISED', W/2, H/2 - 80);
-  ctx.shadowBlur = 0;
-
-  ctx.font = '16px Courier New';
-  ctx.fillStyle = 'rgba(255,51,0,0.8)';
-  ctx.fillText('INTEGRITY 0% — AGENT CONNECTION LOST', W/2, H/2 - 30);
-  ctx.font = '12px Courier New';
-  ctx.fillStyle = 'rgba(0,255,65,0.55)';
-  ctx.fillText(`VULNERABILITIES PATCHED BEFORE FAILURE: ${caughtCount} / ${VULN_DB.length}`, W/2, H/2 + 10);
-
-  ctx.font = '13px Courier New';
-  ctx.fillStyle = '#00ff41';
-  if (Math.floor(Date.now() / 600) % 2 === 0) {
-    ctx.fillText('[ ENTER ] RESTART MISSION  ·  [ H ] MISSION HUB', W/2, H/2 + 200);
-  }
-  ctx.textAlign = 'left';
+$('start-btn').onclick = startGame;
+canvas.setAttribute('tabindex', '0');
+resetLab();
+requestAnimationFrame(gameLoop);
+$('start-btn').focus();
+
+function playScanSound() {
+  const ac = getAudioCtx(), now = ac.currentTime;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(600, now); o.frequency.exponentialRampToValueAtTime(1400, now + 0.15);
+  g.gain.setValueAtTime(0.06, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  o.connect(g); g.connect(ac.destination); o.start(now); o.stop(now + 0.2);
 }
 
 // ─────────────────────────────────────────────
@@ -1616,37 +1246,6 @@ function playErrorSound() {
   osc.start(now); osc.stop(now + 0.3);
 }
 
-// ─────────────────────────────────────────────
-//  GAME LOOP
-// ─────────────────────────────────────────────
-function gameLoop(ts) {
-  const dt = Math.min((ts - lastTime) / 1000, 0.05);
-  lastTime = ts;
-  update(dt);
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-
-function startGame() {
-  document.getElementById('overlay').style.opacity = '0';
-  setTimeout(() => {
-    document.getElementById('overlay').style.display = 'none';
-  }, 500);
-  gamePhase = 'playing';
-  playMapMusic();
-  lastTime = performance.now();
-  requestAnimationFrame(gameLoop);
-}
-
-document.getElementById('end-primary').onclick = endPrimaryAction;
-
-// Prevent default for game keys
-document.addEventListener('keydown', e => {
-  const gameCodes = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
-                     'Space','Enter','KeyW','KeyA','KeyS','KeyD',
-                     'Digit1','Digit2','Digit3','Digit4'];
-  if (gameCodes.includes(e.code)) e.preventDefault();
-}, {passive: false});
 </script>
 </body>
 </html>

@@ -11,7 +11,7 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const LEVEL_PAGES = PAGES.filter(p => p !== 'index.html');
 
 test('inline scripts in the hub and all four levels parse, plus every module', () => {
-  const modules = ['js', 'js/racer', 'js/arena'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.js')));
+  const modules = ['js', 'js/racer', 'js/arena', 'js/incident'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.js')));
   assert.equal(checkAll().length, PAGES.length + modules.length);
   assert.ok(modules.length >= 6, 'progress + racer modules');
 });

@@ -58,6 +58,14 @@ test('level 4 tracks best position and best time independently', () => {
   assert.deepEqual(s.levels[4].best, { position: 2, timeMs: 95000 });
 });
 
+test('level 2 keeps best integrity and best first-try diagnoses independently', () => {
+  let s = P.applyCompletion(P.defaultState(), 2, { integrity: 60, firstTryDiagnoses: 6 }, T0);
+  s = P.applyCompletion(s, 2, { integrity: 90, firstTryDiagnoses: 4 }, T1);
+  assert.deepEqual(s.levels[2].best, { integrity: 90, firstTryDiagnoses: 6 });
+  const old = P.normalize({ version: 1, levels: { 2: { completed: true, best: { integrity: 70 } } } });
+  assert.deepEqual(old.levels[2].best, { integrity: 70 }, 'saves from before the incident lab still load');
+});
+
 test('level 1 keeps its best AI security score; old saves without it still load', () => {
   let s = P.applyCompletion(P.defaultState(), 1, { securityScore: 1 }, T0);
   s = P.applyCompletion(s, 1, { securityScore: 3 }, T1);
