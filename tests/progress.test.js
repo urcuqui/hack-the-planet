@@ -66,6 +66,17 @@ test('level 2 keeps best integrity and best first-try diagnoses independently', 
   assert.deepEqual(old.levels[2].best, { integrity: 70 }, 'saves from before the incident lab still load');
 });
 
+test('level 3 keeps its best first-try responses; old saves without a best still load', () => {
+  let s = P.applyCompletion(P.defaultState(), 3, { firstTryDecisions: 3 }, T0);
+  s = P.applyCompletion(s, 3, { firstTryDecisions: 5 }, T1);
+  s = P.applyCompletion(s, 3, { firstTryDecisions: 2 }, T1);
+  assert.deepEqual(s.levels[3].best, { firstTryDecisions: 5 });
+  const old = P.normalize({ version: 1, levels: { 1: { completed: true }, 2: { completed: true }, 3: { completed: true } } });
+  assert.equal(old.levels[3].completed, true, 'a Social Engineer completion still counts');
+  assert.equal(old.levels[3].best, undefined);
+  assert.equal(old.highestUnlocked, 4);
+});
+
 test('level 1 keeps its best AI security score; old saves without it still load', () => {
   let s = P.applyCompletion(P.defaultState(), 1, { securityScore: 1 }, T0);
   s = P.applyCompletion(s, 1, { securityScore: 3 }, T1);

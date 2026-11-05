@@ -133,45 +133,65 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       page.assertNoErrors('level2');
     });
 
-    await t.test('level 3: boss locked until 5 intel, Esc is safe, boss win completes', async () => {
+    await t.test('level 3: operation ghost — locked CIPHER, five files do not complete, final investigation does', async () => {
       await page.goto(base + '/level3.html');
       assert.equal(await page.eval('typeof THREE'), 'object');
-      await page.click('.intro-start');
+      assert.equal(await page.eval('World.validate().length'), 0, 'layout is valid in the page too');
+      await page.click('#start-btn');
       await page.waitFor('gameStarted === true');
+      assert.equal(await page.eval('document.getElementById("intel-count").textContent'), '0');
+      assert.match(await page.eval('document.title'), /Operation Ghost/);
 
-      await page.eval('openDialogue(5)');
-      assert.match(await page.eval('dlgNpc.textContent'), /LOCKED/);
-      assert.equal(await page.eval('bossActive'), false);
+      // CIPHER is locked with fewer than five files; Esc closes it cleanly.
+      await page.eval('openCase("cipher")');
+      assert.match(await page.eval('document.getElementById("case-tech").textContent'), /LOCKED · INTEL 0 \/ 5/);
       await page.key('Escape');
-      assert.equal(await page.eval('dlgOpen'), false);
+      assert.equal(await page.eval('gamePhase'), 'playing');
+      assert.equal(await page.eval('document.getElementById("case-panel").classList.contains("open")'), false);
 
-      // Collect intel from the five targets.
-      await page.eval(`[0,1,2,3,4].forEach(i => {
-        openDialogue(i);
-        const idx = NPCS[i].dlg.choices.findIndex(c => c.ok);
-        handleChoice(i, idx, dlgChoices.children[idx]);
-        closeDialogue();
+      // A case can be closed mid-way and resumed where it was left.
+      await page.eval('openCase("rico"); op.observed("rico"); op.ask("rico", 0); renderCase();');
+      await page.key('Escape');
+      await sleep(300);
+      assert.equal(await page.eval('gamePhase'), 'playing', 'nothing reopens the panel');
+      await page.eval('openCase("rico")');
+      assert.equal(await page.eval('op.cases.rico.step'), 'talk');
+      assert.match(await page.eval('document.getElementById("case-tech").textContent'), /\?\?\?/, 'technique hidden before LEARN');
+      await page.key('Escape');
+
+      // Solve all five through the state machine and file each through the UI.
+      await page.eval(`Cases.CASES.forEach(c => {
+        openCase(c.id);
+        if (op.cases[c.id].step === 'observe') op.observed(c.id);
+        [0, 1, 2].forEach(i => op.ask(c.id, i));
+        const ins = c.inspect;
+        const ans = ins.type === 'bait' ? { lure: ins.lure.answer, cost: ins.cost.answer } :
+          ins.type === 'fields' || ins.type === 'exchange' ? Object.fromEntries(ins.items.map(i => [i.id, i.answer])) : ins.answer;
+        op.inspect(c.id, ans);
+        op.decide(c.id, c.decide.options.find(o => o.ok).id);
+        renderCase();
+        fileIntel();
       })`);
-      assert.equal(await page.eval('intelCount'), 5);
-      await page.waitFor('document.getElementById("win-screen").style.display === "flex"', 5000);
-      assert.equal(await progress(page).then(p => p.levels[3]), undefined, 'intel alone does not complete level 3');
-      await page.click('#intel-continue-btn');
+      assert.equal(await page.eval('op.intelCount()'), 5);
+      assert.equal(await page.eval('new Set(op.files).size'), 5, 'no duplicate files');
+      assert.equal(await page.eval('op.markerState("cipher")'), 'ACTIVE');
+      assert.equal(await progress(page).then(p => p.levels[3]), undefined, 'five files alone do not complete level 3');
 
-      // Esc during "correct" feedback must not let the timer reopen the next round.
-      await page.eval('openDialogue(5); handleBossChoice(0, NPCS[5].rounds[0].correct, dlgChoices.children[NPCS[5].rounds[0].correct]);');
-      await page.key('Escape');
-      await sleep(2600);
-      assert.equal(await page.eval('dlgOpen'), false);
-
-      // Full boss run, closing the last answer with Esc (previously a softlock).
-      await page.eval('openDialogue(5)');
-      for (let round = 0; round < 4; round++) {
-        await page.waitFor(`bossRound === ${round} && dlgChoices.children.length === 3 && !dlgChoices.children[0].disabled`, 4000);
-        await page.eval(`handleBossChoice(${round}, NPCS[5].rounds[${round}].correct, dlgChoices.children[NPCS[5].rounds[${round}].correct])`);
-      }
-      await page.key('Escape');
-      await page.waitFor('document.getElementById("boss-win-screen").style.display === "flex"', 3000);
-      assert.equal((await progress(page)).levels[3].completed, true);
+      // The final investigation: one wrong step, then the evidence-based answers.
+      await page.eval('openCase("cipher")');
+      assert.match(await page.eval('document.getElementById("case-tech").textContent'), /FINAL INVESTIGATION · STEP 1 \/ 5/);
+      await page.click('#cipher-submit');
+      assert.equal(await page.eval('document.getElementById("case-feedback").className'), 'bad');
+      await page.eval(`Cases.CIPHER.steps.forEach(s => op.cipherAnswer(s.type === 'match' || s.type === 'labels' ? Object.fromEntries(s.items.map(i => [i.id, i.answer]))
+        : s.type === 'multi' ? s.options.filter(o => o.ok).map(o => o.id) : s.options.find(o => o.ok).id)); showResults(); showResults();`);
+      await page.waitFor('document.getElementById("results-screen").classList.contains("open")', 3000);
+      const p = await progress(page);
+      assert.equal(p.levels[3].completed, true);
+      assert.equal(p.levels[3].best.firstTryDecisions, 5);
+      assert.equal(p.highestUnlocked, 4);
+      assert.match(await page.eval('document.getElementById("results-kv").textContent'), /THREAT NETWORK IDENTIFIED/);
+      assert.equal(await page.eval('document.querySelectorAll("#results-tech li").length'), 5);
+      assert.equal(await page.eval('document.activeElement.id'), 'next-btn');
       page.assertNoErrors('level3');
     });
 

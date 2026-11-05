@@ -193,8 +193,8 @@ const MISSIONS = {
   },
   3: {
     accent: '#ff6eb4',
-    theme: '3D MIAMI CITY · SOCIAL ENGINEERING',
-    objective: 'Work five targets for intel as GHOST, then outsmart CIPHER at the Hacker Convention.',
+    theme: 'CYBER MIAMI NOIR · TRUST NO SIGNAL',
+    objective: 'Investigate five social-engineering plays across Miami as GHOST, then prove to CIPHER they are one AI-assisted network.',
   },
   4: {
     accent: '#00ffff',
@@ -228,6 +228,7 @@ function metaText(level, entry) {
   if (level.id === 1 && Number.isFinite(best.securityScore)) parts.push('Best AI security ' + best.securityScore + '/3');
   if (level.id === 2 && Number.isFinite(best.integrity)) parts.push('Best integrity ' + best.integrity + '%');
   if (level.id === 2 && Number.isFinite(best.firstTryDiagnoses)) parts.push('Best first-try diagnoses ' + best.firstTryDiagnoses + '/6');
+  if (level.id === 3 && Number.isFinite(best.firstTryDecisions)) parts.push('Best first-try responses ' + best.firstTryDecisions + '/5');
   if (level.id === 4 && Number.isFinite(best.position)) parts.push('Best finish P' + best.position);
   if (level.id === 4 && Number.isFinite(best.timeMs)) parts.push('Best time ' + formatTime(best.timeMs));
   if (level.id === 4 && Number.isFinite(best.securityScore)) parts.push('Best AI security ' + best.securityScore + '/3');
