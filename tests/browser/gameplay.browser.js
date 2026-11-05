@@ -2,15 +2,14 @@
 // mouse events only. Game state is read (to steer the bots and to assert) but
 // never written, so a pass means a player using the same keys could do it.
 //
-//   npm run test:gameplay      (about 5 minutes)
+//   npm run test:gameplay      (about 6 minutes)
 //
 // Level 4 goes further: its driver reads only the rendered pixels (where the
 // asphalt is) and the HUD text, the way a player does.
 //
 // Needs Chrome/Chromium (CHROME_PATH to override) and network access to cdnjs.
-// Level 3's full five-target walk takes several minutes under software WebGL,
-// so here it covers the start screen, one target, the locked boss, a car and
-// the music toggle; the rest of Level 3 is in the README's manual checks.
+// Level 3 walks the whole operation on foot and by car: five investigations,
+// the locked and then unlocked CIPHER, and the final analysis.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createServer } = require('../../tools/serve.js');
@@ -386,76 +385,184 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       page.assertNoErrors('level2');
     });
 
-    await sub('level 3: start on a short window, one target, locked boss, car, music', async () => {
+    await sub('level 3: operation ghost — walk, investigate five cases, drive, and close the network with real input', async () => {
       if (await page.eval('location.pathname') !== '/level3.html') await page.goto(base + '/level3.html');
       const keys = keyboard(page);
-      // A player walks with W and turns the camera with A/D.
-      const walkTo = async (tx, tz, range) => {
-        const end = Date.now() + 120000;
+      const state = () => page.eval('({ x: walker.x, z: walker.z, cam: camState.yaw, phase: gamePhase, speed: walker.speed })');
+      // A player walks with WASD relative to the camera, following the
+      // route the game draws on the map (or a path to a point it picks).
+      const walkTo = async (tx, tz, range = 1.2, label = '') => {
+        const end = Date.now() + 90000;
+        let last = null, still = 0;
         for (;;) {
-          const s = await page.eval('({ x: player.position.x, z: player.position.z, a: camAngle })');
+          const s = await state();
           if (Math.hypot(tx - s.x, tz - s.z) < range) break;
-          assert.ok(Date.now() < end, `walk to ${tx},${tz}`);
-          const err = angleDiff(Math.atan2(-(tx - s.x), -(tz - s.z)), s.a);
-          await keys.set('KeyD', err > 0.05); await keys.set('KeyA', err < -0.05);
-          await keys.set('KeyW', Math.abs(err) < 0.4);
+          assert.ok(Date.now() < end, `walk to ${label} ${tx},${tz} (at ${s.x.toFixed(1)},${s.z.toFixed(1)})`);
+          const next = await page.eval(`(() => { const p = World.findPath({ x: walker.x, z: walker.z }, { x: ${tx}, z: ${tz} });
+            if (!p || p.length < 2) return { x: ${tx}, z: ${tz} }; return Math.hypot(p[1].x - walker.x, p[1].z - walker.z) < 0.8 && p[2] ? p[2] : p[1]; })()`);
+          const want = Math.atan2(next.x - s.x, next.z - s.z);
+          const rel = angleDiff(want, s.cam);              // 0 = straight ahead of the camera
+          const fwd = Math.cos(rel), side = -Math.sin(rel);
+          await keys.set('KeyW', fwd > 0.38); await keys.set('KeyS', fwd < -0.38);
+          await keys.set('KeyD', side > 0.38); await keys.set('KeyA', side < -0.38);
+          // Unstick: if nothing moved for a while (a car or a pedestrian in the way), sidestep.
+          if (last && Math.hypot(s.x - last.x, s.z - last.z) < 0.05) still++; else still = 0;
+          if (still > 25) { await keys.releaseAll(); await page.key('KeyA', 400); still = 0; }
+          last = s;
           await sleep(30);
         }
         await keys.releaseAll();
+        await page.waitFor('walker.speed < 0.3', 3000);
+      };
+      const toTarget = async id => {
+        const [x, z] = await page.eval(`World.NPC_SPOTS.${id}.spot`);
+        await walkTo(x, z, 1.0, id);
+      };
+      const clickOpt = n => page.click(`#case-body [data-opt="${n}"]`);
+      // Plays one investigation with keys and clicks; `mistakes` adds a wrong analysis and response.
+      const investigate = async (id, mistakes) => {
+        await toTarget(id);
+        assert.match(await page.eval('promptEl.textContent'), new RegExp('TALK TO ' + id.toUpperCase()));
+        await page.key('KeyE');
+        assert.equal(await page.eval('gamePhase'), 'case');
+        assert.match(await page.eval('document.getElementById("case-tech").textContent'), /\?\?\?/);
+        await page.key('Digit1');                                   // TALK
+        for (const d of ['Digit1', 'Digit2', 'Digit3']) await page.key(d);
+        assert.equal(await page.eval(`op.cases.${id}.evidence.length`), 4, 'every question revealed evidence');
+        await page.key('Digit1');                                   // INSPECT THE EVIDENCE
+        assert.equal(await page.eval(`op.cases.${id}.step`), 'inspect');
+        const c = await page.eval(`Cases.byId("${id}")`);
+        const ins = c.inspect;
+        if (mistakes) {
+          await page.click('#submit-analysis');
+          assert.equal(await page.eval('document.getElementById("case-feedback").className'), 'bad');
+        }
+        if (ins.type === 'bait') {
+          await clickOpt(ins.lure.options.findIndex(o => o.id === ins.lure.answer) + 1);
+          for (const id2 of ins.cost.answer) await clickOpt(ins.lure.options.length + ins.cost.options.findIndex(o => o.id === id2) + 1);
+        } else if (ins.type === 'fields' || ins.type === 'exchange') {
+          for (let i = 0; i < ins.items.length; i++) await clickOpt(i * ins.labels.length + ins.labels.indexOf(ins.items[i].answer) + 1);
+        } else {
+          for (const i of ins.answer) await clickOpt(i + 1);
+        }
+        await page.click('#submit-analysis');
+        assert.equal(await page.eval(`op.cases.${id}.step`), 'decide', id + ' analysis accepted');
+        const right = c.decide.options.findIndex(o => o.ok) + 1;
+        if (mistakes) {
+          await page.key('Digit' + (right === 1 ? 2 : 1));
+          assert.equal(await page.eval('document.getElementById("case-feedback").className'), 'bad');
+          assert.equal(await page.eval(`op.cases.${id}.step`), 'decide', 'a wrong response can be retried');
+        }
+        await page.key('Digit' + right);
+        assert.equal(await page.eval(`op.cases.${id}.step`), 'learn');
+        assert.equal(await page.eval('document.getElementById("case-tech").textContent'), 'TECHNIQUE: ' + c.technique);
+        await page.key('Enter');                                    // FILE INTEL (focused)
+        assert.equal(await page.eval('gamePhase'), 'playing');
+        assert.equal(await page.eval(`op.cases.${id}.status`), 'completed');
+        await page.key('KeyE');
+        assert.notEqual(await page.eval('gamePhase'), 'case', 'a resolved target does not reopen');
       };
 
-      await page.click('.intro-start');              // below the fold at 960×600: must scroll
+      const p0 = await progress(page);
+      assert.ok(!(p0 && p0.levels[3]), 'level 3 not completed yet');
+      await page.click('#start-btn');                             // below the fold at 960×600: must scroll
       await page.waitFor('gameStarted === true');
       assert.equal(await page.eval('audioCtx.state'), 'running');
+      assert.equal(await page.eval('document.activeElement.id'), 'renderer-canvas');
 
-      // Music toggle: label follows, scheduled notes are cut.
+      // Pause menu: Esc pauses (simulation stops), music off really silences, Esc resumes.
       await page.waitFor('__audibleAfter(audioCtx, 0.3) > 0', 3000);
-      await page.key('KeyM');
-      assert.equal(await page.eval('document.getElementById("music-toggle").textContent'), '♪ MUSIC: OFF');
-      assert.equal(await page.eval('__audibleAfter(audioCtx, 0.3)'), 0);
-      await page.key('KeyM');
-      assert.ok(await page.eval('__audibleAfter(audioCtx, 0.3)') > 0);
-
-      // CARLOS: wrong technique, then the right one, closed with Esc.
-      const carlos = await page.eval('NPCS.findIndex(n => n.name === "CARLOS")');
-      await walkTo(...await page.eval(`[NPCS[${carlos}].x, NPCS[${carlos}].z]`), 5);
-      assert.equal(await page.eval('promptEl.textContent'), '[ E ] APPROACH CARLOS');
-      await page.key('KeyE');
-      assert.equal(await page.eval('dlgOpen'), true);
-      const ok = await page.eval(`NPCS[${carlos}].dlg.choices.findIndex(c => c.ok)`);
-      await page.click(`#dialogue-choices .d-choice:nth-child(${(ok + 1) % 3 + 1})`);
-      assert.equal(await page.eval('dlgFeedback.className'), 'bad');
-      await page.waitFor('!dlgChoices.children[0].disabled', 6000);
-      await page.click(`#dialogue-choices .d-choice:nth-child(${ok + 1})`);
-      assert.equal(await page.eval('intelCount'), 1);
       await page.key('Escape');
-      assert.equal(await page.eval('dlgOpen'), false);
-      await page.key('KeyE');
-      assert.equal(await page.eval('dlgOpen'), false, 'a finished target does not reopen');
+      assert.equal(await page.eval('gamePhase'), 'paused');
+      assert.equal(await page.eval('__audibleAfter(audioCtx, 0.3)'), 0, 'paused: no music');
+      const frozen = await page.eval('clock');
+      await sleep(300);
+      assert.equal(await page.eval('clock'), frozen, 'simulation time stops while paused');
+      await page.click('#music-btn');
+      assert.equal(await page.eval('document.getElementById("music-btn").textContent'), 'MUSIC: OFF');
+      await page.click('#controls-btn');
+      assert.equal(await page.eval('document.activeElement.id'), 'sens');
+      await page.key('Escape');                                    // closes CONTROLS first
+      assert.equal(await page.eval('gamePhase'), 'paused');
+      await page.key('Escape');
+      assert.equal(await page.eval('gamePhase'), 'playing');
+      await sleep(400);
+      assert.equal(await page.eval('__audibleAfter(audioCtx, 0.3)'), 0, 'music stays off after resuming');
 
-      // A car: E to enter, W to drive, E to exit.
-      const car = await page.eval('[DRIVABLE_CARS[1].position.x, DRIVABLE_CARS[1].position.z]');
-      await walkTo(car[0], car[1], 4);
-      assert.match(await page.eval('promptEl.textContent'), /DRIVE/);
+      // City map: M opens, a number key picks the destination, M closes.
+      await page.key('KeyM');
+      assert.equal(await page.eval('gamePhase'), 'map');
+      await page.key('Digit5');
+      assert.equal(await page.eval('op.active'), 'carlos');
+      assert.equal(await page.eval('document.querySelector("#map-dest [data-dest=carlos]").getAttribute("aria-current")'), 'true');
+      await page.key('KeyM');
+      assert.match(await page.eval('document.getElementById("active-loc-text").textContent'), /LITTLE HAVANA MARKET · \d+ m/);
+
+      // CARLOS first (with a wrong analysis and a wrong response), then the case file.
+      await investigate('carlos', true);
+      assert.equal(await page.eval('document.getElementById("intel-count").textContent'), '1');
+      await page.key('Tab');
+      assert.equal(await page.eval('gamePhase'), 'files');
+      assert.match(await page.eval('document.getElementById("files-list").textContent'), /05CARLOS · LITTLE HAVANA MARKET✓ RESOLVED/);
+      await page.key('Tab');
+      assert.equal(await page.eval('gamePhase'), 'playing');
+
+      // A car: E to enter, W to drive (it moves and turns with A/D), E to step out on free ground.
+      const car = await page.eval('[cars[0].state.x, cars[0].state.z]');
+      await walkTo(car[0] - 2.6, car[1], 1.0, 'car');
+      assert.match(await page.eval('promptEl.textContent'), /DRIVE PINK INFERNO/);
       await page.key('KeyE');
-      assert.ok(await page.eval('drivingCar !== null'));
-      const before = await page.eval('[player.position.x, player.position.z]');
-      await page.key('KeyW', 1500);
-      const after = await page.eval('[player.position.x, player.position.z]');
-      assert.ok(Math.hypot(after[0] - before[0], after[1] - before[1]) > 1, 'the car moves');
-      await sleep(1500);                             // coast to a stop
+      assert.equal(await page.eval('drivingCar && drivingCar.name'), 'PINK INFERNO');
+      const before = await page.eval('[cars[0].state.x, cars[0].state.z, cars[0].state.yaw]');
+      await page.key('KeyW', 1200);
+      await keys.set('KeyW', true); await keys.set('KeyA', true); await sleep(500); await keys.releaseAll();
+      const after = await page.eval('[cars[0].state.x, cars[0].state.z, cars[0].state.yaw]');
+      assert.ok(Math.hypot(after[0] - before[0], after[1] - before[1]) > 4, 'the car moves');
+      assert.ok(Math.abs(angleDiff(after[2], before[2])) > 0.1, 'and steers');
+      await page.key('KeyS', 700);                                  // brake
+      await page.waitFor('Math.abs(cars[0].state.speed) < 0.5', 6000);
       await page.key('KeyE');
       assert.equal(await page.eval('drivingCar'), null);
+      assert.equal(await page.eval('World.blocked(walker.x, walker.z, World.PLAYER_RADIUS)'), false, 'stepped out on free ground');
 
-      // CIPHER with 1/5 intel: locked, Esc closes.
-      await walkTo(...await page.eval('[NPCS[5].x, NPCS[5].z]'), 5);
-      assert.equal(await page.eval('promptEl.textContent'), '[ E ] CIPHER — LOCKED (1/5 INTEL)');
+      // CIPHER with 1/5: locked.
+      await walkTo(...await page.eval('World.NPC_SPOTS.cipher.spot'), 1.2, 'cipher');
+      assert.match(await page.eval('promptEl.textContent'), /CIPHER — LOCKED \(1\/5 INTEL\)/);
       await page.key('KeyE');
-      assert.match(await page.eval('dlgNpc.textContent'), /LOCKED/);
-      assert.equal(await page.eval('bossActive'), false);
+      assert.match(await page.eval('document.getElementById("case-tech").textContent'), /LOCKED/);
       await page.key('Escape');
-      assert.equal(await page.eval('dlgOpen'), false);
-      assert.equal(await progress(page).then(p => p.levels[3]), undefined);
+      assert.equal(await page.eval('gamePhase'), 'playing');
+
+      // The other four, in the order the player picks.
+      for (const id of ['rico', 'marcus', 'diana', 'coco']) await investigate(id, false);
+      assert.equal(await page.eval('op.intelCount()'), 5);
+      assert.equal(await progress(page).then(p => p && p.levels[3]), p0 && p0.levels[3], 'five files alone do not complete the level');
+      assert.equal(await page.eval('op.active'), 'cipher');
+
+      // The final investigation, answered from the case files.
+      await walkTo(...await page.eval('World.NPC_SPOTS.cipher.spot'), 1.2, 'cipher');
+      assert.match(await page.eval('promptEl.textContent'), /CONFRONT CIPHER/);
+      await page.key('KeyE');
+      const steps = await page.eval('Cases.CIPHER.steps');
+      const caseIds = await page.eval('Cases.CASES.map(c => c.id)');
+      for (const st of steps) {
+        if (st.type === 'match') for (let i = 0; i < st.items.length; i++) await clickOpt(i * caseIds.length + caseIds.indexOf(st.items[i].answer) + 1);
+        else if (st.type === 'labels') for (let i = 0; i < st.items.length; i++) await clickOpt(i * st.labels.length + st.labels.indexOf(st.items[i].answer) + 1);
+        else if (st.type === 'multi') { for (let i = 0; i < st.options.length; i++) if (st.options[i].ok) await page.key('Digit' + (i + 1)); }
+        else await page.key('Digit' + (st.options.findIndex(o => o.ok) + 1));
+        await page.click('#cipher-submit');
+        assert.equal(await page.eval('document.getElementById("case-feedback").className'), 'ok', st.id);
+      }
+      await page.waitFor('gamePhase === "results"', 4000);
+      const p = await progress(page);
+      assert.equal(p.levels[3].completed, true);
+      assert.equal(p.levels[3].best.firstTryDecisions, 4, 'one wrong response on CARLOS');
+      assert.match(await page.eval('document.getElementById("results-kv").textContent'), /INTEL FILES5 \/ 5FINAL INVESTIGATIONTHREAT NETWORK IDENTIFIED/);
+      assert.equal(await page.eval('document.activeElement.id'), 'next-btn');
+      const loaded = page.waitForEvent('Page.loadEventFired');
+      await page.key('Enter');
+      await loaded;
+      assert.equal(await page.eval('location.pathname'), '/level4.html');
       page.assertNoErrors('level3');
     });
 

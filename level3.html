@@ -3,2224 +3,1478 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HACK THE PLANET — Level 3: Social Engineer</title>
+<title>HACK THE PLANET — Level 3: Operation Ghost</title>
+<meta name="description" content="Operation Ghost — Trust No Signal: investigate AI-assisted social engineering across a Cyber Miami Noir city.">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
 <script src="js/progress.js"></script>
+<script src="js/social/world.js"></script>
+<script src="js/social/movement.js"></script>
+<script src="js/social/cases.js"></script>
+<script src="js/social/intelligence.js"></script>
+<script src="js/social/character.js"></script>
+<script src="js/social/city.js"></script>
 <style>
+  :root {
+    --navy: #121629; --purple: #302444; --coral: #F27D78; --pink: #F58FC4; --cyan: #62DCE7; --sand: #E8C89E;
+    --palm: #468C79; --cream: #F0D8C4; --asphalt: #303445; --amber: #F3BC75;
+    --panel: rgba(18, 22, 41, 0.9); --panel-solid: #161a30; --line: rgba(240, 216, 196, 0.18);
+    --text: #f4eadf; --muted: rgba(240, 216, 196, 0.68); --ok: #8fe3c4; --bad: #ffb3a8;
+    --sans: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; --mono: "Courier New", ui-monospace, monospace;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #050010;
-    overflow: hidden;
-    font-family: 'Courier New', monospace;
-    cursor: crosshair;
-  }
-  #renderer-canvas {
-    display: block;
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-  }
+  html, body { height: 100%; }
+  body { background: var(--navy); color: var(--text); overflow: hidden; font-family: var(--sans); }
+  #renderer-canvas { display: block; position: fixed; inset: 0; width: 100%; height: 100%; outline: none; }
+  button, input { font-family: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .hidden { display: none !important; }
+  .mono { font-family: var(--mono); }
 
-  /* ── SCANLINES ── */
-  body::after {
-    content: '';
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
-    pointer-events: none; z-index: 999;
+  /* ── Buttons ── */
+  .btn {
+    background: rgba(48, 36, 68, 0.85); color: var(--text); border: 1px solid rgba(240, 216, 196, 0.35);
+    padding: 10px 16px; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 4px;
+    transition: background 0.15s, border-color 0.15s; text-align: left; line-height: 1.4;
   }
+  .btn:hover { background: rgba(98, 220, 231, 0.14); border-color: var(--cyan); }
+  a.btn { text-decoration: none; display: inline-block; }
+  .btn.primary { background: var(--coral); color: var(--navy); border-color: var(--coral); font-weight: bold; }
+  .btn.primary:hover { background: #ff9a92; }
+  .btn.ghost { background: transparent; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn .k { font-family: var(--mono); color: var(--amber); margin-right: 8px; }
+  .btn.primary .k { color: var(--navy); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  /* ── INTRO ── */
-  #intro-screen {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: #000;
-    z-index: 500;
-    display: flex; flex-direction: column;
-    align-items: center;
+  /* ── Full-screen panels ── */
+  .screen {
+    position: fixed; inset: 0; z-index: 60; display: none; overflow-y: auto; padding: 24px 16px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(242, 125, 120, 0.22), transparent 60%), rgba(18, 22, 41, 0.94);
   }
-  /* Full-screen panels: centred when they fit, scrollable on short windows so
-     their buttons stay reachable. */
-  #intro-screen, #win-screen, #boss-win-screen { overflow-y: auto; padding: 24px 16px; }
-  #intro-screen > :first-child, #win-screen > :first-child, #boss-win-screen > :first-child { margin-top: auto; }
-  #intro-screen > :last-child, #win-screen > :last-child, #boss-win-screen > :last-child { margin-bottom: auto; }
-  .intro-badge {
-    font-size: 10px; letter-spacing: 10px;
-    color: rgba(255,110,180,0.5); margin-bottom: 20px;
-  }
-  .intro-title {
-    font-size: 52px; letter-spacing: 6px;
-    color: #ff6eb4;
-    text-shadow: 0 0 40px #ff6eb4, 0 0 80px rgba(255,110,180,0.4);
-    margin-bottom: 6px;
-  }
-  .intro-sub {
-    font-size: 14px; letter-spacing: 7px;
-    color: #00ffff;
-    text-shadow: 0 0 15px #00ffff;
-    margin-bottom: 44px;
-  }
-  .intro-brief {
-    width: 520px;
-    background: rgba(255,110,180,0.04);
-    border: 1px solid rgba(255,110,180,0.25);
-    padding: 22px 28px;
-    color: #ccc; font-size: 12px;
-    line-height: 2.1; letter-spacing: 0.8px;
-    margin-bottom: 44px;
-  }
-  .intro-brief .hi { color: #ff6eb4; }
-  .intro-brief .cyan { color: #00ffff; }
-  .intro-start {
-    background: none;
-    border: 2px solid #ff6eb4;
-    color: #ff6eb4;
-    font-family: 'Courier New', monospace;
-    font-size: 13px; letter-spacing: 6px;
-    padding: 14px 44px; cursor: pointer;
-    text-shadow: 0 0 12px #ff6eb4;
-    box-shadow: 0 0 24px rgba(255,110,180,0.25);
-    animation: blink 1.2s step-end infinite;
-    transition: background 0.2s;
-  }
-  .intro-start:hover { background: rgba(255,110,180,0.12); animation: none; }
+  .screen.open { display: block; }
+  .screen-inner { max-width: 920px; margin: 0 auto; }
+  .kicker { font-size: 12px; letter-spacing: 6px; color: var(--amber); text-transform: uppercase; }
+  h1.title { font-size: clamp(30px, 6vw, 58px); letter-spacing: 4px; color: var(--cream); line-height: 1.05; margin: 10px 0 6px; }
+  h1.title span { color: var(--pink); }
+  .tagline { font-size: 14px; letter-spacing: 3px; color: var(--cyan); margin-bottom: 22px; }
+  h2.sec { font-size: 13px; letter-spacing: 4px; color: var(--amber); margin: 18px 0 8px; text-transform: uppercase; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; }
+  .muted { color: var(--muted); }
+
+  /* Intro */
+  #intro-screen { display: block; z-index: 70; }
+  #intro-screen.closed { display: none; }
+  .brief { font-size: 15px; line-height: 1.7; max-width: 640px; }
+  .brief b { color: var(--pink); }
+  .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 18px; font-size: 13px; margin: 16px 0 22px; }
+  .controls-grid div { display: flex; gap: 10px; }
+  .controls-grid .k { font-family: var(--mono); color: var(--amber); min-width: 74px; }
+  .hub-link { color: var(--muted); font-size: 13px; letter-spacing: 2px; text-decoration: none; display: inline-block; margin-top: 14px; }
+  .hub-link:hover, .hub-link:focus-visible { color: var(--cream); }
 
   /* ── HUD ── */
-  #hud {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none; z-index: 10;
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  #op-panel {
+    position: absolute; top: 14px; left: 14px; width: min(330px, 46vw); background: var(--panel);
+    border: 1px solid var(--line); border-left: 3px solid var(--coral); border-radius: 6px; padding: 12px 14px;
   }
-  #intel-panel {
-    position: absolute; top: 18px; left: 18px;
-    background: rgba(0,0,15,0.85);
-    border: 1px solid #ff6eb4;
-    padding: 12px 20px;
-    box-shadow: 0 0 18px rgba(255,110,180,0.2);
-  }
-  #intel-panel .label {
-    font-size: 10px; letter-spacing: 4px;
-    color: rgba(255,110,180,0.6); margin-bottom: 4px;
-  }
-  #intel-panel .count {
-    font-size: 22px; letter-spacing: 3px; color: #ff6eb4;
-    text-shadow: 0 0 12px #ff6eb4;
-  }
-  #minimap-wrap {
-    position: absolute; top: 18px; right: 18px;
-    background: rgba(0,0,15,0.85);
-    border: 1px solid rgba(255,110,180,0.4);
-    padding: 4px;
-  }
-  #minimap-wrap .map-label {
-    font-size: 9px; letter-spacing: 4px;
-    color: rgba(0,255,255,0.5);
-    text-align: center; padding: 2px 0 4px;
-  }
-  #minimap { display: block; }
+  #op-panel .op { font-size: 11px; letter-spacing: 4px; color: var(--amber); }
+  #op-panel .intel { font-size: 13px; letter-spacing: 2px; margin: 6px 0 8px; }
+  #op-panel .intel b { font-size: 20px; color: var(--cream); }
+  .pips { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
+  .pips i { width: 10px; height: 10px; border: 1px solid var(--cream); display: inline-block; transform: rotate(45deg); }
+  .pips i.on { background: var(--cyan); border-color: var(--cyan); }
+  #op-panel .lbl { font-size: 10px; letter-spacing: 3px; color: var(--muted); margin-top: 6px; }
+  #active-case { font-size: 14px; line-height: 1.35; }
+  #active-loc { font-size: 13px; color: var(--cyan); display: flex; align-items: center; gap: 8px; }
+  #guide-arrow { display: inline-block; width: 18px; height: 18px; color: var(--amber); font-size: 16px; line-height: 18px; text-align: center; }
+  #op-keys { font-size: 11px; letter-spacing: 1px; color: var(--muted); margin-top: 10px; font-family: var(--mono); }
   #zone-display {
-    position: absolute; top: 18px; left: 50%;
-    transform: translateX(-50%);
-    font-size: 10px; letter-spacing: 5px;
-    color: rgba(0,255,255,0.7);
-    text-shadow: 0 0 8px rgba(0,255,255,0.5);
-    background: rgba(0,0,15,0.7);
-    border: 1px solid rgba(0,255,255,0.2);
-    padding: 6px 18px;
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 20px; padding: 6px 18px; font-size: 12px; letter-spacing: 4px; color: var(--cream); white-space: nowrap;
   }
+  #minimap-wrap { position: absolute; top: 14px; right: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+  #minimap { display: block; width: 180px; height: 180px; }
+  #minimap-wrap .map-label { font-size: 10px; letter-spacing: 3px; color: var(--muted); text-align: center; padding-top: 4px; }
   #interact-prompt {
-    position: absolute; bottom: 210px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,15,0.9);
-    border: 1px solid #ffff00;
-    color: #ffff00; font-size: 12px; letter-spacing: 3px;
-    padding: 8px 22px;
-    text-shadow: 0 0 10px #ffff00;
-    display: none;
-    animation: pulse-yellow 1s ease-in-out infinite;
+    position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); background: var(--panel-solid);
+    border: 1px solid var(--amber); color: var(--cream); font-size: 14px; letter-spacing: 2px; padding: 9px 20px; border-radius: 4px;
+    display: none; white-space: nowrap;
   }
-  #controls-hint {
-    position: absolute; bottom: 18px; left: 18px;
-    color: rgba(255,110,180,0.35);
-    font-size: 9px; letter-spacing: 2px; line-height: 2;
-  }
-  #music-toggle {
-    position: absolute; bottom: 18px; right: 18px;
-    color: rgba(0,255,255,0.4); font-size: 9px; letter-spacing: 2px;
-  }
+  #interact-prompt .k { color: var(--amber); font-family: var(--mono); margin-right: 8px; }
+  #toasts { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .toast { background: var(--panel-solid); border: 1px solid var(--cyan); border-radius: 4px; padding: 8px 16px; font-size: 13px; letter-spacing: 1.5px; animation: toast 3.6s forwards; }
+  .toast.good { border-color: var(--ok); }
+  @keyframes toast { 0% { opacity: 0; transform: translateY(-6px); } 8%, 82% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 
-  /* ── NPC LABELS ── */
+  /* World labels above NPCs */
   .npc-label {
-    position: fixed;
-    transform: translateX(-50%);
-    background: rgba(0,0,15,0.85);
-    border: 1px solid rgba(255,255,0,0.5);
-    color: #ffff00; font-size: 9px; letter-spacing: 2px;
-    padding: 3px 8px;
-    pointer-events: none; z-index: 8;
-    text-shadow: 0 0 6px rgba(255,255,0,0.8);
-    white-space: nowrap;
-    transition: opacity 0.3s;
+    position: fixed; transform: translate(-50%, -100%); background: rgba(18, 22, 41, 0.86); border: 1px solid var(--line);
+    border-radius: 4px; padding: 4px 9px; font-size: 12px; letter-spacing: 1px; white-space: nowrap; pointer-events: none; z-index: 8; text-align: center;
   }
-  .npc-label.done {
-    border-color: rgba(0,255,65,0.3);
-    color: rgba(0,255,65,0.4);
-    text-shadow: none;
-  }
+  .npc-label .n { color: var(--cream); font-weight: bold; letter-spacing: 2px; }
+  .npc-label .r { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+  .npc-label .s { display: block; font-size: 10px; letter-spacing: 2px; margin-top: 2px; }
+  .npc-label.ACTIVE { border-color: var(--cyan); } .npc-label.ACTIVE .s { color: var(--cyan); }
+  .npc-label.AVAILABLE .s { color: var(--amber); }
+  .npc-label.COMPLETED { opacity: 0.75; } .npc-label.COMPLETED .s { color: var(--ok); }
+  .npc-label.LOCKED { border-color: rgba(245, 143, 196, 0.5); } .npc-label.LOCKED .s { color: var(--pink); }
 
-  /* ── DIALOGUE ── */
-  #dialogue-box {
-    position: fixed; bottom: 18px; left: 50%;
-    transform: translateX(-50%);
-    width: min(740px, 95vw);
-    background: rgba(3,0,18,0.97);
-    border: 2px solid #ff6eb4;
-    box-shadow: 0 0 40px rgba(255,110,180,0.25), inset 0 0 40px rgba(255,110,180,0.03);
-    padding: 20px 22px;
-    display: none;
-    pointer-events: all; z-index: 20;
+  /* ── Case / dialogue panel ── */
+  #case-panel {
+    position: fixed; right: 14px; bottom: 14px; top: 14px; width: min(640px, calc(100vw - 28px)); z-index: 40; display: none;
+    background: rgba(18, 22, 41, 0.97); border: 1px solid var(--line); border-top: 3px solid var(--coral); border-radius: 8px;
+    flex-direction: column; overflow: hidden;
   }
-  #dialogue-npc { font-size: 12px; letter-spacing: 5px; color: #ffff00; text-shadow: 0 0 10px #ffff00; margin-bottom: 10px; }
-  #dialogue-technique-tag { font-size: 9px; letter-spacing: 3px; color: rgba(255,110,180,0.6); float: right; padding-top: 2px; }
-  #dialogue-text { color: #ddd; font-size: 12px; line-height: 1.8; letter-spacing: 0.5px; margin-bottom: 14px; border-top: 1px solid rgba(255,110,180,0.15); padding-top: 10px; }
-  .d-choice {
-    display: block; width: 100%;
-    background: rgba(0,0,25,0.7);
-    border: 1px solid rgba(0,255,255,0.25);
-    color: rgba(0,255,255,0.85);
-    font-family: 'Courier New', monospace; font-size: 11px;
-    letter-spacing: 0.8px; line-height: 1.6;
-    padding: 10px 14px; margin-bottom: 7px;
-    cursor: pointer; text-align: left;
-    transition: all 0.15s;
-  }
-  .d-choice:hover:not(:disabled) {
-    background: rgba(0,255,255,0.08);
-    border-color: #00ffff; color: #00ffff;
-    text-shadow: 0 0 8px rgba(0,255,255,0.6);
-  }
-  .d-choice.correct { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.08); text-shadow: 0 0 8px rgba(0,255,65,0.6); }
-  .d-choice.wrong   { border-color: #ff3300; color: #ff3300; background: rgba(255,51,0,0.08); }
-  #dialogue-feedback {
-    margin-top: 10px; padding: 10px 14px; font-size: 11px;
-    line-height: 1.8; letter-spacing: 0.5px; display: none;
-  }
-  #dialogue-feedback.ok  { color: #00ff41; border-left: 3px solid #00ff41; }
-  #dialogue-feedback.bad { color: #ff6600; border-left: 3px solid #ff6600; }
-  #dialogue-close { display: none; margin-top: 10px; background: none; border: 1px solid rgba(255,110,180,0.4); color: rgba(255,110,180,0.6); font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 3px; padding: 6px 16px; cursor: pointer; float: right; }
-  #dialogue-close:hover { background: rgba(255,110,180,0.1); }
+  #case-panel.open { display: flex; }
+  #case-panel.boss { border-top-color: var(--pink); }
+  .case-head { display: flex; gap: 14px; align-items: center; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+  #case-portrait { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
+  .case-who { flex: 1; min-width: 0; }
+  #case-name { font-size: 18px; letter-spacing: 3px; color: var(--cream); }
+  #case-role { font-size: 12px; letter-spacing: 2px; color: var(--muted); }
+  #case-tech { font-size: 11px; letter-spacing: 2px; color: var(--amber); margin-top: 3px; font-family: var(--mono); }
+  #case-close { flex: none; }
+  #case-steps { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  #case-steps span { font-size: 10px; letter-spacing: 2px; padding: 3px 7px; border-radius: 3px; color: var(--muted); border: 1px solid transparent; }
+  #case-steps span.now { color: var(--navy); background: var(--cyan); }
+  #case-steps span.done { color: var(--ok); border-color: rgba(143, 227, 196, 0.35); }
+  #case-body { padding: 14px 16px; overflow-y: auto; flex: 1; font-size: 14px; line-height: 1.6; }
+  #case-body p { margin-bottom: 10px; }
+  .scene { font-size: 15px; color: var(--text); }
+  .signal { border-left: 3px solid var(--pink); background: rgba(245, 143, 196, 0.08); padding: 8px 12px; margin: 10px 0; font-size: 13px; }
+  .signal b { color: var(--pink); letter-spacing: 2px; font-size: 11px; display: block; }
+  .ev { border: 1px solid var(--line); border-radius: 5px; margin: 8px 0; background: rgba(48, 36, 68, 0.45); }
+  .ev .ev-h { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 11px; letter-spacing: 2px; }
+  .ev .ev-h b { color: var(--cyan); } .ev .ev-h span { color: var(--muted); }
+  .ev ul { list-style: none; padding: 6px 10px 8px; font-size: 13px; }
+  .ev li { padding: 2px 0; }
+  .ev li::before { content: '› '; color: var(--amber); }
+  .new-ev { animation: newev 1.2s ease; }
+  @keyframes newev { 0% { box-shadow: 0 0 0 2px var(--cyan); } 100% { box-shadow: none; } }
+  .talk-line { margin: 6px 0; }
+  .talk-line .q { color: var(--cyan); font-size: 13px; }
+  .talk-line .a { color: var(--text); }
+  .opts { display: flex; flex-direction: column; gap: 7px; margin: 10px 0; }
+  .opts .btn { text-transform: none; letter-spacing: 0.3px; font-size: 14px; }
+  .opt[aria-pressed="true"] { border-color: var(--cyan); background: rgba(98, 220, 231, 0.16); }
+  .opt[aria-pressed="true"]::after { content: '  ✓ SELECTED'; font-size: 10px; letter-spacing: 2px; color: var(--cyan); }
+  .opt.tried { opacity: 0.6; text-decoration: line-through; }
+  .opt.tried::after { content: '  ✗ TRIED'; font-size: 10px; letter-spacing: 2px; color: var(--bad); text-decoration: none; }
+  .sort-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .sort-row .seg { display: flex; gap: 4px; }
+  .seg .btn { padding: 6px 10px; font-size: 11px; }
+  .seg .btn[aria-pressed="true"] { background: var(--cyan); color: var(--navy); border-color: var(--cyan); }
+  .seg .btn[aria-pressed="true"]::before { content: '● '; }
+  .balance { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; font-size: 12px; letter-spacing: 1px; }
+  .balance div { border: 1px dashed var(--line); border-radius: 4px; padding: 6px 8px; min-height: 40px; }
+  .balance b { display: block; font-size: 10px; letter-spacing: 3px; color: var(--amber); }
+  #case-feedback { margin: 0 16px; padding: 10px 12px; font-size: 13px; line-height: 1.55; border-radius: 4px; display: none; }
+  #case-feedback.ok { display: block; border-left: 3px solid var(--ok); background: rgba(143, 227, 196, 0.08); }
+  #case-feedback.bad { display: block; border-left: 3px solid var(--bad); background: rgba(255, 179, 168, 0.08); }
+  #case-feedback b { letter-spacing: 2px; font-size: 11px; display: block; }
+  #case-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--line); }
+  .learn dt { font-size: 11px; letter-spacing: 3px; color: var(--amber); margin-top: 10px; }
+  .learn dd { margin: 2px 0 0; }
+  .tech-reveal { font-size: 22px; letter-spacing: 4px; color: var(--pink); margin: 4px 0 8px; }
+  details.ref { margin: 10px 0; }
+  details.ref summary { cursor: pointer; font-size: 12px; letter-spacing: 2px; color: var(--cyan); }
 
-  /* ── BOSS MODE dialogue ── */
-  #dialogue-box.boss-mode {
-    border-color: #ff0044;
-    box-shadow: 0 0 40px rgba(255,0,68,0.6), 0 0 80px rgba(255,0,68,0.2);
-    background: rgba(20,0,8,0.97);
-  }
-  #dialogue-box.boss-mode #dialogue-npc {
-    color: #ff0044;
-    text-shadow: 0 0 12px #ff0044;
-  }
-  #dialogue-box.boss-mode #dialogue-technique-tag {
-    color: #ff6600;
-    border-color: rgba(255,100,0,0.5);
-  }
-  #dialogue-box.boss-mode .d-choice { border-color: rgba(255,0,68,0.35); }
-  #dialogue-box.boss-mode .d-choice:hover { border-color: #ff0044; background: rgba(255,0,68,0.12); }
+  /* Case files + map + pause + results */
+  .files-grid { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 14px; }
+  #files-list { display: flex; flex-direction: column; gap: 6px; }
+  #files-list .btn { text-transform: none; }
+  #files-list .btn[aria-current="true"] { border-color: var(--cyan); background: rgba(98, 220, 231, 0.12); }
+  .file-st { display: block; font-size: 10px; letter-spacing: 2px; color: var(--muted); }
+  #file-detail dl { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 14px; }
+  #file-detail dt { font-size: 11px; letter-spacing: 2px; color: var(--amber); padding-top: 2px; }
+  .map-grid { display: grid; grid-template-columns: 1fr minmax(200px, 250px); gap: 14px; align-items: start; }
+  #bigmap { width: 100%; max-width: 620px; aspect-ratio: 1 / 1; display: block; border: 1px solid var(--line); border-radius: 6px; background: #1a1d33; cursor: pointer; }
+  #map-dest { display: flex; flex-direction: column; gap: 6px; }
+  #map-dest .btn { text-transform: none; }
+  #map-dest .btn[aria-current="true"] { border-color: var(--cyan); background: rgba(98, 220, 231, 0.12); }
+  .legend { font-size: 12px; line-height: 1.8; margin-top: 10px; }
+  #pause-screen .screen-inner, #results-screen .screen-inner { max-width: 640px; }
+  .menu { display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
+  .setting { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+  .keys-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  .keys-table td { padding: 5px 4px; border-bottom: 1px dashed var(--line); }
+  .keys-table td:first-child { font-family: var(--mono); color: var(--amber); width: 40%; }
+  #results-kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; font-size: 14px; }
+  #results-kv dt { letter-spacing: 2px; color: var(--muted); }
+  #results-kv dd { text-align: right; color: var(--cream); }
+  #results-tech { list-style: none; columns: 2; font-size: 14px; }
+  #results-tech li::before { content: '✓ '; color: var(--ok); }
 
-  /* ── BOSS WIN SCREEN ── */
-  #boss-win-screen {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.95);
-    z-index: 201; display: none;
-    flex-direction: column; align-items: center;
-    animation: fadeIn 0.8s ease;
+  @media (max-width: 760px) {
+    .files-grid, .map-grid { grid-template-columns: 1fr; }
+    #minimap { width: 128px; height: 128px; }
+    #op-panel { width: min(280px, 58vw); }
   }
-  .bw-badge {
-    font-size: 11px; letter-spacing: 8px; color: #ff0044;
-    text-shadow: 0 0 20px #ff0044; margin-bottom: 18px;
+  @media (max-height: 640px) {
+    #op-keys { display: none; }
+    #minimap { width: 132px; height: 132px; }
   }
-  .bw-title {
-    font-size: 44px; letter-spacing: 5px; color: #ff0044;
-    text-shadow: 0 0 50px #ff0044, 0 0 100px rgba(255,0,68,0.4);
-    margin-bottom: 6px;
-  }
-  .bw-sub {
-    font-size: 13px; letter-spacing: 8px; color: #00ffff;
-    text-shadow: 0 0 15px #00ffff; margin-bottom: 40px;
-  }
-  .bw-items {
-    width: 520px; margin-bottom: 32px;
-  }
-  .bw-item {
-    color: #aaffaa; font-size: 12px; letter-spacing: 0.5px;
-    padding: 8px 0; border-bottom: 1px solid rgba(0,255,0,0.1);
-    line-height: 1.7;
-  }
-  .bw-quote {
-    color: rgba(255,0,68,0.6); font-size: 12px; letter-spacing: 2px;
-    font-style: italic; margin-bottom: 36px;
-  }
-
-  /* ── WIN SCREEN ── */
-  #win-screen {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.92);
-    z-index: 200; display: none;
-    flex-direction: column; align-items: center;
-  }
-  .win-title {
-    font-size: 52px; letter-spacing: 8px; color: #ff6eb4;
-    text-shadow: 0 0 50px #ff6eb4; margin-bottom: 10px;
-    animation: glitch 4s infinite;
-  }
-  .win-sub { font-size: 13px; letter-spacing: 5px; color: #00ffff; text-shadow: 0 0 12px #00ffff; margin-bottom: 36px; }
-  .intel-log { width: 560px; list-style: none; margin-bottom: 30px; }
-  .intel-log li {
-    color: #00ff41; font-size: 10px; letter-spacing: 1px; line-height: 1.7;
-    padding: 8px 14px; border-left: 2px solid #00ff41;
-    background: rgba(0,255,65,0.04); margin-bottom: 8px;
-  }
-  .intel-log li .tag { color: #ff6eb4; letter-spacing: 2px; }
-  .win-footer { color: rgba(255,110,180,0.5); font-size: 10px; letter-spacing: 4px; }
-  .win-nav {
-    margin-top: 24px; background: none;
-    border: 1px solid rgba(255,110,180,0.4);
-    color: rgba(255,110,180,0.7); font-family: 'Courier New', monospace;
-    font-size: 11px; letter-spacing: 4px; padding: 10px 28px;
-    cursor: pointer; transition: all 0.2s;
-  }
-  .win-nav:hover, .win-nav:focus-visible { background: rgba(255,110,180,0.1); color: #ff6eb4; outline: none; }
-  .win-nav.primary { border-color: rgba(0,255,255,0.6); color: #00ffff; }
-  .win-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
-  .hub-link {
-    display: block; margin-top: 16px; font-size: 11px; letter-spacing: 3px;
-    color: rgba(255,110,180,0.6); text-decoration: none; text-align: center;
-  }
-  .hub-link:hover, .hub-link:focus-visible { color: #ff6eb4; outline: none; }
-
-  /* ── ANIMATIONS ── */
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-  @keyframes pulse-yellow { 0%,100%{box-shadow:0 0 8px rgba(255,255,0,0.4)} 50%{box-shadow:0 0 20px rgba(255,255,0,0.9)} }
-  @keyframes glitch {
-    0%,90%,100%{transform:none;color:#ff6eb4}
-    91%{transform:translateX(-4px);color:#00ffff}
-    92%{transform:translateX(4px) skew(3deg);color:#ff6eb4}
-    93%{transform:none}
+  @media (prefers-reduced-motion: reduce) {
+    .toast, .new-ev { animation: none; }
+    * { transition: none !important; }
   }
 </style>
 </head>
 <body>
 
-<!-- INTRO -->
-<div id="intro-screen">
-  <div class="intro-badge">HACK THE PLANET &nbsp;·&nbsp; LEVEL 03</div>
-  <div class="intro-title">SOCIAL ENGINEER</div>
-  <div class="intro-sub">MIAMI VICE CITY &nbsp;·&nbsp; OPERATION GHOST</div>
-  <div class="intro-brief">
-    <span class="hi">MISSION BRIEFING:</span><br><br>
-    You are <span class="hi">GHOST</span> — elite hacker, Miami.<br>
-    Five targets hold critical intelligence scattered across the city.<br>
-    Weapons are useless here. Your only tool: <span class="cyan">the human mind.</span><br><br>
-    Apply the right <span class="hi">social engineering technique</span> to each target.<br>
-    Extract all five intel files without raising suspicion.<br>
-    Then face <span class="hi">CIPHER</span> at the Hacker Convention — the boss only talks to agents with all five files.<br><br>
-    <span style="color:rgba(255,255,255,0.35)">WASD · MOVE &nbsp;|&nbsp; MOUSE DRAG · CAMERA &nbsp;|&nbsp; E · INTERACT &nbsp;|&nbsp; M · MUSIC</span>
-  </div>
-  <button class="intro-start" onclick="startGame()">[ ENTER VICE CITY ]</button>
-  <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
-</div>
-
-<!-- HUD (hidden until game starts) -->
-<div id="hud" style="display:none">
-  <div id="intel-panel">
-    <div class="label">INTEL ACQUIRED</div>
-    <div class="count"><span id="intel-count">0</span> <span style="font-size:14px;color:rgba(255,110,180,0.5)">/5</span></div>
-  </div>
-  <div id="minimap-wrap">
-    <div class="map-label">VICE CITY</div>
-    <canvas id="minimap" width="160" height="160"></canvas>
-  </div>
-  <div id="zone-display">📍 MIAMI BEACH</div>
-  <div id="interact-prompt">[ E ] APPROACH TARGET</div>
-  <div id="controls-hint">
-    WASD — MOVE<br>
-    DRAG — CAMERA<br>
-    E — INTERACT / DRIVE<br>
-    M — MUSIC
-  </div>
-  <div id="music-toggle">♪ MUSIC: ON</div>
-</div>
-
-<!-- NPC LABELS CONTAINER -->
-<div id="npc-labels"></div>
-
-<!-- DIALOGUE -->
-<div id="dialogue-box">
-  <div>
-    <span id="dialogue-npc"></span>
-    <span id="dialogue-technique-tag"></span>
-  </div>
-  <div id="dialogue-text"></div>
-  <div id="dialogue-choices"></div>
-  <div id="dialogue-feedback"></div>
-  <button id="dialogue-close" onclick="closeDialogue()">[ CLOSE ]</button>
-</div>
-
-<!-- BOSS WIN -->
-<div id="boss-win-screen">
-  <div class="bw-badge">⚠ FINAL BOSS DEFEATED &nbsp;·&nbsp; CIPHER DOWN</div>
-  <div class="bw-title">MISSION COMPLETE</div>
-  <div class="bw-sub">AI THREAT INTELLIGENCE — MASTER</div>
-  <div class="bw-items">
-    <div class="bw-item">✓ AI helps correlate huge volumes of threat indicators so analysts can spot attacks earlier</div>
-    <div class="bw-item">✓ Behavioral anomaly detection can flag never-seen threats without a signature (with false positives to triage)</div>
-    <div class="bw-item">✓ Adversarial AI tries to evade, deceive, or poison detection models</div>
-    <div class="bw-item">✓ Attackers use LLMs to scale phishing, recon, and exploit development — defenders use them too</div>
-  </div>
-  <div class="bw-quote">"The most dangerous weapon is knowledge." — CIPHER</div>
-  <div class="win-row">
-    <button class="win-nav primary" id="boss-next-btn" onclick="location.href='level4.html'">[ LEVEL 04 · NEON GRAND PRIX ]</button>
-    <button class="win-nav" onclick="location.reload()">[ REPLAY MISSION ]</button>
-    <button class="win-nav" onclick="location.href='index.html'">[ MISSION HUB ]</button>
+<!-- BRIEFING -->
+<div id="intro-screen" class="screen" role="dialog" aria-labelledby="intro-title">
+  <div class="screen-inner">
+    <div class="kicker">HACK THE PLANET · LEVEL 03 · CYBER MIAMI NOIR</div>
+    <h1 class="title" id="intro-title">OPERATION GHOST <span>—</span><br>TRUST NO SIGNAL</h1>
+    <div class="tagline">EVERY IDENTITY TELLS A STORY. NOT EVERY STORY IS TRUE.</div>
+    <div class="card brief">
+      You are <b>GHOST</b>, an urban intelligence operative. Someone is running a quiet campaign against Miami's Hacker Convention — through the people around it.
+      Five of them are being worked right now: a tourist, an executive, a doorman, a receptionist and a street vendor.<br><br>
+      Find them, <b>observe</b>, <b>talk</b>, <b>inspect the evidence</b> and <b>decide</b> what they should do. Every case you close becomes an intel file.
+      With all five, confront <b>CIPHER</b> at the convention and prove the incidents are one network.<br><br>
+      <span class="muted">A convincing message is not proof of where it came from.</span>
+    </div>
+    <div class="controls-grid" aria-label="Controls">
+      <div><span class="k">W A S D</span>Move (A/D strafe)</div>
+      <div><span class="k">↑ ↓</span>Forward / back</div>
+      <div><span class="k">← →</span>Turn the camera</div>
+      <div><span class="k">Drag</span>Look around</div>
+      <div><span class="k">E</span>Talk · enter / exit car</div>
+      <div><span class="k">TAB</span>Case files</div>
+      <div><span class="k">M</span>City map</div>
+      <div><span class="k">ESC</span>Pause · close</div>
+      <div><span class="k">1–9</span>Choose in a case</div>
+      <div><span class="k">F</span>Recover a stuck car</div>
+    </div>
+    <div class="row">
+      <button class="btn primary intro-start" id="start-btn">START OPERATION</button>
+      <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
+    </div>
   </div>
 </div>
 
-<!-- ALL INTEL ACQUIRED (boss now unlocked) -->
-<div id="win-screen">
-  <div class="win-title">INTEL COMPLETE</div>
-  <div class="win-sub">ALL FIVE FILES ACQUIRED &nbsp;·&nbsp; CIPHER IS WAITING</div>
-  <ul class="intel-log" id="intel-log"></ul>
-  <div class="win-footer">FINAL OBJECTIVE: CONFRONT CIPHER AT THE HACKER CONVENTION</div>
-  <div class="win-row">
-    <button class="win-nav primary" id="intel-continue-btn" onclick="closeIntelScreen()">[ CONTINUE · FIND CIPHER ]</button>
-    <button class="win-nav" onclick="location.href='index.html'">[ MISSION HUB ]</button>
+<!-- HUD -->
+<div id="hud" class="hidden" aria-live="polite">
+  <div id="op-panel">
+    <div class="op">OPERATION GHOST</div>
+    <div class="intel">INTEL COLLECTED <b><span id="intel-count">0</span> / 5</b><span class="pips" id="intel-pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
+    <div class="lbl">ACTIVE CASE</div>
+    <div id="active-case">—</div>
+    <div class="lbl">LOCATION</div>
+    <div id="active-loc"><span id="guide-arrow" aria-hidden="true">▲</span><span id="active-loc-text">—</span></div>
+    <div id="op-keys">[TAB] CASE FILES · [M] CITY MAP · [ESC] PAUSE</div>
+  </div>
+  <div id="zone-display">MIAMI</div>
+  <div id="minimap-wrap"><canvas id="minimap" width="360" height="360" aria-label="Minimap"></canvas><div class="map-label">[M] CITY MAP</div></div>
+  <div id="toasts"></div>
+  <div id="interact-prompt" role="status"></div>
+</div>
+<div id="npc-labels" aria-hidden="true"></div>
+
+<!-- CASE PANEL -->
+<section id="case-panel" role="dialog" aria-modal="true" aria-labelledby="case-name">
+  <div class="case-head">
+    <canvas id="case-portrait" width="128" height="128" aria-hidden="true"></canvas>
+    <div class="case-who">
+      <div id="case-name">—</div>
+      <div id="case-role">—</div>
+      <div id="case-tech">TECHNIQUE: ???</div>
+    </div>
+    <button class="btn ghost" id="case-close" aria-label="Close case (Esc)">✕ CLOSE</button>
+  </div>
+  <div id="case-steps" aria-label="Investigation steps"></div>
+  <div id="case-body"></div>
+  <div id="case-feedback" role="status" aria-live="polite"></div>
+  <div id="case-actions"></div>
+</section>
+
+<!-- CASE FILES -->
+<div id="files-screen" class="screen" role="dialog" aria-labelledby="files-title">
+  <div class="screen-inner">
+    <div class="kicker">OPERATION GHOST</div>
+    <h1 class="title" id="files-title" style="font-size:34px">CASE FILES</h1>
+    <p class="muted" style="margin-bottom:14px">Only what you have discovered is recorded. Pick a case to make it your active objective.</p>
+    <div class="files-grid">
+      <div id="files-list"></div>
+      <div id="file-detail" class="card"></div>
+    </div>
+    <div class="row" style="margin-top:16px"><button class="btn" id="files-close"><span class="k">TAB</span>CLOSE</button></div>
+  </div>
+</div>
+
+<!-- CITY MAP -->
+<div id="map-screen" class="screen" role="dialog" aria-labelledby="map-title">
+  <div class="screen-inner" style="max-width:960px">
+    <div class="kicker">CYBER MIAMI</div>
+    <h1 class="title" id="map-title" style="font-size:34px">CITY MAP</h1>
+    <div class="map-grid">
+      <canvas id="bigmap" width="900" height="900" aria-label="City map. Choose a destination from the list."></canvas>
+      <div>
+        <h2 class="sec" style="margin-top:0">DESTINATIONS</h2>
+        <div id="map-dest"></div>
+        <div class="legend">
+          <div>▲ You (pointing where you face)</div>
+          <div>◆ Active case · ◇ Open case</div>
+          <div>✓ Resolved · ✦ Convention (CIPHER)</div>
+          <div>— Route along walkable streets</div>
+        </div>
+        <div class="row" style="margin-top:14px"><button class="btn" id="map-close"><span class="k">M</span>CLOSE MAP</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div id="pause-screen" class="screen" role="dialog" aria-labelledby="pause-title">
+  <div class="screen-inner">
+    <div class="kicker">OPERATION GHOST</div>
+    <h1 class="title" id="pause-title" style="font-size:40px">PAUSED</h1>
+    <div class="menu" id="pause-menu">
+      <button class="btn primary" id="resume-btn"><span class="k">ESC</span>RESUME</button>
+      <button class="btn" id="controls-btn">CONTROLS &amp; CAMERA</button>
+      <button class="btn" id="music-btn">MUSIC: ON</button>
+      <button class="btn" id="restart-btn">RESTART MISSION</button>
+      <a class="btn" id="pause-hub" href="index.html">MISSION HUB</a>
+    </div>
+    <div id="controls-panel" class="card hidden" style="margin-top:14px">
+      <div class="setting"><label for="sens">Mouse sensitivity</label><input type="range" id="sens" min="0.2" max="2" step="0.1" value="1"><span id="sens-val" class="mono">1.0×</span></div>
+      <div class="setting"><label for="invert">Invert mouse drag</label><input type="checkbox" id="invert"></div>
+      <div class="setting"><label for="autocam">Camera follows when walking forward</label><input type="checkbox" id="autocam" checked></div>
+      <table class="keys-table">
+        <tr><td>W A S D</td><td>Move, relative to the camera (A/D strafe)</td></tr>
+        <tr><td>↑ ↓ · ← →</td><td>Forward / back · turn the camera</td></tr>
+        <tr><td>Mouse drag</td><td>Look around</td></tr>
+        <tr><td>E</td><td>Talk to a target · enter / exit a car</td></tr>
+        <tr><td>Driving</td><td>W/↑ accelerate · S/↓ brake, reverse · A D/← → steer · F recover when stuck</td></tr>
+        <tr><td>TAB · M · ESC</td><td>Case files · city map · pause / close</td></tr>
+        <tr><td>1–9 · Enter</td><td>Choose an option · confirm the focused button</td></tr>
+      </table>
+      <div class="row" style="margin-top:12px"><button class="btn" id="controls-back">BACK</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="results-screen" class="screen" role="dialog" aria-labelledby="results-title">
+  <div class="screen-inner">
+    <div class="kicker">OPERATION GHOST</div>
+    <h1 class="title" id="results-title" style="font-size:44px">MISSION COMPLETE</h1>
+    <div class="card">
+      <dl id="results-kv"></dl>
+      <h2 class="sec">TECHNIQUES ANALYZED</h2>
+      <ul id="results-tech"></ul>
+      <p class="muted" id="results-note" style="margin-top:12px;font-size:13px"></p>
+    </div>
+    <div class="row" id="results-actions" style="margin-top:16px">
+      <button class="btn primary" id="next-btn">NEXT MISSION · LEVEL 04 &gt;</button>
+      <button class="btn" id="review-btn">REVIEW INTELLIGENCE</button>
+      <button class="btn" id="replay-btn">REPLAY MISSION</button>
+      <a class="btn" href="index.html">MISSION HUB</a>
+    </div>
   </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════════
-//  AUDIO ENGINE — 8-BIT VICE CITY CHIPTUNE
-// ═══════════════════════════════════════════════════════════
-let audioCtx = null, musicOn = true, loopTimer = null;
-let musicBus = null;   // all music notes route through here so M can cut them at once
+'use strict';
+const { World, Movement: Move, Cases, Intel, Character: Char, City } = window.HTPSocial;
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
+const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// ═══════════════════════════════════════════════════════════
+//  AUDIO — 8-bit Miami chiptune (original pattern) + UI sounds
+// ═══════════════════════════════════════════════════════════
+let audioCtx = null, musicOn = true, loopTimer = null, musicBus = null, sfxBus = null;
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   newMusicBus();
+  sfxBus = audioCtx.createGain(); sfxBus.gain.value = 0.9; sfxBus.connect(audioCtx.destination);
 }
-function newMusicBus() {
-  musicBus = audioCtx.createGain();
-  musicBus.connect(audioCtx.destination);
-}
-
-function osc(freq, type, t0, dur, vol = 0.12) {
+function newMusicBus() { musicBus = audioCtx.createGain(); musicBus.gain.value = 0.85; musicBus.connect(audioCtx.destination); }
+function osc(freq, type, t0, dur, vol = 0.12, bus = musicBus) {
   if (!audioCtx) return;
   const o = audioCtx.createOscillator(), g = audioCtx.createGain();
   o.type = type; o.frequency.value = freq;
-  g.gain.setValueAtTime(vol, t0);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.88);
-  o.connect(g); g.connect(musicBus);
-  o.start(t0); o.stop(t0 + dur);
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.88);
+  o.connect(g); g.connect(bus); o.start(t0); o.stop(t0 + dur);
 }
-
 function noise(t0, dur, vol = 0.14) {
   if (!audioCtx) return;
-  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+  const buf = audioCtx.createBuffer(1, Math.max(1, audioCtx.sampleRate * dur | 0), audioCtx.sampleRate);
   const d = buf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
   const s = audioCtx.createBufferSource(), g = audioCtx.createGain();
-  s.buffer = buf;
-  g.gain.setValueAtTime(vol, t0);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  s.connect(g); g.connect(musicBus);
-  s.start(t0);
+  s.buffer = buf; g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  s.connect(g); g.connect(musicBus); s.start(t0); s.stop(t0 + dur);
 }
-
-// Vice City-inspired pattern: A minor, ~118 BPM
-const B = 0.508; // seconds per beat
-const BASS = [
-  [110,0],[110,.5],[130.8,1],[146.8,1.5],
-  [98,2],[110,2.5],[130.8,3],[98,3.5],
-  [110,4],[110,4.5],[164.8,5],[146.8,5.5],
-  [130.8,6],[110,6.5],[98,7],[110,7.5]
-];
-const LEAD = [
-  [440,0,.4],[493.9,.5,.4],[523.3,1,.8],[493.9,2,.4],
-  [440,2.5,.4],[392,3,.8],[440,4,.4],[493.9,4.5,.3],
-  [523.3,5,.3],[587.3,5.5,.3],[659.3,6,.8],[587.3,7,.8]
-];
-const ARP = [440,523.3,659.3,784]; // A minor arpeggio
-
+// A minor at ~118 BPM: bass, lead, arpeggio and drums.
+const B = 0.508;
+const BASS = [[110,0],[110,.5],[130.8,1],[146.8,1.5],[98,2],[110,2.5],[130.8,3],[98,3.5],[110,4],[110,4.5],[164.8,5],[146.8,5.5],[130.8,6],[110,6.5],[98,7],[110,7.5]];
+const LEAD = [[440,0,.4],[493.9,.5,.4],[523.3,1,.8],[493.9,2,.4],[440,2.5,.4],[392,3,.8],[440,4,.4],[493.9,4.5,.3],[523.3,5,.3],[587.3,5.5,.3],[659.3,6,.8],[587.3,7,.8]];
+const ARP = [440, 523.3, 659.3, 784];
 function playMusicLoop() {
-  if (!audioCtx || !musicOn) return;
+  if (!audioCtx || !musicOn || gamePhase === 'paused') return;
+  clearTimeout(loopTimer);
   const t = audioCtx.currentTime + 0.05;
-  const bars = 8;
-  // Bass (square)
-  BASS.forEach(([f,b]) => osc(f, 'square', t + b*B, B*0.42, 0.11));
-  // Lead synth (sawtooth)
-  LEAD.forEach(([f,b,d]) => osc(f*2, 'sawtooth', t + b*B, d*B, 0.05));
-  // Arpeggios (high square, 16th notes)
-  for (let i = 0; i < 32; i++) osc(ARP[i%4]*2, 'square', t + i*B*0.25, B*0.18, 0.028);
-  // Kick noise on beats 0,2,4,6
-  [0,2,4,6].forEach(b => noise(t + b*B, 0.09, 0.16));
-  // Snare on 1,3,5,7
-  [1,3,5,7].forEach(b => noise(t + b*B, 0.05, 0.08));
-  // Hi-hat 8th notes
-  for (let i = 0; i < 16; i++) noise(t + i*B*0.5, 0.015, 0.04);
-
-  loopTimer = setTimeout(playMusicLoop, bars * B * 1000 - 60);
+  BASS.forEach(([f, b]) => osc(f, 'square', t + b * B, B * 0.42, 0.09));
+  LEAD.forEach(([f, b, d]) => osc(f * 2, 'sawtooth', t + b * B, d * B, 0.035));
+  for (let i = 0; i < 32; i++) osc(ARP[i % 4] * 2, 'square', t + i * B * 0.25, B * 0.18, 0.02);
+  [0, 2, 4, 6].forEach(b => noise(t + b * B, 0.09, 0.13));
+  [1, 3, 5, 7].forEach(b => noise(t + b * B, 0.05, 0.06));
+  for (let i = 0; i < 16; i++) noise(t + i * B * 0.5, 0.015, 0.03);
+  loopTimer = setTimeout(playMusicLoop, 8 * B * 1000 - 60);
+}
+function stopMusic() {
+  clearTimeout(loopTimer); loopTimer = null;
+  if (audioCtx) { musicBus.disconnect(); newMusicBus(); }   // cuts notes already scheduled
+}
+function setMusic(on) {
+  musicOn = on;
+  $('music-btn').textContent = 'MUSIC: ' + (on ? 'ON' : 'OFF');
+  if (on && gamePhase !== 'paused') playMusicLoop(); else stopMusic();
+}
+function sfx(kind) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime + 0.01;
+  const seq = { ask: [[660, 0, 0.06]], evidence: [[880, 0, 0.08], [1320, 0.07, 0.1]], good: [[523, 0, 0.1], [659, 0.09, 0.1], [784, 0.18, 0.18]],
+    bad: [[330, 0, 0.12], [262, 0.1, 0.16]], file: [[659, 0, 0.1], [784, 0.1, 0.1], [988, 0.2, 0.1], [1319, 0.3, 0.24]],
+    door: [[220, 0, 0.08], [330, 0.06, 0.08]], open: [[740, 0, 0.05], [988, 0.05, 0.07]] }[kind] || [];
+  seq.forEach(([f, d, len]) => osc(f, kind === 'bad' ? 'triangle' : 'square', t + d, len, 0.05, sfxBus));
 }
 
-function toggleMusic() {
-  musicOn = !musicOn;
-  document.getElementById('music-toggle').textContent = '♪ MUSIC: ' + (musicOn ? 'ON' : 'OFF');
-  if (musicOn) playMusicLoop();
-  else {
-    clearTimeout(loopTimer);
-    // Cut notes already scheduled for this loop so they don't overlap the next one.
-    if (audioCtx) { musicBus.disconnect(); newMusicBus(); }
-  }
-}
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let gameStarted = false;
+let gamePhase = 'menu';            // menu | playing | case | files | map | paused | results
+let phaseBeforeOverlay = 'playing';
+let op = Intel.createOperation();
+let completionRecorded = false;
+const keys = {};
+const settings = { sens: 1, invert: false, autoFollow: true };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('htp.l3.settings') || '{}')); } catch (e) { /* defaults */ }
+const saveSettings = () => { try { localStorage.setItem('htp.l3.settings', JSON.stringify(settings)); } catch (e) { /* not persisted */ } };
 
 // ═══════════════════════════════════════════════════════════
-//  NPC DATA — SOCIAL ENGINEERING TARGETS (declared early to avoid TDZ)
+//  THREE.JS
 // ═══════════════════════════════════════════════════════════
-const NPCS = [
-  {
-    id: 0, name: 'COCO', title: 'Tourist',
-    x: 65, z: 64, color: 0xffdd00, skin: 0xf4a460,
-    zone: 'MIAMI BEACH', done: false, mesh: null, labelEl: null,
-    dlg: {
-      text: '"Oh my god, Miami is GORGEOUS! I\'m here for the Synapse Corp executive conference — flew us all in from New York, can you believe it? They\'re dropping their next product in November and it\'s apparently going to be MASSIVE. My boss barely told me anything, all hush-hush..."',
-      choices: [
-        { t: 'A) "Oh really? What kind of product are they launching?"', ok: false },
-        { t: 'B) "That sounds incredible! I know ALL the secret spots in Miami — the real VIP beach clubs, rooftop bars locals don\'t share. I\'d love to show you around... you can tell me all about this mysterious conference while we explore."', ok: true },
-        { t: 'C) "I\'m a journalist for TechCrunch — can I quote you on that?"', ok: false }
-      ],
-      tech: 'BAITING',
-      okMsg: '✓ TECHNIQUE: BAITING\nYou dangled something she wanted (exclusive Miami access) as bait. She took it and opened up.\n\n📡 INTEL: Synapse Corp Q4 launch Nov 15. All C-suite present. Product: next-gen AI security chip. Conference hotel: Fontainebleau.',
-      badMsg: '✗ Too direct — she\'s guarded now. Offer her something she WANTS before asking for what you need.',
-      intel: 'Synapse Corp Q4 launch: Nov 15. All executives at Fontainebleau. Product: AI security chip.'
-    }
-  },
-  {
-    id: 1, name: 'MARCUS', title: 'Executive',
-    x: -62, z: -36, color: 0x2255cc, skin: 0xc68642,
-    zone: 'DOWNTOWN OFFICE', done: false, mesh: null, labelEl: null,
-    dlg: {
-      text: '"Damn it — forgot my access card AGAIN. Security is going to love this. I have a 3 PM board meeting, the CEO is flying in... I just need to get back in before anyone notices."',
-      choices: [
-        { t: 'A) "Can you give me your employee number? I might be able to look you up."', ok: false },
-        { t: 'B) "Hey, same situation — I\'m the new IT security contractor, here for the firewall audit before the board meeting. No badge yet either. Let\'s go in together and sort it at the front desk — I\'ll vouch for you."', ok: true },
-        { t: 'C) "Just wait for someone to exit and slip through the door behind them."', ok: false }
-      ],
-      tech: 'IMPERSONATION',
-      okMsg: '✓ TECHNIQUE: IMPERSONATION\nYou posed as a trusted IT security contractor and shared his problem to build instant trust. He walked you straight through security.\n\n📡 INTEL: Board meeting 3 PM, QuantumTech HQ. CEO Harrington attending. Single guard on entrance. Badge-only access.',
-      badMsg: '✗ He won\'t give personal info to a stranger. Create a SHARED situation where you both benefit.',
-      intel: 'Board meeting 3 PM at QuantumTech HQ. CEO Harrington present. Security: single badge-only checkpoint.'
-    }
-  },
-  {
-    id: 2, name: 'RICO', title: 'Club Doorman',
-    x: 50, z: -70, color: 0x222222, skin: 0x3a2000,
-    zone: 'CLUB NEON', done: false, mesh: null, labelEl: null,
-    dlg: {
-      text: '"Not on the list, you don\'t get in. I don\'t care who you know. Mr. Vega\'s orders — VIP only tonight. Private event. Move along."',
-      choices: [
-        { t: 'A) "Come on, I\'ll make it worth your while..." [attempt bribe]', ok: false },
-        { t: 'B) "Sir — I work directly for Mr. Vega. Security liaison. There\'s a credible threat on the venue, I need to do a quiet sweep before the VIP arrivals at nine. Don\'t call upstairs — I don\'t want to cause a panic. This needs to stay quiet."', ok: true },
-        { t: 'C) "Can I borrow your phone to call my contact inside?"', ok: false }
-      ],
-      tech: 'PRETEXTING',
-      okMsg: '✓ TECHNIQUE: PRETEXTING\nYou fabricated an urgent authority scenario with a built-in reason to skip verification. He let you in to avoid being blamed if something went wrong.\n\n📡 INTEL: Club Neon floor plan obtained. VIP event 9 PM, 12 HVTs. Security: 3 guards, cameras north entrance only.',
-      badMsg: '✗ He\'s a professional — bribes get reported. You need AUTHORITY and URGENCY, plus a reason NOT to verify.',
-      intel: 'Club Neon VIP event 9 PM. 12 high-value targets. 3 guards deployed. Cameras: north entrance only.'
-    }
-  },
-  {
-    id: 3, name: 'DIANA', title: 'Hotel Receptionist',
-    x: -55, z: 50, color: 0xff6eb4, skin: 0xffe0bd,
-    zone: 'OCEAN PEARL HOTEL', done: false, mesh: null, labelEl: null,
-    dlg: {
-      text: '"Welcome to the Ocean Pearl, I\'m so sorry — our booking system crashed three hours ago and I\'ve been doing everything manually. I cannot find anyone\'s reservation, it\'s an absolute disaster..." She\'s on the verge of tears.',
-      choices: [
-        { t: 'A) "I need the guest registry for the past 72 hours. Official request."', ok: false },
-        { t: 'B) "Hey — deep breath. I\'m an IT consultant and I specialize in exactly this system. I can have it back online in ten minutes. Just let me sit at the terminal and I\'ll sort it out right now."', ok: true },
-        { t: 'C) "I\'m a health inspector. I need your complete guest list immediately."', ok: false }
-      ],
-      tech: 'QUID PRO QUO',
-      okMsg: '✓ TECHNIQUE: QUID PRO QUO\nYou offered a service in exchange for access. She was desperate and grateful. While \'fixing\' the system, you extracted the full guest list.\n\n📡 INTEL: 3 undercover operatives checked in as Johnson (214), Park (318), Reyes (407).',
-      badMsg: '✗ Demands and fake authority won\'t work on someone who just needs HELP. Offer her something real first.',
-      intel: 'Hotel guest list: undercover ops — Johnson rm 214, Park rm 318, Reyes rm 407.'
-    }
-  },
-  {
-    id: 4, name: 'CARLOS', title: 'Street Vendor',
-    x: 6, z: 7, color: 0xff6600, skin: 0xd4956a,
-    zone: 'LITTLE HAVANA MARKET', done: false, mesh: null, labelEl: null,
-    dlg: {
-      text: '"Oye amigo, best Cuban sandwich in all Miami, right here! Made fresh! Fifteen years on this corner — I know every face on this street, every schedule, everything. You want one? Come on, don\'t be shy!"',
-      choices: [
-        { t: 'A) "Do you know what the security patrol schedule is around here?"', ok: false },
-        { t: 'B) "Man, I\'ll take two — these are incredible! Fifteen years, wow. I just moved nearby. I love how quiet it gets late at night... what time does it usually wind down around here? I\'m a night owl, like to know when I\'ll have the street to myself."', ok: true },
-        { t: 'C) "What time does that security guard on the corner take his break?"', ok: false }
-      ],
-      tech: 'ELICITATION',
-      okMsg: '✓ TECHNIQUE: ELICITATION\nCasual conversation, genuine flattery, and a relatable reason. He volunteered exactly what you needed — never felt interrogated.\n\n📡 INTEL: Patrol gap 2:00–4:00 AM daily. Market district clears midnight. No cameras on south alley.',
-      badMsg: '✗ Too specific — he\'s getting suspicious. Keep it CASUAL. Let the conversation flow naturally to the information.',
-      intel: 'Security patrol gap: 2–4 AM. Market clears midnight. South alley: no camera coverage.'
-    }
-  },
-  {
-    id: 5, name: 'CIPHER', title: 'AI Security Boss',
-    x: 0, z: -89, color: 0x080010, skin: 0x1a0010,
-    zone: 'HACKER CONVENTION', done: false, mesh: null, labelEl: null,
-    isBoss: true,
-    rounds: [
-      {
-        text: '"Welcome to the HACKER CONVENTION, GHOST. You\'ve been running social engineering ops all over my city — bold. Now prove you understand the REAL threat: AI.\n\nQuestion 1/4 — What is the MAIN value AI brings to modern Threat Intelligence platforms?"',
-        choices: [
-          { t: 'A) It automates report writing and incident documentation.' },
-          { t: 'B) It correlates huge volumes of indicators across threat feeds at machine speed, helping analysts spot emerging attacks earlier.' },
-          { t: 'C) It replaces all human security analysts with autonomous chatbots.' }
-        ], correct: 1
-      },
-      {
-        text: '"Correct. You know your theory.\n\nQuestion 2/4 — Which AI approach can catch ZERO-DAY malware that no signature has ever seen?"',
-        choices: [
-          { t: 'A) Signature-based matching with the latest up-to-date virus definitions.' },
-          { t: 'B) Behavioral anomaly detection — models learn a baseline of normal activity and flag suspicious deviations.' },
-          { t: 'C) Deep packet inspection combined with continuously updated IP blacklists.' }
-        ], correct: 1
-      },
-      {
-        text: '"Impressive. Third question.\n\nQuestion 3/4 — What is ADVERSARIAL AI as a threat vector in cybersecurity?"',
-        choices: [
-          { t: 'A) When two AI companies aggressively compete for the same enterprise market.' },
-          { t: 'B) Crafting inputs or training data designed to deceive AI detection models — helping malware evade recognition or corrupting what the model learns.' },
-          { t: 'C) AI used exclusively in controlled red team penetration testing exercises.' }
-        ], correct: 1
-      },
-      {
-        text: '"Last question, GHOST. And this one matters.\n\nQuestion 4/4 — How are threat actors misusing Large Language Models?"',
-        choices: [
-          { t: 'A) Only to fix grammar and typos in phishing emails — nothing more.' },
-          { t: 'B) Across the attack chain: convincing phishing and pretexting at scale, reconnaissance, help writing or modifying malware, and attempts to manipulate AI-based defenses.' },
-          { t: 'C) LLMs cannot be weaponized — they have safety guardrails that prevent all malicious use.' }
-        ], correct: 1
-      }
-    ],
-    dlg: { text: '', choices: [], tech: 'AI THREAT INTEL', okMsg: '', badMsg: '', intel: '' }
-  }
-];
-
-// ── GAME STATE (declared before Three.js to avoid TDZ on button click) ──
-let gameStarted = false, dlgOpen = false, nearNPC = null, nearCar = null, drivingCar = null;
-let intelCount = 0, collectedIntel = [];
-let camAngle = 0, mouseDown = false, lastMX = 0;
-let frame = 0;
-let bossActive = false, bossRound = 0;
-let dlgSession = 0;          // bumped on every open/close so stale dialogue timers do nothing
-let bossWinShown = false;
-const INTEL_REQUIRED = 5;
-let carSpeed = 0;
-
-// ═══════════════════════════════════════════════════════════
-//  THREE.JS SETUP
-// ═══════════════════════════════════════════════════════════
-const W = window.innerWidth, H = window.innerHeight;
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x87ceeb, 80, 220);
-
-const camera = new THREE.PerspectiveCamera(58, W/H, 0.1, 500);
-camera.position.set(0, 12, 20);
-camera.lookAt(0, 0, 0);
-
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 900);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setSize(W, H);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
-renderer.setClearColor(0x87ceeb);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.domElement.id = 'renderer-canvas';
+renderer.domElement.tabIndex = 0;
 document.body.prepend(renderer.domElement);
-
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+const kit = City.createKit(THREE);
+const city = City.build(THREE, scene, kit, { reducedMotion });
 
-// ── LIGHTS ──────────────────────────────────────────────
-// Warm afternoon sun — balanced, not washed out
-scene.add(new THREE.AmbientLight(0xffe8c0, 0.9));
+// ── GHOST ──
+const ghost = Char.buildGhost(kit);
+ghost.seatY = -0.6;
+scene.add(ghost.root);
+let walker = Move.createWalker(World.PLAYER_START.x, World.PLAYER_START.z, World.PLAYER_START.yaw);
+let camState = Move.createCamera(World.PLAYER_START.yaw);
+let stride = 0;
+let action = null;                 // short GHOST micro-animation { mode, until }
+const playAction = (mode, secs) => { action = { mode, until: performance.now() / 1000 + secs }; };
+const player = ghost.root;          // kept for tests: player.position is GHOST's world position
 
-const sun = new THREE.DirectionalLight(0xfff4d0, 1.3);
-sun.position.set(80, 110, 50);
-sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-sun.shadow.camera.left = -120;
-sun.shadow.camera.right = 120;
-sun.shadow.camera.top = 120;
-sun.shadow.camera.bottom = -120;
-scene.add(sun);
-
-// Blue sky fill (shadow side)
-const skyFill = new THREE.DirectionalLight(0xadd8f0, 0.45);
-skyFill.position.set(-50, 60, -30); scene.add(skyFill);
-
-// Vice City accent lights (subtle color pop on buildings)
-function neonLight(x, y, z, col, intensity = 0.9, dist = 28) {
-  const l = new THREE.PointLight(col, intensity, dist);
-  l.position.set(x, y, z); scene.add(l);
-}
-neonLight(50,  10, -70, 0xff44aa, 1.2, 35);
-neonLight(-55,  8,  48, 0xff88bb, 0.9, 28);
-neonLight(65,   6,  65, 0x00ccff, 0.8, 26);
-
-// ── GEOMETRY HELPERS ──────────────────────────────────────
-function box(w, h, d, col, x, y, z, emissive = 0, emInt = 0) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshPhongMaterial({ color: col, emissive, emissiveIntensity: emInt, shininess: 25 })
-  );
-  m.position.set(x, y + h * 0.5, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  scene.add(m); return m;
-}
-function plane(w, d, col, x, y, z, ry = 0) {
-  const m = new THREE.Mesh(
-    new THREE.PlaneGeometry(w, d),
-    new THREE.MeshPhongMaterial({ color: col, shininess: 8 })
-  );
-  m.rotation.x = -Math.PI / 2; m.rotation.z = ry;
-  m.position.set(x, y, z);
-  m.receiveShadow = true;
-  scene.add(m); return m;
-}
-function cyl(r1, r2, h, col, x, y, z, seg = 12, emissive = 0, emInt = 0) {
-  const m = new THREE.Mesh(
-    new THREE.CylinderGeometry(r1, r2, h, seg),
-    new THREE.MeshPhongMaterial({ color: col, emissive, emissiveIntensity: emInt, shininess: 18 })
-  );
-  m.position.set(x, y + h * 0.5, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  scene.add(m); return m;
-}
-function sphere(r, col, x, y, z, sx = 1, sy = 1, sz = 1, emissive = 0, emInt = 0) {
-  const m = new THREE.Mesh(
-    new THREE.SphereGeometry(r, 16, 12),
-    new THREE.MeshPhongMaterial({ color: col, emissive, emissiveIntensity: emInt, shininess: 20 })
-  );
-  m.scale.set(sx, sy, sz);
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  scene.add(m); return m;
-}
-function textSign(text, w, h, x, y, z, rotY = 0, bg = '#050010', fg = '#00ffff', fontSize = 44) {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 128;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, c.width, c.height);
-  ctx.strokeStyle = fg; ctx.lineWidth = 8; ctx.strokeRect(8, 8, c.width - 16, c.height - 16);
-  ctx.fillStyle = fg; ctx.font = `bold ${fontSize}px Courier New`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.shadowColor = fg; ctx.shadowBlur = 18; ctx.fillText(text, c.width / 2, c.height / 2);
-  const tex = new THREE.CanvasTexture(c);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
-  m.position.set(x, y, z);
-  m.rotation.y = rotY;
-  scene.add(m); return m;
-}
-function facadeFin(x, z, h, color, side = 'front', y = 0) {
-  const fin = cyl(0.16, 0.16, h, color, x, y, z, 18);
-  if (side === 'front') fin.scale.z = 0.35;
-  return fin;
-}
-function roundedFacade(x, z, w, h, d, accent = 0xffffff, glow = 0x00ffff) {
-  const frontZ = z - d * 0.5 - 0.08;
-  const backZ = z + d * 0.5 + 0.08;
-  const leftX = x - w * 0.5 - 0.02;
-  const rightX = x + w * 0.5 + 0.02;
-  [[leftX, frontZ], [rightX, frontZ], [leftX, backZ], [rightX, backZ]].forEach(([cx, cz]) => {
-    const col = cyl(0.32, 0.32, h, accent, cx, 0, cz, 18);
-    col.scale.z = 0.45;
-  });
-  box(w + 0.9, 0.45, 0.55, accent, x, h * 0.68, frontZ, accent, 0.12);
-  box(w + 0.7, 0.35, 0.45, glow, x, h * 0.46, frontZ, glow, 0.65);
-  box(w + 1.2, 0.5, d + 1.0, accent, x, h + 0.15, z, accent, 0.08);
-}
-function windowGrid(x, z, cols, rows, spacingX, spacingY, y0, color = 0x9be8ff, rotY = 0) {
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const wx = x + (c - (cols - 1) / 2) * spacingX;
-      const wy = y0 + r * spacingY;
-      const win = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.15, 0.9),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 })
-      );
-      win.position.set(wx, wy, z);
-      win.rotation.y = rotY;
-      scene.add(win);
-    }
-  }
-}
-function sideWindowGrid(x, z, cols, rows, spacingZ, spacingY, y0, color = 0x9be8ff, rotY = Math.PI / 2) {
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const wz = z + (c - (cols - 1) / 2) * spacingZ;
-      const wy = y0 + r * spacingY;
-      const win = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.15, 0.9),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 })
-      );
-      win.position.set(x, wy, wz);
-      win.rotation.y = rotY;
-      scene.add(win);
-    }
-  }
-}
-function artDecoCrown(x, z, w, h, color, glow) {
-  box(w, 0.8, 2.2, color, x, h, z, color, 0.2);
-  box(w * 0.7, 0.8, 2.6, glow, x, h + 0.9, z, glow, 0.9);
-  box(w * 0.42, 1.0, 3.0, color, x, h + 1.8, z, color, 0.18);
-}
-
-// ═══════════════════════════════════════════════════════════
-//  CITY — VICE CITY MIAMI
-// ═══════════════════════════════════════════════════════════
-
-// Ground — dark green grass
-plane(350, 350, 0x2e6b28, 0, 0, 0);
-// Sidewalks (light concrete strip along roads)
-plane(330, 18, 0xb8b0a0, 0, 0.005, 0);    // Main Ave sidewalk strip
-plane(18, 230, 0xb8b0a0, 32, 0.005, 0);   // Ocean Drive sidewalk
-plane(18, 230, 0xb8b0a0, -32, 0.005, 0);  // NW Ave sidewalk
-// Roads on top of sidewalk
-plane(320, 13, 0x2a2a38, 0, 0.01, 0);       // Main Ave
-plane(13, 220, 0x2a2a38, 32, 0.01, 0);      // Ocean Drive
-plane(13, 220, 0x2a2a38, -32, 0.01, 0);     // NW Ave
-plane(13, 100, 0x2a2a38, 0, 0.01, -45);     // Short NS road
-// Beach (warm sand, large area)
-plane(200, 60, 0xe2c97a, 0, 0.02, 82);
-// Wet sand at water edge
-plane(200, 10, 0xcdb96a, 0, 0.025, 108);
-// Ocean (deep tropical blue)
-plane(240, 100, 0x0e6eb5, 0, 0.01, 138);
-// Ocean shimmer strip near shore
-plane(240, 8, 0x3aa0e0, 0, 0.03, 112);
-
-// Road markings
-function roadLines(x0, z0, x1, z1, n, horiz) {
-  for (let i = 0; i < n; i++) {
-    const t = (i + 0.5) / n;
-    const x = x0 + (x1-x0)*t, z = z0 + (z1-z0)*t;
-    // Center dashes (yellow)
-    const dash = new THREE.Mesh(
-      new THREE.PlaneGeometry(horiz ? 7 : 0.5, horiz ? 0.5 : 7),
-      new THREE.MeshLambertMaterial({ color: 0xffdd00 })
-    );
-    dash.rotation.x = -Math.PI/2;
-    dash.position.set(x, 0.04, z);
-    scene.add(dash);
-  }
-}
-// White edge lines along roads
-function edgeLine(x0, z0, x1, z1, horiz) {
-  for (let s of [-1, 1]) {
-    const ox = horiz ? 0 : s * 5.5, oz = horiz ? s * 5.5 : 0;
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(horiz ? Math.abs(x1-x0) : 0.35, horiz ? 0.35 : Math.abs(z1-z0)),
-      new THREE.MeshLambertMaterial({ color: 0xffffff })
-    );
-    m.rotation.x = -Math.PI/2;
-    m.position.set((x0+x1)/2 + ox, 0.035, (z0+z1)/2 + oz);
-    scene.add(m);
-  }
-}
-roadLines(-150, 0, 150, 0, 20, true);
-roadLines(32, -100, 32, 100, 15, false);
-roadLines(-32, -100, -32, 100, 15, false);
-edgeLine(-150, 0, 150, 0, true);
-edgeLine(32, -100, 32, 100, false);
-edgeLine(-32, -100, -32, 100, false);
-
-// ── BUILDINGS ──────────────────────────────────────────────
-// Color palette: Vice City pastels + neon accents
-const PINK   = 0xf08aaa;
-const CYAN   = 0x70d8d8;
-const CORAL  = 0xf09060;
-const CREAM  = 0xede8c5;
-const LAVEN  = 0xb898d8;
-const TEAL   = 0x3a8080;
-const DARK   = 0x3a1850;
-
-// Office district (west, negative X)
-box(20, 42, 14, LAVEN,  -66, 0, -32);
-box(14, 30, 12, CREAM,  -56, 0, -52);
-box(18, 36, 14, CYAN,   -72, 0, -12);
-box(12, 24, 10, PINK,   -46, 0, -36);
-box(10, 20, 10, 0x506070,-76,0, -52);
-roundedFacade(-66, -32, 20, 42, 14, 0xf7f1d6, 0xff6eb4);
-roundedFacade(-56, -52, 14, 30, 12, 0xfff2c7, 0x00ffff);
-windowGrid(-66, -39.15, 5, 7, 3.1, 4.8, 6.0, 0xbdf2ff);
-windowGrid(-56, -58.15, 4, 5, 2.7, 4.6, 5.2, 0xffe7a8);
-windowGrid(-72, -19.15, 5, 6, 3.0, 4.6, 5.8, 0x9be8ff);
-windowGrid(-46, -41.15, 3, 4, 2.8, 4.2, 5.2, 0xffc6e8);
-windowGrid(-76, -57.15, 3, 4, 2.5, 3.8, 4.6, 0xa6f2ff);
-artDecoCrown(-66, -39.3, 13, 42.5, 0xf7f1d6, 0xff6eb4);
-// Glass tower (office district centrepiece)
-const gMat = new THREE.MeshLambertMaterial({ color: 0x6ab0d8, emissive: 0x226688, emissiveIntensity: 0.2 });
-const gTower = new THREE.Mesh(new THREE.BoxGeometry(14, 55, 14), gMat);
-gTower.position.set(-62, 27.5, -32); scene.add(gTower);
-windowGrid(-62, -39.15, 4, 9, 2.8, 5.0, 7.5, 0xd9fbff);
-sideWindowGrid(-54.85, -32, 4, 8, 2.8, 5.2, 8.0, 0xbdf2ff);
-// Neon strip on tower
-box(14, 1.5, 0.4, 0xff00aa, -62, 50, -25.5, 0xff00aa, 1);
-box(14, 1.5, 0.4, 0x00ffff, -62, 42, -25.5, 0x00ffff, 1);
-
-// Club district (east, positive X, negative Z)
-box(28, 16, 22, DARK,    50, 0, -68);          // club body
-box(8,  6,  8,  0x2a0050, 44, 0, -56);         // annex
-box(22, 1.8,0.6, 0xff00ff, 50, 15, -57.6, 0xff00ff, 0.9); // NEON SIGN
-box(22, 1.2,0.6, 0x00ffff, 50, 12, -57.6, 0x00ffff, 0.7);
-box(18, 32, 14, CORAL,   66, 0, -48);
-box(14, 22, 12, PINK,    76, 0, -32);
-box(20, 34, 15, TEAL,    70, 0, -72);
-roundedFacade(50, -68, 28, 16, 22, 0xffd4f0, 0xff00ff);
-roundedFacade(66, -48, 18, 32, 14, 0xfff1c0, 0xff8844);
-windowGrid(50, -79.15, 7, 3, 3.2, 3.7, 4.4, 0xff77dd);
-windowGrid(44, -60.15, 2, 2, 2.6, 2.4, 3.5, 0x00ffff);
-windowGrid(66, -55.15, 4, 5, 3.1, 4.8, 6.0, 0x9be8ff);
-windowGrid(76, -38.15, 3, 4, 2.8, 4.0, 5.0, 0xffe7a8);
-windowGrid(70, -79.65, 5, 5, 3.2, 5.0, 6.0, 0x7cffd4);
-artDecoCrown(50, -79.4, 19, 16.5, 0xffd4f0, 0xff00ff);
-// Velvet rope posts
-for (let i = -2; i <= 2; i++) { box(0.3, 1.2, 0.3, 0xccaa00, 42 + i*3, 0, -55); }
-
-// Hotel district (west, positive Z)
-box(22, 30, 16, PINK,   -55, 0, 48, 0x330018, 0.15);
-box(16, 20, 12, CREAM,  -66, 0, 63);
-box(14, 18, 11, LAVEN,  -46, 0, 56);
-roundedFacade(-55, 48, 22, 30, 16, 0xfff6df, 0xff6eb4);
-roundedFacade(-66, 63, 16, 20, 12, 0xffffff, 0x00ffff);
-windowGrid(-55, 39.85, 6, 5, 3.1, 4.5, 5.5, 0xffc6e8);
-windowGrid(-66, 56.85, 4, 3, 3.0, 4.6, 5.4, 0xa6f2ff);
-windowGrid(-46, 50.35, 3, 3, 2.8, 4.0, 5.0, 0xe6d4ff);
-artDecoCrown(-55, 39.7, 14, 30.5, 0xfff6df, 0xff6eb4);
-box(10, 1.2, 6, 0xff6eb4,-52, 5.5, 39.5, 0x661133, 0.4); // awning
-box(10, 0.5, 6, 0x000000,-52, 5.5, 37.5); // awning shadow
-
-// Ocean Drive beach hotels
-box(14, 13, 10, PINK,   40, 0, 52);
-box(12, 11,  9, CYAN,   56, 0, 52);
-box(16, 15, 11, CORAL,  72, 0, 58);
-box(10,  9,  8, LAVEN,  24, 0, 55);
-roundedFacade(40, 52, 14, 13, 10, 0xffffff, 0xff6eb4);
-roundedFacade(56, 52, 12, 11, 9, 0xfff6df, 0x00ffff);
-roundedFacade(72, 58, 16, 15, 11, 0xfff1c0, 0xff8844);
-roundedFacade(24, 55, 10, 9, 8, 0xffffff, 0xb898d8);
-textSign('OCEAN DRIVE', 16, 4, 33.2, 8.5, 38, -Math.PI / 2, '#101525', '#ff6eb4');
-textSign('ART DECO', 10, 2.8, 40, 11.5, 46.8, 0, '#f08aaa', '#ffffff');
-textSign('MIAMI GYM', 12, 3, 80, 9, 17.2, 0, '#101525', '#00ffff');
-// Art Deco facade bands and windows on Ocean Drive
-for (let i = 0; i < 4; i++) {
-  box(0.35, 8, 0.35, 0xffffff, 34 + i * 4, 2, 46.6);
-  box(0.35, 7, 0.35, 0xffffff, 50 + i * 3, 2, 46.6);
-  box(0.35, 9, 0.35, 0xffffff, 66 + i * 4, 2, 52.6);
-}
-for (let r = 0; r < 3; r++) {
-  for (let i = 0; i < 5; i++) box(1.2, 1.1, 0.25, 0x6ed8ff, 34 + i * 3, 3 + r * 3, 46.45, 0x227799, 0.25);
-  for (let i = 0; i < 4; i++) box(1.1, 1.0, 0.25, 0xffe0aa, 51 + i * 2.8, 3 + r * 2.5, 46.45, 0xffaa33, 0.15);
-  for (let i = 0; i < 5; i++) box(1.2, 1.1, 0.25, 0x70f0ff, 65 + i * 3, 3 + r * 3.2, 52.45, 0x227799, 0.2);
-}
-
-// Open-air Miami gym near Ocean Drive
-plane(34, 28, 0x50545a, 76, 0.04, 24);
-box(34, 0.35, 0.5, 0x00ffff, 76, 0.08, 10, 0x00ffff, 0.8);
-box(34, 0.35, 0.5, 0xff6eb4, 76, 0.08, 38, 0xff6eb4, 0.8);
-box(0.5, 0.35, 28, 0x00ffff, 59, 0.08, 24, 0x00ffff, 0.8);
-box(0.5, 0.35, 28, 0xff6eb4, 93, 0.08, 24, 0xff6eb4, 0.8);
-for (let x of [64, 76, 88]) {
-  cyl(0.08, 0.08, 3.2, 0xbfc4c8, x - 2, 0, 20, 10);
-  cyl(0.08, 0.08, 3.2, 0xbfc4c8, x + 2, 0, 20, 10);
-  const bar = cyl(0.07, 0.07, 4.6, 0xdde6e8, x, 0, 20, 10);
-  bar.rotation.z = Math.PI / 2;
-  bar.position.y = 2.6;
-}
-for (let x of [66, 74, 82, 90]) {
-  const bar = cyl(0.06, 0.06, 3.2, 0xdde6e8, x, 0, 30, 10);
-  bar.rotation.z = Math.PI / 2;
-  bar.position.y = 0.9;
-  cyl(0.38, 0.38, 0.25, 0x111111, x - 1.8, 0.9, 30, 16);
-  cyl(0.38, 0.38, 0.25, 0x111111, x + 1.8, 0.9, 30, 16);
-}
-
-// Market/centre
-box(12,  9, 10, CORAL,  16, 0, 18);
-box( 9,  7,  8, CREAM, -16, 0, 18);
-box(13, 11, 10, CYAN,   22, 0,-22);
-box(10,  8,  9, 0x806040,-22,0,-22);
-box( 8,  4,  6, CORAL,   4, 0,  8); // vendor stall
-// Market awning
-box(8, 0.3, 6, 0xff6600, 4, 4.3, 8, 0xff3300, 0.4);
-textSign('CUBAN CAFE', 10, 2.5, 4, 5.8, 4.7, 0, '#ff6600', '#fff4c8');
-
-// Beach and Ocean Drive detail props
-function umbrella(x, z, color) {
-  cyl(0.05, 0.07, 2.3, 0xffffff, x, 0, z, 8);
-  const top = cyl(2.1, 0.2, 0.8, color, x, 2.15, z, 24);
-  top.scale.y = 0.45;
-}
-function beachChair(x, z, color, ry = 0) {
-  const seat = box(3.0, 0.2, 1.15, color, x, 0.2, z);
-  seat.rotation.y = ry;
-  const back = box(1.2, 1.5, 0.18, color, x - Math.sin(ry) * 1.1, 0.55, z - Math.cos(ry) * 1.1);
-  back.rotation.y = ry;
-  back.rotation.x = -0.45;
-}
-function lifeguardTower(x, z) {
-  for (let sx of [-1.1, 1.1]) for (let sz of [-1.1, 1.1]) cyl(0.08, 0.1, 3.8, 0x7a4b22, x + sx, 0, z + sz, 8);
-  box(3.4, 2.2, 3.0, 0xff6b5f, x, 3.5, z);
-  box(4.0, 0.45, 3.6, 0xffffff, x, 5.7, z);
-  textSign('LIFEGUARD', 3.2, 0.8, x, 4.4, z - 1.55, 0, '#ffffff', '#ff3300');
-}
-[
-  [10, 88, 0xff6eb4], [28, 91, 0x00ffff], [48, 86, 0xffdd00],
-  [-16, 86, 0xff8844], [-38, 92, 0x70d8d8], [65, 92, 0xff6eb4]
-].forEach(([x,z,c]) => umbrella(x, z, c));
-[
-  [13, 82, 0xffffff, 0.2], [31, 84, 0xffe090, -0.15], [51, 81, 0xffffff, 0.1],
-  [-20, 82, 0xffe090, -0.2], [-41, 85, 0xffffff, 0.25]
-].forEach(([x,z,c,r]) => beachChair(x, z, c, r));
-lifeguardTower(-66, 88);
-
-const TRAFFIC_CARS = [];
-const DRIVABLE_CARS = [];
-
-function car(x, z, color, ry = 0, opts = {}) {
-  const g = new THREE.Group();
-  const paint = new THREE.MeshPhongMaterial({ color, shininess: 95, specular: 0xffffff });
-  const glass = new THREE.MeshPhongMaterial({ color: 0x8fd8ff, emissive: 0x103060, emissiveIntensity: 0.22, shininess: 110, transparent: true, opacity: 0.82 });
-  const trim = new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 45 });
-
-  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 14), paint);
-  body.scale.set(2.55, 0.48, 1.12);
-  body.position.y = 0.78;
-  body.castShadow = true; body.receiveShadow = true; g.add(body);
-
-  const hood = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 10), paint);
-  hood.scale.set(1.45, 0.26, 0.92);
-  hood.position.set(1.2, 1.0, 0);
-  hood.castShadow = true; g.add(hood);
-
-  const cab = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 12), glass);
-  cab.scale.set(1.08, 0.52, 0.82);
-  cab.position.set(-0.45, 1.3, 0);
-  cab.castShadow = true; g.add(cab);
-
-  const rear = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 10), paint);
-  rear.scale.set(1.0, 0.34, 0.96);
-  rear.position.set(-1.65, 1.0, 0);
-  rear.castShadow = true; g.add(rear);
-
-  const bumperF = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 1.95), trim);
-  bumperF.position.set(2.55, 0.64, 0); g.add(bumperF);
-  const bumperR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 1.95), trim);
-  bumperR.position.set(-2.55, 0.64, 0); g.add(bumperR);
-  const spoiler = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 1.75), paint);
-  spoiler.position.set(-2.25, 1.28, 0); g.add(spoiler);
-
-  [[-1.65,-1.06],[1.55,-1.06],[-1.65,1.06],[1.55,1.06]].forEach(([wx,wz]) => {
-    const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.34, 24), trim);
-    wh.rotation.x = Math.PI / 2; wh.position.set(wx, 0.42, wz); wh.castShadow = true; g.add(wh);
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.36, 18), new THREE.MeshPhongMaterial({ color: 0xd9e4e8, shininess: 90 }));
-    hub.rotation.x = Math.PI / 2; hub.position.set(wx, 0.42, wz); g.add(hub);
-  });
-
-  const headMat = new THREE.MeshPhongMaterial({ color: 0xffffcc, emissive: 0xffee88, emissiveIntensity: 0.55 });
-  const tailMat = new THREE.MeshPhongMaterial({ color: 0xff2244, emissive: 0xff0022, emissiveIntensity: 0.5 });
-  [[2.58,-0.55],[2.58,0.55]].forEach(([lx,lz]) => {
-    const l = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), headMat);
-    l.scale.set(0.65, 0.45, 1); l.position.set(lx, 0.82, lz); g.add(l);
-  });
-  [[-2.58,-0.6],[-2.58,0.6]].forEach(([lx,lz]) => {
-    const l = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), tailMat);
-    l.scale.set(0.55, 0.4, 1); l.position.set(lx, 0.82, lz); g.add(l);
-  });
-
-  g.position.set(x, 0, z); g.rotation.y = ry;
-  g.userData = {
-    baseSpeed: opts.speed || 0,
-    lane: opts.lane || null,
-    axis: opts.axis || 'z',
-    min: opts.min || -100,
-    max: opts.max || 100,
-    direction: opts.direction || 1,
-    driveable: !!opts.driveable,
-    velocity: 0,
-    name: opts.name || 'MIAMI TURBO'
-  };
-  scene.add(g); return g;
-}
-function addTrafficCar(x, z, color, ry, opts) {
-  const c = car(x, z, color, ry, opts);
-  TRAFFIC_CARS.push(c);
-  return c;
-}
-function addDrivableCar(x, z, color, ry, name) {
-  const c = car(x, z, color, ry, { driveable: true, name });
-  DRIVABLE_CARS.push(c);
-  return c;
-}
-addDrivableCar(38, -6, 0xff6eb4, Math.PI / 2, 'PINK INFERNO');
-addDrivableCar(26, 18, 0x00ccff, Math.PI / 2, 'OCEAN TURBO');
-addTrafficCar(-35, -18, 0xfff1c0, -Math.PI / 2, { axis: 'x', direction: -1, speed: 0.12, min: -145, max: 145 });
-addTrafficCar(-42, 8, 0xff8844, -Math.PI / 2, { axis: 'x', direction: -1, speed: 0.095, min: -145, max: 145 });
-addTrafficCar(32, -82, 0x35f0ff, 0, { axis: 'z', direction: 1, speed: 0.11, min: -105, max: 104 });
-addTrafficCar(32, 62, 0xffdd44, Math.PI, { axis: 'z', direction: -1, speed: 0.085, min: -105, max: 104 });
-addTrafficCar(-32, 74, 0xff55aa, Math.PI, { axis: 'z', direction: -1, speed: 0.1, min: -105, max: 104 });
-addTrafficCar(-32, -56, 0xaaffee, 0, { axis: 'z', direction: 1, speed: 0.09, min: -105, max: 104 });
-
-// Background fill buildings
-for (let [x, z, w, h, d, c, wc] of [
-  [-90, -60, 24, 28, 14, LAVEN, 0xe6d4ff],
-  [ 90, -60, 22, 25, 14, CORAL, 0xffe0aa],
-  [ 80,  20, 20, 22, 14, CYAN,  0xbdf2ff],
-  [-80,  20, 26, 27, 14, CREAM, 0xffe7a8],
-  [-90, -90, 21, 24, 14, TEAL,  0x7cffd4],
-  [ 90, -80, 25, 30, 14, PINK,  0xffc6e8],
-  [ 55, -88, 19, 21, 14, CREAM, 0xffe7a8]
-]) {
-  box(w, h, d, c, x, 0, z);
-  windowGrid(x, z - d * 0.5 - 0.15, Math.max(3, Math.floor(w / 4)), Math.max(3, Math.floor(h / 5)), 3.2, 4.2, 5.0, wc);
-}
-
-// ── CONVENTION AVE (north road to convention) ──────────────
-plane(14, 62, 0xb8b0a0, 0, 0.005, -40);    // sidewalk
-plane(12, 60, 0x2a2a38, 0, 0.01, -40);     // asphalt
-roadLines(0, -10, 0, -70, 9, false);
-
-// ── HACKER CONVENTION CENTER ──────────────────────────────
-// Convention plaza (concrete courtyard)
-plane(68, 30, 0x60606e, 0, 0.015, -74);
-plane(54, 10, 0x87d9e8, 0, 0.018, -70);
-plane(42, 6, 0xff7ab8, 0, 0.02, -72.5);
-// Main building body
-box(46, 22, 32, 0x172052, 0, 0, -91, 0x06081a, 0.08);
-roundedFacade(0, -91, 46, 22, 32, 0xfff2c7, 0x00ffff);
-// Roof slab
-box(52, 1.2, 36, 0xff6eb4, 0, 22, -91, 0xff2f99, 0.65);
-box(42, 1.2, 30, 0x00d6ff, 0, 23.4, -91, 0x00d6ff, 0.55);
-// Left tower
-box(8, 30, 8, 0x253b86, -23, 0, -89, 0x0b1240, 0.12);
-// Right tower
-cyl(3.8, 3.8, 30, 0x253b86, -23, 0, -89, 28, 0x0b1240, 0.08);
-box(8, 30, 8, 0x253b86,  23, 0, -89, 0x0b1240, 0.12);
-cyl(3.8, 3.8, 30, 0x253b86, 23, 0, -89, 28, 0x0b1240, 0.08);
-// Tower caps cyan
-box(11, 1.4, 11, 0xffd36e, -23, 30, -89, 0xffaa22, 1.0);
-box(11, 1.4, 11, 0xffd36e,  23, 30, -89, 0xffaa22, 1.0);
-cyl(4.5, 3.1, 3.2, 0x00ffff, -23, 31.3, -89, 28, 0x00ffff, 0.8);
-cyl(4.5, 3.1, 3.2, 0x00ffff,  23, 31.3, -89, 28, 0x00ffff, 0.8);
-// Antenna rods on towers
-box(0.5, 6, 0.5, 0xff00ff, -22, 31, -89, 0xff00ff, 1);
-box(0.5, 6, 0.5, 0xff00ff,  22, 31, -89, 0xff00ff, 1);
-// Entry canopy overhang
-box(32, 3.2, 9, 0xff6eb4, 0, 17.5, -78.5, 0xff2f99, 1.0);
-const convArch = cyl(17.5, 17.5, 2.0, 0xfff2c7, 0, 18.6, -77.8, 36, 0xffd36e, 0.25);
-convArch.rotation.z = Math.PI / 2;
-convArch.scale.z = 0.16;
-// Entry pillars
-cyl(0.85, 0.85, 18, 0xfff2c7, -14, 0, -77, 24, 0xffd36e, 0.18);
-cyl(0.85, 0.85, 18, 0xfff2c7, -7, 0, -77, 24, 0xffd36e, 0.18);
-cyl(0.85, 0.85, 18, 0xfff2c7,  7, 0, -77, 24, 0xffd36e, 0.18);
-cyl(0.85, 0.85, 18, 0xfff2c7,  14, 0, -77, 24, 0xffd36e, 0.18);
-box(34, 1.4, 3.2, 0xffd36e, 0, 16.4, -76.7, 0xffaa22, 0.75);
-// Neon facade strips
-box(48, 1.8, 0.5, 0xff6eb4, 0, 15.2, -77.4, 0xff2f99, 1.4);
-box(48, 1.2, 0.5, 0x00d6ff, 0, 11.7, -77.4, 0x00d6ff, 1.0);
-box(48, 0.9, 0.5, 0xffd36e, 0,  7.2, -77.4, 0xffaa22, 0.8);
-box(48, 0.6, 0.5, 0x7cffd4, 0,  3.2, -77.4, 0x7cffd4, 0.6);
-// BIG NEON SIGN backing plate
-box(38, 5.4, 0.8, 0x060014, 0, 20.6, -73.9, 0xff00ff, 0.35);
-textSign('Ekoparty', 36, 4.8, 0, 21.0, -73.35, 0, '#060014', '#fff45c', 64);
-textSign('CONVENTION CENTER', 24, 2.4, 0, 18.6, -75.95, 0, '#ff6eb4', '#ffffff');
-// SIGN glow accents
-box(36, 0.45, 0.35, 0xffd36e, 0, 23.9, -73.1, 0xffaa22, 1.4);
-box(36, 0.45, 0.35, 0x00ffff, 0, 19.2, -76.35, 0x00ffff, 1.2);
-// Floor inside (lit internal ground)
-plane(44, 30, 0x0e0830, 0, 0.02, -91);
-// Venue steps
-box(38, 0.45, 3.2, 0xfff2c7, 0, 0, -75.2);
-box(32, 0.9, 3.2, 0xffd36e, 0, 0, -73.4);
-box(24, 1.25, 3.2, 0x87d9e8, 0, 0, -71.6);
-// Side neon columns flanking entrance
-box(0.6, 20, 0.6, 0x00ffff, -18, 0, -77, 0x00ffff, 0.8);
-box(0.6, 20, 0.6, 0xff6eb4,  18, 0, -77, 0xff6eb4, 0.8);
-windowGrid(0, -76.9, 9, 3, 4.2, 3.7, 5.2, 0xa6f2ff);
-windowGrid(-23, -93.15, 2, 5, 2.6, 4.8, 5.8, 0xbdf2ff);
-windowGrid(23, -93.15, 2, 5, 2.6, 4.8, 5.8, 0xbdf2ff);
-sideWindowGrid(-23 - 4.15, -89, 2, 5, 2.8, 4.8, 5.8, 0xffe7a8, -Math.PI / 2);
-sideWindowGrid(23 + 4.15, -89, 2, 5, 2.8, 4.8, 5.8, 0xffe7a8, Math.PI / 2);
-sideWindowGrid(-23.15, -91, 5, 3, 4.8, 4.0, 6.0, 0x9be8ff, -Math.PI / 2);
-sideWindowGrid(23.15, -91, 5, 3, 4.8, 4.0, 6.0, 0x9be8ff, Math.PI / 2);
-for (let sx of [-32, 32]) {
-  cyl(1.4, 1.4, 8, 0xffd36e, sx, 0, -77, 24, 0xffaa22, 0.3);
-  sphere(1.8, 0x00ffff, sx, 9.0, -77, 1, 0.55, 1, 0x00ffff, 0.9);
-}
-// Accent neon light for convention
-neonLight(0, 16, -88, 0xff00ff, 2.2, 55);
-neonLight(0,  6, -78, 0x00ffff, 1.8, 40);
-neonLight(-22, 18, -89, 0x00ccff, 1.0, 30);
-neonLight( 22, 18, -89, 0x00ccff, 1.0, 30);
-neonLight(0, 24, -76, 0xffd36e, 1.5, 42);
-
-// ── PALM TREES ──────────────────────────────────────────
-function palm(x, z) {
-  const trunkH = 7 + Math.random() * 2;
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.25, 0.35, trunkH, 7),
-    new THREE.MeshLambertMaterial({ color: 0x6b4c11 })
-  );
-  trunk.position.set(x, trunkH * 0.5, z);
-  trunk.rotation.z = (Math.random() - 0.5) * 0.22;
-  scene.add(trunk);
-  const leafMat = new THREE.MeshLambertMaterial({ color: 0x1a6918 });
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const leaf = new THREE.Mesh(new THREE.SphereGeometry(2.2, 5, 4), leafMat);
-    leaf.scale.set(1, 0.28, 1);
-    leaf.position.set(x + Math.cos(a)*1.8, trunkH + 0.4, z + Math.sin(a)*1.8);
-    scene.add(leaf);
-  }
-}
-[
-  [8,68],[-10,70],[28,72],[50,67],[72,70],[-22,65],[-44,62],
-  [5,48],[-5,44],[22,50],[32,37],[-32,40],[46,27],[-46,24],
-  [0,62],[58,27],[-60,30],[48,14],[-48,12],[18,60],[-18,58]
-].forEach(([x,z]) => palm(x, z));
-
-// ── STREET LIGHTS ──────────────────────────────────────
-function streetLight(x, z) {
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.1, 7, 6),
-    new THREE.MeshLambertMaterial({ color: 0x404050 })
-  );
-  pole.position.set(x, 3.5, z); scene.add(pole);
-  const lamp = new THREE.Mesh(
-    new THREE.SphereGeometry(0.35, 8, 8),
-    new THREE.MeshLambertMaterial({ color: 0xffddaa, emissive: 0xff8800, emissiveIntensity: 0.9 })
-  );
-  lamp.position.set(x, 7.2, z); scene.add(lamp);
-}
-[
-  [-20,-5],[20,-5],[-20,5],[20,5],[26,-20],[26,20],[-26,-20],[-26,20],
-  [26,-52],[26,52],[-26,52],[-26,-52],[-8,-4],[8,-4],[0,-38],[36,-15]
-].forEach(([x,z]) => streetLight(x, z));
-
-// ── HUMAN MODEL HELPERS ──────────────────────────────────
-function makeHuman(opts = {}) {
-  const g = new THREE.Group();
-  const bodyCol = opts.color || 0x3399ff;
-  const skinCol = opts.skin || 0xd4956a;
-  const hairCol = opts.hair || 0x24120a;
-  const shirt = new THREE.MeshPhongMaterial({ color: bodyCol, shininess: 22 });
-  const skin = new THREE.MeshPhongMaterial({ color: skinCol, shininess: 12 });
-  const hair = new THREE.MeshPhongMaterial({ color: hairCol, shininess: 10 });
-  const dark = new THREE.MeshPhongMaterial({ color: opts.pants || 0x202833, shininess: 10 });
-
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.43, 0.95, 14), shirt);
-  torso.position.y = 0.92; torso.castShadow = true; g.add(torso);
-  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.45, 14, 10), shirt);
-  chest.scale.set(0.75, 0.9, 0.45); chest.position.y = 1.25; chest.castShadow = true; g.add(chest);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.18, 10), skin);
-  neck.position.y = 1.72; g.add(neck);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 18, 14), skin);
-  head.scale.set(0.9, 1.08, 0.82); head.position.y = 1.96; head.castShadow = true; g.add(head);
-  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.29, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hair);
-  hairCap.scale.set(0.95, 0.55, 0.9); hairCap.position.y = 2.12; g.add(hairCap);
-
-  const limbs = { arms: [], legs: [] };
-  [-1, 1].forEach(side => {
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.58, 10), skin);
-    upper.position.set(side * 0.48, 1.25, 0); upper.rotation.z = side * 0.2; g.add(upper);
-    const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.075, 0.55, 10), skin);
-    lower.position.set(side * 0.53, 0.84, 0); lower.rotation.z = side * 0.08; g.add(lower);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), skin);
-    hand.position.set(side * 0.56, 0.52, 0); g.add(hand);
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.11, 0.72, 10), dark);
-    leg.position.set(side * 0.18, 0.36, 0); g.add(leg);
-    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.42), new THREE.MeshPhongMaterial({ color: 0x111111 }));
-    shoe.position.set(side * 0.18, 0.06, 0.1); g.add(shoe);
-    limbs.arms.push({ upper, lower, hand });
-    limbs.legs.push({ leg, shoe });
-  });
-
-  g.userData = { torso, chest, head, limbs, mode: opts.mode || 'idle', phase: opts.phase || Math.random() * Math.PI * 2 };
-  return g;
-}
-
-function gymBarbell(x, y, z, width = 2.7) {
-  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, width, 10), new THREE.MeshPhongMaterial({ color: 0xe6f0f2, shininess: 80 }));
-  bar.rotation.z = Math.PI / 2; bar.position.set(x, y, z); scene.add(bar);
-  [-1, 1].forEach(side => {
-    const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.16, 16), new THREE.MeshPhongMaterial({ color: 0x111111 }));
-    plate.rotation.z = Math.PI / 2; plate.position.set(x + side * width * 0.52, y, z); scene.add(plate);
-  });
-  return bar;
-}
-
-// ═══════════════════════════════════════════════════════════
-//  PLAYER — GHOST (Hooded Hacker)
-// ═══════════════════════════════════════════════════════════
-const player = makeHuman({
-  color: 0x101426,
-  skin: 0x3a2820,
-  hair: 0x050508,
-  pants: 0x090915,
-  mode: 'walk',
-  phase: 0.4
+// ── NPCs ──
+const NPC_IDS = ['coco', 'marcus', 'rico', 'diana', 'carlos', 'cipher'];
+const NPCS = NPC_IDS.map(id => {
+  const spot = World.NPC_SPOTS[id];
+  const rig = Char.buildNPC(kit, id);
+  rig.root.position.set(spot.x, 0, spot.z);
+  rig.root.rotation.y = spot.yaw;
+  scene.add(rig.root);
+  const ring = new THREE.Mesh(kit.geo('torus', 1.1, 0.05, 4, 32), new THREE.MeshBasicMaterial({ color: 0xF3BC75, transparent: true, opacity: 0.85 }));
+  ring.rotation.x = Math.PI / 2; ring.position.set(spot.x, 0.05, spot.z); scene.add(ring);
+  const label = el('div', 'npc-label');
+  $('npc-labels').append(label);
+  const c = Cases.byId(id);
+  return { id, name: c ? c.npc : 'CIPHER', role: c ? c.role : 'THE TRUST NETWORK', x: spot.x, z: spot.z, baseYaw: spot.yaw, rig, ring, label, waved: false, wave: 0 };
 });
-player.scale.set(1.05, 1.05, 1.05);
-const jacket = new THREE.Mesh(
-  new THREE.SphereGeometry(0.5, 18, 12),
-  new THREE.MeshPhongMaterial({ color: 0x070814, shininess: 18 })
-);
-jacket.scale.set(0.82, 1.15, 0.46);
-jacket.position.y = 1.05;
-player.add(jacket);
-const visorGlow = new THREE.Mesh(
-  new THREE.BoxGeometry(0.34, 0.055, 0.045),
-  new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1.2 })
-);
-visorGlow.position.set(0, 1.99, 0.23);
-player.add(visorGlow);
-const laptop = new THREE.Mesh(
-  new THREE.BoxGeometry(0.5, 0.04, 0.35),
-  new THREE.MeshPhongMaterial({ color: 0x101820, emissive: 0x00ffff, emissiveIntensity: 0.25, shininess: 60 })
-);
-laptop.position.set(0, 0.92, 0.42);
-laptop.rotation.x = -0.5;
-player.add(laptop);
-const lapGlow = new THREE.PointLight(0x00ffff, 0.7, 4);
-lapGlow.position.set(0, 0.7, 0.6); player.add(lapGlow);
+const npcById = id => NPCS.find(n => n.id === id);
 
-player.position.set(0, 0, 0);
-scene.add(player);
-
-// Build NPC meshes
-const labelsContainer = document.getElementById('npc-labels');
-NPCS.forEach(npc => {
-  const g = makeHuman({
-    color: npc.color,
-    skin: npc.skin,
-    hair: npc.id === 0 ? 0xffe680 : npc.id === 3 ? 0x2d160b : 0x15100a,
-    pants: npc.id === 1 ? 0x1b2236 : 0x263038,
-    mode: 'target',
-    phase: npc.id * 1.7
-  });
-  g.scale.set(1.08, 1.08, 1.08);
-  if (npc.id === 0) {
-    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.46, 0.18), new THREE.MeshPhongMaterial({ color: 0xff77aa, shininess: 20 }));
-    bag.position.set(-0.58, 0.95, -0.08); g.add(bag);
-  }
-  if (npc.id === 1) {
-    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.48, 0.035), new THREE.MeshPhongMaterial({ color: 0xff2244 }));
-    tie.position.set(0, 1.2, 0.34); g.add(tie);
-  }
-  if (npc.id === 2) {
-    const shades = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.06), new THREE.MeshPhongMaterial({ color: 0x050505, shininess: 80 }));
-    shades.position.set(0, 1.98, 0.22); g.add(shades);
-  }
-  if (npc.id === 4) {
-    const apron = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.62, 0.04), new THREE.MeshPhongMaterial({ color: 0xffffff }));
-    apron.position.set(0, 1.02, 0.34); g.add(apron);
-  }
-
-  // Interaction ring
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(4.5, 0.06, 8, 36),
-    new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xaaaa00, emissiveIntensity: 0.6 })
-  );
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.06;
-  ring.visible = false;
-  g.add(ring);
-
-  g.position.set(npc.x, 0, npc.z);
-  scene.add(g);
-  npc.mesh = g;
-  npc.ring = ring;
-
-  // HTML label
-  const el = document.createElement('div');
-  el.className = 'npc-label';
-  el.textContent = npc.name + ' · ' + npc.title;
-  el.style.display = 'none';
-  labelsContainer.appendChild(el);
-  // Boss gets special large imposing mesh
-  if (npc.isBoss) {
-    // Remove default mesh parts
-    while (g.children.length) g.remove(g.children[0]);
-    const bDark = new THREE.MeshPhongMaterial({ color: 0x060008, shininess: 25 });
-    const bRed  = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1 });
-    const bGrey = new THREE.MeshPhongMaterial({ color: 0x1a0010, shininess: 20 });
-    // Tall body
-    const bb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.5, 0.55), bDark);
-    bb.position.y = 0.75; g.add(bb);
-    // Cape / coat
-    const bc = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.7, 0.65), bGrey);
-    bc.position.y = 0.35; g.add(bc);
-    // Head
-    const bh = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), bDark);
-    bh.position.y = 1.8; g.add(bh);
-    // Hood
-    const bhood = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.72, 0.82), bDark);
-    bhood.position.y = 2.05; g.add(bhood);
-    // RED glowing eyes
-    [[-.16,.62,.32],[.16,.62,.32]].forEach(([x,y,z]) => {
-      const e = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.04), bRed);
-      e.position.set(x, y, z); bh.add(e);
-    });
-    // Red aura light attached to boss
-    const bAura = new THREE.PointLight(0xff0022, 1.2, 8);
-    bAura.position.y = 1.5; g.add(bAura);
-    // Re-add ring
-    g.add(ring);
-    el.textContent = '⚠ CIPHER — AI SECURITY BOSS';
-    el.style.cssText += 'color:#ff0044;border-color:rgba(255,0,68,0.6);text-shadow:0 0 8px #ff0044;';
-  }
-
-  npc.labelEl = el;
+// ── Cars ──
+const cars = World.CAR_SPOTS.map(spot => {
+  const state = Move.createCar(spot);
+  const mesh = City.buildCar(kit, spot.color, spot.id === 'pink' ? 0x62DCE7 : 0xF58FC4);
+  scene.add(mesh);
+  return { state, mesh, name: spot.name };
 });
+let drivingCar = null;             // the car GHOST is driving, or null
+let exitAnim = null;
+const traffic = Move.createTraffic();
+const TRAFFIC_COLORS = [0xF0D8C4, 0x62DCE7, 0xF27D78, 0x9fb4e0, 0xF3BC75, 0x468C79, 0xF58FC4, 0xe9e1d6, 0x7d6aa6, 0xc9b39a];
+traffic.forEach((c, i) => { c.mesh = City.buildCar(kit, TRAFFIC_COLORS[i % TRAFFIC_COLORS.length], i % 2 ? 0x62DCE7 : 0xF58FC4); scene.add(c.mesh); });
 
-// ── CONVENTION WALKERS (7 ambient NPCs around the building) ──────────
-const WALKERS = [];
-const walkerDefs = [
-  { color: 0xff6633, skin: 0xffddbb, r: 21, spd: 0.006,  dir:  1, a0: 0.0  },
-  { color: 0x3399ff, skin: 0xf4c68c, r: 24, spd: 0.005,  dir: -1, a0: 0.9  },
-  { color: 0xffcc00, skin: 0xffddbb, r: 19, spd: 0.007,  dir:  1, a0: 1.8  },
-  { color: 0xcc33ff, skin: 0xd4956a, r: 25, spd: 0.004,  dir: -1, a0: 2.7  },
-  { color: 0x00ffcc, skin: 0xffddbb, r: 20, spd: 0.0065, dir:  1, a0: 3.6  },
-  { color: 0xff3366, skin: 0xc68642, r: 23, spd: 0.0055, dir: -1, a0: 4.5  },
-  { color: 0xffffff, skin: 0xffe0bd, r: 17, spd: 0.008,  dir:  1, a0: 5.4  },
+// ── Pedestrians: sidewalk loops (time-based), plus small idle groups ──
+const LOOPS = [
+  [[-23, 8.5], [23, 8.5], [23, 44], [-23, 44]],                        // around the market
+  [[-41, -8.5], [-41, -36]],                                            // downtown sidewalk
+  [[-41, 8.5], [-41, 44]],                                              // hotel sidewalk
+  [[-80, 59], [80, 59]],                                                // boardwalk
+  [[-20, -53], [20, -53], [20, -64], [-20, -64]],                       // convention plaza
+  [[41, -8.5], [41, -36]],                                              // ocean drive
 ];
-walkerDefs.forEach(w => {
-  const g = makeHuman({ color: w.color, skin: w.skin, pants: 0x202833, mode: 'walk', phase: w.a0 });
-  g.scale.set(0.95, 0.95, 0.95);
-  const wx = 0 + Math.cos(w.a0) * w.r;
-  const wz = -90 + Math.sin(w.a0) * w.r;
-  g.position.set(wx, 0, wz);
-  scene.add(g);
-  WALKERS.push({ mesh: g, angle: w.a0, r: w.r, spd: w.spd, dir: w.dir });
+const peds = [];
+LOOPS.forEach((pts, li) => {
+  const segs = []; let total = 0;
+  const closed = pts.length > 2;
+  const path = closed ? pts.concat([pts[0]]) : pts.concat(pts.slice(0, -1).reverse());
+  for (let i = 1; i < path.length; i++) { const L = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]); segs.push({ a: path[i - 1], b: path[i], L, at: total }); total += L; }
+  for (let k = 0; k < (li === 3 ? 3 : 2); k++) {
+    const rig = Char.buildPedestrian(kit, peds.length);
+    scene.add(rig.root);
+    peds.push({ rig, segs, total, s: total * (k / 2 + 0.13 * li), speed: 1.3 + (peds.length % 3) * 0.25, phase: peds.length });
+  }
 });
-
-// ── AMBIENT MIAMI HUMANS: beach, Ocean Drive, and gym ─────
-const AMBIENT_HUMANS = [];
-function ambientHuman(x, z, color, skin, mode, rot = 0, scale = 1) {
-  const g = makeHuman({ color, skin, mode, phase: Math.random() * Math.PI * 2, pants: mode === 'gym' ? 0x111111 : 0x263038 });
-  g.position.set(x, 0, z);
-  g.rotation.y = rot;
-  g.scale.set(scale, scale, scale);
-  scene.add(g);
-  AMBIENT_HUMANS.push(g);
-  return g;
-}
-// Ocean Drive pedestrians and beach crowd
-[
-  [35, 24, 0xffffff, 0xd4956a, 'walk', Math.PI],
-  [31, 44, 0xff6eb4, 0xffddbb, 'idle', -0.4],
-  [40, 70, 0x00ffff, 0xc68642, 'idle', 0.8],
-  [7, 83, 0xffdd00, 0xf4a460, 'idle', -0.2],
-  [-28, 80, 0xff8844, 0x8d5524, 'idle', 0.5],
-  [58, 80, 0x70d8d8, 0xffddbb, 'idle', -0.7]
-].forEach(([x,z,c,s,m,r]) => ambientHuman(x, z, c, s, m, r, 0.9));
-
-// Gym members: lifting, pull-ups, and stretching
-const lifterA = ambientHuman(66, 26, 0xff6633, 0xd4956a, 'lift', Math.PI / 2, 1.02);
-const lifterB = ambientHuman(78, 31, 0x00ccff, 0xc68642, 'lift', Math.PI / 2, 1.05);
-const pullup = ambientHuman(76, 19.4, 0xffdd00, 0x8d5524, 'pullup', Math.PI, 1.0);
-const stretch = ambientHuman(88, 25, 0xff6eb4, 0xffddbb, 'stretch', -0.8, 0.95);
-gymBarbell(66, 1.85, 26, 3.0);
-gymBarbell(78, 1.85, 31, 3.0);
-
-// ── CONVENTION BUILDING LABEL ──────────────────────────────
-const convLabelEl = document.createElement('div');
-convLabelEl.className = 'npc-label';
-convLabelEl.textContent = '🖥️ HACKER CONVENTION';
-convLabelEl.style.cssText += 'color:#00ffff;font-size:13px;letter-spacing:2px;text-shadow:0 0 12px #00ffff;border-color:rgba(0,255,255,0.5);';
-convLabelEl.style.display = 'none';
-labelsContainer.appendChild(convLabelEl);
-
-// ═══════════════════════════════════════════════════════════
-//  CAMERA
-// ═══════════════════════════════════════════════════════════
-const CAM_DIST = 14, CAM_H = 8;
-
-function updateCamera() {
-  const px = player.position.x, pz = player.position.z;
-  const dist = drivingCar ? 18 : CAM_DIST;
-  const height = drivingCar ? 6.2 : CAM_H;
-  camera.position.x = px + Math.sin(camAngle) * dist;
-  camera.position.z = pz + Math.cos(camAngle) * dist;
-  camera.position.y = height;
-  camera.lookAt(px, drivingCar ? 1.0 : 1.1, pz);
+const idlers = [];
+for (const [x, z, yaw] of [[-4, -62, Math.PI], [3, -60, Math.PI * 0.9], [5.5, -63, -Math.PI * 0.8], [58, -57.5, Math.PI], [56, -56.2, Math.PI], [-30, 68, 2], [42, 75, -0.6], [-46, 33, -Math.PI / 2]]) {
+  const rig = Char.buildPedestrian(kit, idlers.length + 3);
+  rig.root.position.set(x, 0, z); rig.root.rotation.y = yaw; rig.mode = 'idle';
+  scene.add(rig.root); idlers.push(rig);
 }
 
 // ═══════════════════════════════════════════════════════════
 //  INPUT
 // ═══════════════════════════════════════════════════════════
-const keys = {};
+let dragging = false, lastMX = 0, dragAccum = 0;
+renderer.domElement.addEventListener('mousedown', e => { if (gamePhase === 'playing') { dragging = true; lastMX = e.clientX; } });
+window.addEventListener('mouseup', () => { dragging = false; });
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  dragAccum += -(e.clientX - lastMX) * 0.0055 * settings.sens * (settings.invert ? -1 : 1);
+  lastMX = e.clientX;
+});
+renderer.domElement.addEventListener('touchstart', e => { lastMX = e.touches[0].clientX; }, { passive: true });
+renderer.domElement.addEventListener('touchmove', e => { dragAccum += -(e.touches[0].clientX - lastMX) * 0.0055 * settings.sens; lastMX = e.touches[0].clientX; }, { passive: true });
 
+const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 document.addEventListener('keydown', e => {
+  if (gamePhase === 'menu') return;
+  if (gamePhase === 'case') return caseKey(e);
+  if (gamePhase === 'files') { if (e.code === 'Tab' || e.code === 'Escape') { e.preventDefault(); closeFiles(); } return; }
+  if (gamePhase === 'map') { if (e.code === 'KeyM' || e.code === 'Escape') { e.preventDefault(); closeMap(); } return; }
+  if (gamePhase === 'paused') { if (e.code === 'Escape') { e.preventDefault(); if (!$('controls-panel').classList.contains('hidden')) showControls(false); else resumeGame(); } return; }
+  if (gamePhase === 'results') return;
+  if (gamePhase !== 'playing') return;
+  if (MOVE_KEYS.includes(e.code) || e.code === 'Tab' || e.code === 'Space') e.preventDefault();
+  if (e.code === 'Escape') { pauseGame(); return; }
+  if (e.code === 'Tab') { openFiles(); return; }
+  if (e.code === 'KeyM') { openMap(); return; }
+  if (e.code === 'KeyE' && !e.repeat) { interact(); return; }
+  if (e.code === 'KeyF' && drivingCar && Move.isStuck(drivingCar.state)) { Move.recoverCar(drivingCar.state, carObstacles(drivingCar)); toast('VEHICLE RECOVERED'); return; }
   keys[e.code] = true;
-  if (e.code === 'KeyE' && !dlgOpen) {
-    if (drivingCar) exitCar();
-    else if (nearCar) enterCar(nearCar);
-    else if (nearNPC !== null) openDialogue(nearNPC);
-  }
-  if (e.code === 'KeyM') toggleMusic();
-  if (e.code === 'Escape' && dlgOpen) closeDialogue();
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
-document.addEventListener('mousedown', e => { if (!dlgOpen) { mouseDown = true; lastMX = e.clientX; } });
-document.addEventListener('mouseup',   () => { mouseDown = false; });
-document.addEventListener('mousemove', e => {
-  if (mouseDown) { camAngle += (e.clientX - lastMX) * 0.007; lastMX = e.clientX; }
-});
-document.addEventListener('touchstart', e => { lastMX = e.touches[0].clientX; }, { passive: true });
-document.addEventListener('touchmove', e => {
-  if (!dlgOpen) { camAngle += (e.touches[0].clientX - lastMX) * 0.007; lastMX = e.touches[0].clientX; }
-  e.preventDefault();
-}, { passive: false });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; dragging = false; if (gamePhase === 'playing') pauseGame(); });
+const releaseKeys = () => { for (const k in keys) keys[k] = false; dragging = false; dragAccum = 0; };
 
-
-const intelCountEl   = document.getElementById('intel-count');
-const zoneEl         = document.getElementById('zone-display');
-const promptEl       = document.getElementById('interact-prompt');
-const dlgBox         = document.getElementById('dialogue-box');
-const dlgNpc         = document.getElementById('dialogue-npc');
-const dlgTag         = document.getElementById('dialogue-technique-tag');
-const dlgText        = document.getElementById('dialogue-text');
-const dlgChoices     = document.getElementById('dialogue-choices');
-const dlgFeedback    = document.getElementById('dialogue-feedback');
-const dlgCloseBtn    = document.getElementById('dialogue-close');
-
-// ── BOSS DIALOGUE ────────────────────────────────────────
-function openBossDialogue(round) {
-  dlgSession++;
-  bossActive = true;
-  bossRound = round;
-  const q = NPCS[5].rounds[round];
-  dlgOpen = true;
-  dlgBox.classList.add('boss-mode');
-  dlgBox.style.display = 'block';
-  promptEl.style.display = 'none';
-  dlgNpc.textContent = '⚠ CIPHER  —  FINAL BOSS  [' + (round + 1) + ' / 4]';
-  dlgTag.textContent = 'CHALLENGE: AI THREAT INTELLIGENCE';
-  dlgText.textContent = q.text;
-  dlgFeedback.style.display = 'none';
-  dlgCloseBtn.style.display = 'none';
-  dlgChoices.replaceChildren();
-  q.choices.forEach((c, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'd-choice';
-    btn.textContent = c.t;
-    btn.onclick = () => handleBossChoice(round, i, btn);
-    dlgChoices.appendChild(btn);
-  });
-}
-
-function handleBossChoice(round, choiceIdx, btn) {
-  const q = NPCS[5].rounds[round];
-  document.querySelectorAll('.d-choice').forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
-  if (choiceIdx === q.correct) {
-    btn.className = 'd-choice correct'; btn.style.opacity = '1';
-    dlgFeedback.className = 'ok';
-    dlgFeedback.style.display = 'block';
-    if (round < 3) {
-      dlgFeedback.textContent = '✓ CORRECT.\n"...Impressive. Let\'s continue."';
-      const session = dlgSession;
-      setTimeout(() => {
-        if (session !== dlgSession) return;   // dialogue was closed (Esc) meanwhile
-        dlgFeedback.style.display = 'none';
-        openBossDialogue(round + 1);
-      }, 2200);
-    } else {
-      dlgFeedback.textContent = '✓ CORRECT.\n\n"...You know too much, GHOST. The city is yours — for now. Don\'t make me regret this."';
-      dlgCloseBtn.style.display = 'inline-block';
-      NPCS[5].done = true;
-      NPCS[5].ring.visible = false;
-      if (NPCS[5].labelEl) NPCS[5].labelEl.className = 'npc-label done';
-      // closeDialogue() shows the win screen once the boss is done, whether the
-      // player clicks CLOSE or presses Esc.
-    }
-  } else {
-    btn.className = 'd-choice wrong'; btn.style.opacity = '1';
-    dlgFeedback.className = 'bad';
-    dlgFeedback.style.display = 'block';
-    dlgFeedback.textContent = '✗ Wrong. "You\'re not even close. Try again, little ghost."';
-    const session = dlgSession;
-    setTimeout(() => {
-      if (session !== dlgSession) return;
-      document.querySelectorAll('.d-choice').forEach(b => {
-        b.disabled = false; b.style.opacity = '1'; b.className = 'd-choice';
-      });
-      dlgFeedback.style.display = 'none';
-    }, 2800);
-  }
-}
-
-function showBossWin() {
-  if (bossWinShown) return;
-  bossWinShown = true;
-  HTPProgress.recordCompletion(3);
-  document.getElementById('boss-win-screen').style.display = 'flex';
-  document.getElementById('boss-next-btn').focus();
-}
-
-// CIPHER refuses to engage until all five intel missions are done.
-function openBossLocked() {
-  dlgSession++;
-  dlgOpen = true;
-  dlgBox.classList.add('boss-mode');
-  dlgBox.style.display = 'block';
-  promptEl.style.display = 'none';
-  dlgNpc.textContent = '⚠ CIPHER  —  FINAL BOSS  [LOCKED]';
-  dlgTag.textContent = 'INTEL REQUIRED: ' + intelCount + ' / ' + INTEL_REQUIRED;
-  dlgText.textContent = '"Not yet, GHOST. You walk in here with ' + intelCount + ' of ' + INTEL_REQUIRED +
-    ' intel files? Work the city first — come back when you have all five."';
-  dlgChoices.replaceChildren();
-  dlgFeedback.style.display = 'none';
-  dlgCloseBtn.style.display = 'inline-block';
-}
-
-function openDialogue(idx) {
-  const npc = NPCS[idx];
-  if (npc.done) return;
-  if (npc.isBoss) {
-    if (intelCount < INTEL_REQUIRED) openBossLocked();
-    else openBossDialogue(0);
-    return;
-  }
-  dlgSession++;
-  dlgOpen = true;
-  dlgBox.style.display = 'block';
-  promptEl.style.display = 'none';
-  dlgNpc.textContent = '▶ ' + npc.name + ' — ' + npc.title.toUpperCase();
-  dlgTag.textContent = 'TECHNIQUE: ???';
-  dlgText.textContent = npc.dlg.text;
-  dlgFeedback.style.display = 'none';
-  dlgCloseBtn.style.display = 'none';
-
-  dlgChoices.replaceChildren();
-  npc.dlg.choices.forEach((c, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'd-choice';
-    btn.textContent = c.t;
-    btn.onclick = () => handleChoice(idx, i, btn);
-    dlgChoices.appendChild(btn);
-  });
-}
-
-function handleChoice(npcIdx, choiceIdx, btn) {
-  const npc = NPCS[npcIdx];
-  const ch = npc.dlg.choices[choiceIdx];
-  document.querySelectorAll('.d-choice').forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
-
-  if (ch.ok) {
-    btn.className = 'd-choice correct'; btn.style.opacity = '1';
-    dlgTag.textContent = 'TECHNIQUE: ' + npc.dlg.tech;
-    dlgFeedback.className = 'ok';
-    dlgFeedback.style.display = 'block';
-    dlgFeedback.textContent = npc.dlg.okMsg;
-    dlgCloseBtn.style.display = 'inline-block';
-
-    npc.done = true;
-    intelCount++;
-    collectedIntel.push(npc);
-    intelCountEl.textContent = intelCount;
-
-    // Grey out NPC
-    npc.mesh.children.forEach(c => {
-      if (c !== npc.ring && c.material)
-        c.material = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
-    });
-    npc.ring.visible = false;
-    if (npc.labelEl) npc.labelEl.className = 'npc-label done';
-
-    if (intelCount >= INTEL_REQUIRED) setTimeout(showWin, 2500);
-  } else {
-    btn.className = 'd-choice wrong'; btn.style.opacity = '1';
-    dlgFeedback.className = 'bad';
-    dlgFeedback.style.display = 'block';
-    dlgFeedback.textContent = npc.dlg.badMsg;
-
-    const session = dlgSession;
-    setTimeout(() => {
-      if (session !== dlgSession) return;
-      document.querySelectorAll('.d-choice').forEach(b => {
-        b.disabled = false; b.style.opacity = '1'; b.className = 'd-choice';
-      });
-      dlgFeedback.style.display = 'none';
-    }, 2800);
-  }
-}
-
-function closeDialogue() {
-  dlgSession++;
-  dlgOpen = false;
-  bossActive = false;
-  dlgBox.classList.remove('boss-mode');
-  dlgBox.style.display = 'none';
-  dlgCloseBtn.onclick = closeDialogue;
-  if (NPCS[5].done) showBossWin();
-}
-
-// Intel summary shown once all five files are in; the level itself is only
-// complete after CIPHER is beaten.
-function showWin() {
-  document.getElementById('win-screen').style.display = 'flex';
-  const log = document.getElementById('intel-log');
-  const techs = ['BAITING','IMPERSONATION','PRETEXTING','QUID PRO QUO','ELICITATION'];
-  log.replaceChildren();
-  collectedIntel.forEach(npc => {
-    const li = document.createElement('li');
-    const tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.textContent = '[' + techs[npc.id] + '] ' + npc.name;
-    li.append(tag, document.createElement('br'), npc.dlg.intel);
-    log.appendChild(li);
-  });
-  document.getElementById('intel-continue-btn').focus();
-}
-
-function closeIntelScreen() {
-  document.getElementById('win-screen').style.display = 'none';
+// Dynamic obstacles: parked/driven cars and traffic, as circles.
+function carObstacles(except) {
+  const list = [];
+  for (const c of cars) if (c !== except) list.push(...Move.carCircles(c.state));
+  for (const t of traffic) list.push(...Move.carCircles(t));
+  return list;
 }
 
 // ═══════════════════════════════════════════════════════════
-//  PLAYER MOVEMENT
+//  INTERACTION
 // ═══════════════════════════════════════════════════════════
-const SPEED = 0.13, TURN = 0.042, BOUNDS = 92;
-const CAR_ACCEL = 0.012, CAR_FRICTION = 0.965, CAR_MAX = 0.58, CAR_REVERSE = -0.22, CAR_TURN = 0.044;
-
-function enterCar(carMesh) {
-  drivingCar = carMesh;
-  carSpeed = 0;
-  player.visible = false;
-  nearCar = null;
-  promptEl.style.display = 'none';
-  camAngle = drivingCar.rotation.y + Math.PI;
-}
-
-function exitCar() {
-  if (!drivingCar) return;
-  const side = new THREE.Vector3(Math.cos(drivingCar.rotation.y), 0, -Math.sin(drivingCar.rotation.y));
-  player.position.set(
-    Math.max(-BOUNDS, Math.min(BOUNDS, drivingCar.position.x + side.x * 3.0)),
-    0,
-    Math.max(-BOUNDS, Math.min(BOUNDS, drivingCar.position.z + side.z * 3.0))
-  );
-  player.rotation.y = drivingCar.rotation.y;
-  player.visible = true;
-  drivingCar.userData.velocity = 0;
-  drivingCar = null;
-  carSpeed = 0;
-}
-
-function updateTrafficCars() {
-  TRAFFIC_CARS.forEach(c => {
-    const data = c.userData;
-    const move = data.baseSpeed * data.direction;
-    if (data.axis === 'x') {
-      c.position.x += move;
-      if (c.position.x > data.max) c.position.x = data.min;
-      if (c.position.x < data.min) c.position.x = data.max;
-      c.rotation.y = data.direction > 0 ? Math.PI / 2 : -Math.PI / 2;
-    } else {
-      c.position.z += move;
-      if (c.position.z > data.max) c.position.z = data.min;
-      if (c.position.z < data.min) c.position.z = data.max;
-      c.rotation.y = data.direction > 0 ? 0 : Math.PI;
-    }
-    c.position.y = Math.sin(frame * 0.08 + c.position.x * 0.1) * 0.025;
-  });
-}
-
-function updateDriving() {
-  if (!drivingCar || dlgOpen) return false;
-  if (keys['KeyW'] || keys['ArrowUp']) carSpeed = Math.min(CAR_MAX, carSpeed + CAR_ACCEL);
-  else if (keys['KeyS'] || keys['ArrowDown']) carSpeed = Math.max(CAR_REVERSE, carSpeed - CAR_ACCEL * 0.75);
-  else carSpeed *= CAR_FRICTION;
-
-  if (Math.abs(carSpeed) < 0.004) carSpeed = 0;
-  const steerPower = Math.min(1, Math.abs(carSpeed) / 0.18);
-  if (keys['KeyA'] || keys['ArrowLeft']) drivingCar.rotation.y += CAR_TURN * steerPower * (carSpeed >= 0 ? 1 : -1);
-  if (keys['KeyD'] || keys['ArrowRight']) drivingCar.rotation.y -= CAR_TURN * steerPower * (carSpeed >= 0 ? 1 : -1);
-
-  drivingCar.position.x += Math.sin(drivingCar.rotation.y) * carSpeed;
-  drivingCar.position.z += Math.cos(drivingCar.rotation.y) * carSpeed;
-  drivingCar.position.x = Math.max(-BOUNDS, Math.min(BOUNDS, drivingCar.position.x));
-  drivingCar.position.z = Math.max(-BOUNDS, Math.min(BOUNDS, drivingCar.position.z));
-  drivingCar.position.y = Math.abs(carSpeed) > 0.02 ? Math.sin(frame * 0.45) * 0.025 : 0;
-  drivingCar.userData.velocity = carSpeed;
-
-  player.position.set(drivingCar.position.x, 0, drivingCar.position.z);
-  player.rotation.y = drivingCar.rotation.y;
-  camAngle += ((drivingCar.rotation.y + Math.PI) - camAngle) * 0.08;
-  return true;
-}
-
-function updatePlayer() {
-  if (dlgOpen) return;
-  if (updateDriving()) return;
-  if (keys['KeyA'] || keys['ArrowLeft'])  camAngle -= TURN;
-  if (keys['KeyD'] || keys['ArrowRight']) camAngle += TURN;
-
-  let moved = false;
-  const dx = Math.sin(camAngle), dz = Math.cos(camAngle);
-
-  if (keys['KeyW'] || keys['ArrowUp']) {
-    player.position.x -= dx * SPEED;
-    player.position.z -= dz * SPEED;
-    player.rotation.y = camAngle + Math.PI;
-    moved = true;
+const NPC_RANGE = 6.2, CIPHER_RANGE = 6.5, CAR_RANGE = 3.8;
+let nearNPC = null, nearCar = null;
+function updateProximity() {
+  nearNPC = null; nearCar = null;
+  if (drivingCar) return;
+  let best = Infinity;
+  for (const n of NPCS) {
+    if (n.id !== 'cipher' && op.cases[n.id].status === 'completed') continue;
+    if (n.id === 'cipher' && op.cipher.done) continue;
+    const d = Math.hypot(walker.x - n.x, walker.z - n.z);
+    if (d < (n.id === 'cipher' ? CIPHER_RANGE : NPC_RANGE) && d < best) { best = d; nearNPC = n; }
   }
-  if (keys['KeyS'] || keys['ArrowDown']) {
-    player.position.x += dx * SPEED;
-    player.position.z += dz * SPEED;
-    player.rotation.y = camAngle;
-    moved = true;
+  let bestCar = CAR_RANGE;
+  for (const c of cars) {
+    const d = Math.hypot(walker.x - c.state.x, walker.z - c.state.z);
+    if (d < bestCar && d < best) { bestCar = d; nearCar = c; }
   }
-
-  player.position.x = Math.max(-BOUNDS, Math.min(BOUNDS, player.position.x));
-  player.position.z = Math.max(-BOUNDS, Math.min(BOUNDS, player.position.z));
-  player.position.y = moved ? Math.sin(Date.now() * 0.009) * 0.04 : 0;
-  player.userData.mode = moved ? 'walk' : 'idle';
+  if (nearCar) nearNPC = null;
 }
-
-// ═══════════════════════════════════════════════════════════
-//  PROXIMITY & ZONE
-// ═══════════════════════════════════════════════════════════
-const RANGE = 6.5;
-
-function checkProximity() {
+const promptEl = $('interact-prompt');
+function updatePrompt() {
+  let text = null, key = 'E';
   if (drivingCar) {
-    nearNPC = null;
-    nearCar = null;
-    NPCS.forEach(npc => { if (npc.ring) npc.ring.visible = false; });
-    if (!dlgOpen) {
-      promptEl.style.display = 'block';
-      promptEl.textContent = '[ E ] EXIT VEHICLE';
-    }
-    return;
-  }
-
-  let closest = null, bestDist = RANGE;
-  NPCS.forEach((npc, i) => {
-    if (npc.done) { npc.ring.visible = false; return; }
-    const dx = player.position.x - npc.x;
-    const dz = player.position.z - npc.z;
-    const d = Math.sqrt(dx*dx + dz*dz);
-    npc.ring.visible = d < RANGE + 4;
-    if (d < bestDist) { bestDist = d; closest = i; }
-  });
-  nearNPC = closest;
-
-  nearCar = null;
-  let bestCarDist = 5.5;
-  DRIVABLE_CARS.forEach(carMesh => {
-    const dx = player.position.x - carMesh.position.x;
-    const dz = player.position.z - carMesh.position.z;
-    const d = Math.sqrt(dx*dx + dz*dz);
-    if (d < bestCarDist) {
-      bestCarDist = d;
-      nearCar = carMesh;
-    }
-  });
-
-  if (nearCar && !dlgOpen) {
-    promptEl.style.display = 'block';
-    promptEl.textContent = '[ E ] DRIVE ' + nearCar.userData.name;
-  } else if (closest !== null && !dlgOpen) {
-    promptEl.style.display = 'block';
-    promptEl.textContent = NPCS[closest].isBoss && intelCount < INTEL_REQUIRED
-      ? '[ E ] CIPHER — LOCKED (' + intelCount + '/' + INTEL_REQUIRED + ' INTEL)'
-      : '[ E ] APPROACH ' + NPCS[closest].name;
-  } else if (!dlgOpen) {
-    promptEl.style.display = 'none';
-  }
+    text = Move.isStuck(drivingCar.state) ? 'STUCK? PRESS F TO RECOVER · E EXIT' : 'EXIT ' + drivingCar.name;
+    if (Move.isStuck(drivingCar.state)) key = 'F';
+  } else if (nearNPC) {
+    if (nearNPC.id === 'cipher') text = op.cipherUnlocked() ? 'CONFRONT CIPHER' : 'CIPHER — LOCKED (' + op.intelCount() + '/5 INTEL)';
+    else text = (op.cases[nearNPC.id].status === 'active' ? 'CONTINUE · ' : 'TALK TO ') + nearNPC.name;
+  } else if (nearCar) text = 'DRIVE ' + nearCar.name;
+  if (!text) { promptEl.style.display = 'none'; return; }
+  promptEl.replaceChildren(el('span', 'k', '[' + key + ']'), document.createTextNode(text));
+  promptEl.style.display = 'block';
 }
-
-function getZone(x, z) {
-  if (z > 58) return '🏖  MIAMI BEACH';
-  if (Math.abs(x) < 26 && z < -68) return '🖥️  HACKER CONVENTION';
-  if (x < -36 && z < -15) return '🏢  DOWNTOWN OFFICE';
-  if (x > 34 && z < -48) return '🌃  CLUB NEON';
-  if (x < -36 && z > 22) return '🏨  OCEAN PEARL HOTEL';
-  if (x > 56 && z > 10 && z < 40) return '🏋  OCEAN DRIVE GYM';
-  if (Math.abs(x) < 28 && Math.abs(z) < 28) return '🥗  LITTLE HAVANA MARKET';
-  return '🌴  VICE CITY — MIAMI';
+function interact() {
+  if (drivingCar) { exitCar(); return; }
+  if (nearNPC) { openCase(nearNPC.id); return; }
+  if (nearCar) enterCar(nearCar);
+}
+function enterCar(c) {
+  drivingCar = c; c.state.speed = 0; c.state.stuck = 0;
+  c.mesh.add(ghost.root);
+  ghost.root.position.set(0.42, 0.05, -0.35); ghost.root.rotation.set(0, 0, 0);
+  walker.vx = walker.vz = 0;
+  sfx('door'); releaseKeys();
+}
+function exitCar() {
+  const c = drivingCar;
+  const spot = Move.exitSpot(c.state, carObstacles(c).concat(Move.carCircles(c.state)));
+  if (!spot) { toast('NO ROOM TO STEP OUT HERE'); return; }
+  const from = new THREE.Vector3(); ghost.root.getWorldPosition(from);
+  scene.add(ghost.root);
+  walker.x = spot.x; walker.z = spot.z; walker.vx = walker.vz = 0; walker.yaw = c.state.yaw;
+  c.state.speed = 0;
+  drivingCar = null;
+  exitAnim = { fx: from.x, fz: from.z, t: 0 };
+  sfx('door');
 }
 
 // ═══════════════════════════════════════════════════════════
-//  NPC LABELS (project 3D → 2D)
+//  SIMULATION
 // ═══════════════════════════════════════════════════════════
-const _v3 = new THREE.Vector3();
+let lastTime = performance.now(), clock = 0;
+let nextRouteAt = 0, route = null, routeTarget = null;
+let hudTick = 0;
 
-function updateLabels() {
-  NPCS.forEach(npc => {
-    const el = npc.labelEl;
-    if (!el) return;
-    _v3.set(npc.x, 2.0, npc.z);
-    _v3.project(camera);
-    const sx = (_v3.x * 0.5 + 0.5) * window.innerWidth;
-    const sy = (-_v3.y * 0.5 + 0.5) * window.innerHeight;
-    const dx = player.position.x - npc.x, dz = player.position.z - npc.z;
-    const dist = Math.sqrt(dx*dx + dz*dz);
-    el.style.display = dist < 30 && _v3.z < 1 ? 'block' : 'none';
-    el.style.left = sx + 'px';
-    el.style.top  = (sy - 2) + 'px';
-  });
+function inputAxes() {
+  const up = keys.KeyW || keys.ArrowUp ? 1 : 0, down = keys.KeyS || keys.ArrowDown ? 1 : 0;
+  const left = keys.KeyA ? 1 : 0, rightK = keys.KeyD ? 1 : 0;
+  const turnL = keys.ArrowLeft ? 1 : 0, turnR = keys.ArrowRight ? 1 : 0;
+  return { fwd: up - down, right: rightK - left, rotate: turnL - turnR, steer: (rightK + turnR) - (left + turnL) };
 }
 
-// ═══════════════════════════════════════════════════════════
-//  MINIMAP
-// ═══════════════════════════════════════════════════════════
-const minimapCanvas = document.getElementById('minimap');
-const mctx = minimapCanvas.getContext('2d');
-const MM = 160, MM_SCALE = MM / 220;
-
-function worldToMap(wx, wz) {
-  return {
-    x: MM/2 + (wx - player.position.x) * MM_SCALE,
-    y: MM/2 + (wz - player.position.z) * MM_SCALE
-  };
-}
-
-function drawMinimap() {
-  mctx.clearRect(0, 0, MM, MM);
-
-  // ── BACKGROUND: city geography ──────────────────────────
-  // Grass base
-  mctx.fillStyle = '#3a8030';
-  mctx.fillRect(0, 0, MM, MM);
-
-  // Ocean (world Z 118–180)
-  const oTop = worldToMap(-150, 118), oBot = worldToMap(150, 180);
-  mctx.fillStyle = '#1a6eaa';
-  mctx.fillRect(0, Math.max(0, oTop.y), MM, Math.min(MM, oBot.y - oTop.y));
-
-  // Wet sand strip (world Z 108–118)
-  const wsTop = worldToMap(-150, 108), wsBot = worldToMap(150, 118);
-  mctx.fillStyle = '#c8a850';
-  mctx.fillRect(0, Math.max(0, wsTop.y), MM, Math.max(0, wsBot.y - wsTop.y));
-
-  // Beach sand (world Z 55–108)
-  const bTop = worldToMap(-150, 55), bBot = worldToMap(150, 108);
-  mctx.fillStyle = '#e2c86a';
-  mctx.fillRect(0, Math.max(0, bTop.y), MM, Math.max(0, bBot.y - bTop.y));
-
-  // ── ROADS ───────────────────────────────────────────────
-  mctx.fillStyle = '#22222e';
-  // Main Ave (Z=0, width=13 world units)
-  const maL = worldToMap(-150, -6.5), maR = worldToMap(150, 6.5);
-  mctx.fillRect(0, Math.max(0,maL.y), MM, Math.max(1, maR.y - maL.y));
-  // Ocean Drive (X=32)
-  const odL = worldToMap(25.5, -110), odR = worldToMap(38.5, 110);
-  mctx.fillRect(Math.max(0,odL.x), 0, Math.max(1, odR.x - odL.x), MM);
-  // NW Ave (X=-32)
-  const nwL = worldToMap(-38.5, -110), nwR = worldToMap(-25.5, 110);
-  mctx.fillRect(Math.max(0,nwL.x), 0, Math.max(1, nwR.x - nwL.x), MM);
-
-  // Road center dashes (yellow)
-  mctx.fillStyle = '#ffdd00';
-  // Main Ave center dashes
-  for (let wx = -140; wx < 140; wx += 16) {
-    const p = worldToMap(wx, 0);
-    if (p.x > 0 && p.x < MM) mctx.fillRect(p.x - 3, p.y - 0.5, 6, 1);
-  }
-  // Ocean Drive center dashes
-  for (let wz = -100; wz < 100; wz += 16) {
-    const p = worldToMap(32, wz);
-    if (p.y > 0 && p.y < MM) mctx.fillRect(p.x - 0.5, p.y - 3, 1, 6);
-  }
-  // NW Ave center dashes
-  for (let wz = -100; wz < 100; wz += 16) {
-    const p = worldToMap(-32, wz);
-    if (p.y > 0 && p.y < MM) mctx.fillRect(p.x - 0.5, p.y - 3, 1, 6);
-  }
-
-  // ── DISTRICT BLOCKS (subtle) ─────────────────────────────
-  // Office district
-  const od1 = worldToMap(-85, -60), od2 = worldToMap(-36, 0);
-  mctx.fillStyle = 'rgba(180,150,220,0.35)';
-  mctx.fillRect(od1.x, od1.y, od2.x-od1.x, od2.y-od1.y);
-  // Club district
-  const cd1 = worldToMap(34, -85), cd2 = worldToMap(85, -40);
-  mctx.fillStyle = 'rgba(220,80,180,0.3)';
-  mctx.fillRect(cd1.x, cd1.y, cd2.x-cd1.x, cd2.y-cd1.y);
-  // Hotel district
-  const hd1 = worldToMap(-80, 25), hd2 = worldToMap(-34, 70);
-  mctx.fillStyle = 'rgba(220,120,160,0.3)';
-  mctx.fillRect(hd1.x, hd1.y, hd2.x-hd1.x, hd2.y-hd1.y);
-  // Ocean Drive gym
-  const gy1 = worldToMap(59, 10), gy2 = worldToMap(93, 38);
-  mctx.fillStyle = 'rgba(0,220,255,0.28)';
-  mctx.fillRect(gy1.x, gy1.y, gy2.x-gy1.x, gy2.y-gy1.y);
-
-  // ── DISTRICT LABELS ──────────────────────────────────────
-  mctx.font = 'bold 6px monospace';
-  mctx.textAlign = 'center';
-
-  // Convention building block on minimap
-  const conv1 = worldToMap(-23, -76), conv2 = worldToMap(23, -106);
-  mctx.fillStyle = 'rgba(80,0,180,0.55)';
-  mctx.fillRect(conv1.x, conv1.y, conv2.x - conv1.x, conv2.y - conv1.y);
-  // Convention pulsing border
-  mctx.strokeStyle = NPCS[5] && NPCS[5].done ? 'rgba(0,255,0,0.5)' : '#ff00ff';
-  mctx.lineWidth = 1.5;
-  mctx.strokeRect(conv1.x, conv1.y, conv2.x - conv1.x, conv2.y - conv1.y);
-  // Convention Ave road
-  const ca1 = worldToMap(-6, -10), ca2 = worldToMap(6, -76);
-  mctx.fillStyle = '#22222e';
-  mctx.fillRect(ca1.x, ca1.y, ca2.x - ca1.x, ca2.y - ca1.y);
-
-  const labels = [
-    { text: 'OFFICE',     wx: -60, wz: -30, col: '#c8a0f0' },
-    { text: 'CLUB',       wx:  55, wz: -62, col: '#ff88cc' },
-    { text: 'HOTEL',      wx: -55, wz:  48, col: '#ffaacc' },
-    { text: 'MARKET',     wx:   6, wz:   6, col: '#ffdd88' },
-    { text: 'GYM',        wx:  76, wz:  24, col: '#80f0ff' },
-    { text: 'BEACH',      wx:   0, wz:  75, col: '#ffe080' },
-    { text: 'OCEAN',      wx:   0, wz: 140, col: '#80d4ff' },
-    { text: '⚠ CONV',     wx:   0, wz: -88, col: '#dd00ff' },
-  ];
-  labels.forEach(l => {
-    const p = worldToMap(l.wx, l.wz);
-    if (p.x < 4 || p.x > MM-4 || p.y < 6 || p.y > MM-2) return;
-    mctx.fillStyle = l.col;
-    mctx.fillText(l.text, p.x, p.y);
-  });
-
-  // ── Cars ────────────────────────────────────────────────
-  [...TRAFFIC_CARS, ...DRIVABLE_CARS].forEach(carMesh => {
-    const p = worldToMap(carMesh.position.x, carMesh.position.z);
-    if (p.x < 4 || p.x > MM-4 || p.y < 4 || p.y > MM-4) return;
-    const isPlayerCar = carMesh === drivingCar;
-    mctx.save();
-    mctx.translate(p.x, p.y);
-    mctx.rotate(-carMesh.rotation.y);
-    mctx.fillStyle = isPlayerCar ? '#00ff41' : (carMesh.userData.driveable ? '#00e5ff' : '#ff88aa');
-    mctx.fillRect(-3.5, -1.8, 7, 3.6);
-    mctx.fillStyle = '#111827';
-    mctx.fillRect(-0.8, -1.2, 2.2, 2.4);
-    mctx.restore();
-  });
-
-  // ── NPCs ────────────────────────────────────────────────
-  NPCS.forEach(npc => {
-    const p = worldToMap(npc.x, npc.z);
-    if (p.x < 3 || p.x > MM-3 || p.y < 3 || p.y > MM-3) return;
-    if (npc.done) {
-      mctx.fillStyle = 'rgba(0,220,60,0.5)';
-      mctx.beginPath(); mctx.arc(p.x, p.y, 3, 0, Math.PI*2); mctx.fill();
-    } else {
-      // Pulsing ring
-      mctx.strokeStyle = '#ffff00';
-      mctx.lineWidth = 1.5;
-      mctx.beginPath(); mctx.arc(p.x, p.y, 5, 0, Math.PI*2); mctx.stroke();
-      mctx.fillStyle = '#ffee00';
-      mctx.beginPath(); mctx.arc(p.x, p.y, 2.5, 0, Math.PI*2); mctx.fill();
-      // Name label
-      mctx.font = '5px monospace';
-      mctx.fillStyle = '#ffff88';
-      mctx.textAlign = 'left';
-      mctx.fillText(npc.name, p.x + 6, p.y + 2);
-      mctx.textAlign = 'center';
-      mctx.font = 'bold 6px monospace';
-    }
-  });
-
-  // ── PLAYER ──────────────────────────────────────────────
-  // Direction triangle
-  const a = player.rotation.y;
-  const px = MM/2, py = MM/2;
-  mctx.fillStyle = '#00ff41';
-  mctx.beginPath();
-  mctx.moveTo(px + Math.sin(-a)*8, py - Math.cos(-a)*8);
-  mctx.lineTo(px + Math.sin(-a + 2.4)*4, py - Math.cos(-a + 2.4)*4);
-  mctx.lineTo(px + Math.sin(-a - 2.4)*4, py - Math.cos(-a - 2.4)*4);
-  mctx.closePath(); mctx.fill();
-  // Center dot
-  mctx.fillStyle = '#ffffff';
-  mctx.beginPath(); mctx.arc(px, py, 2, 0, Math.PI*2); mctx.fill();
-
-  // ── BORDER ──────────────────────────────────────────────
-  mctx.strokeStyle = '#ff6eb4';
-  mctx.lineWidth = 1.5;
-  mctx.strokeRect(0.75, 0.75, MM-1.5, MM-1.5);
-
-  // Compass
-  mctx.fillStyle = 'rgba(255,110,180,0.7)';
-  mctx.font = 'bold 7px monospace';
-  mctx.textAlign = 'center';
-  mctx.fillText('N', MM/2, 8);
-  mctx.fillText('S', MM/2, MM-2);
-  mctx.fillText('W', 5, MM/2+3);
-  mctx.fillText('E', MM-5, MM/2+3);
-
-}
-
-// ═══════════════════════════════════════════════════════════
-//  ANIMATION LOOP
-// ═══════════════════════════════════════════════════════════
-
-function animateHuman(g, t, speed = 1) {
-  const data = g.userData || {};
-  if (!data.limbs) return;
-  const phase = data.phase || 0;
-  const mode = data.mode || 'idle';
-  const wave = Math.sin(t * 0.006 * speed + phase);
-  const wave2 = Math.cos(t * 0.006 * speed + phase);
-  const arms = data.limbs.arms;
-  const legs = data.limbs.legs;
-
-  arms.forEach((a, idx) => {
-    const side = idx === 0 ? -1 : 1;
-    a.upper.rotation.set(0, 0, side * 0.18);
-    a.lower.rotation.set(0, 0, side * 0.08);
-    a.hand.position.y = 0.52;
-  });
-  legs.forEach((l, idx) => {
-    l.leg.rotation.set(0, 0, 0);
-    l.shoe.position.z = 0.1;
-  });
-
-  if (mode === 'walk') {
-    arms.forEach((a, idx) => {
-      const dir = idx === 0 ? 1 : -1;
-      a.upper.rotation.x = wave * 0.55 * dir;
-      a.lower.rotation.x = wave * 0.35 * dir;
-    });
-    legs.forEach((l, idx) => {
-      const dir = idx === 0 ? -1 : 1;
-      l.leg.rotation.x = wave * 0.45 * dir;
-      l.shoe.position.z = 0.1 + wave * 0.08 * dir;
-    });
-    g.position.y = Math.abs(wave) * 0.035;
-  } else if (mode === 'lift') {
-    const lift = (Math.sin(t * 0.004 + phase) + 1) * 0.5;
-    arms.forEach((a, idx) => {
-      const side = idx === 0 ? -1 : 1;
-      a.upper.rotation.z = side * (1.35 - lift * 0.35);
-      a.lower.rotation.z = side * (1.05 - lift * 0.25);
-      a.hand.position.y = 1.05 + lift * 0.72;
-    });
-    data.chest.scale.y = 0.9 + lift * 0.04;
-    g.position.y = lift * 0.03;
-  } else if (mode === 'pullup') {
-    const lift = (Math.sin(t * 0.005 + phase) + 1) * 0.5;
-    arms.forEach((a, idx) => {
-      const side = idx === 0 ? -1 : 1;
-      a.upper.rotation.z = side * 1.65;
-      a.lower.rotation.z = side * 1.35;
-      a.hand.position.y = 2.35;
-    });
-    g.position.y = 0.15 + lift * 0.5;
-    legs.forEach((l, idx) => { l.leg.rotation.x = idx === 0 ? 0.25 : -0.25; });
-  } else if (mode === 'stretch') {
-    data.torso.rotation.z = wave * 0.18;
-    data.chest.rotation.z = wave * 0.18;
-    arms[0].upper.rotation.z = -1.25;
-    arms[1].upper.rotation.z = 1.25;
-    legs[0].leg.rotation.x = 0.55;
-    legs[1].leg.rotation.x = -0.35;
+function simulate(dt) {
+  const a = inputAxes();
+  const drag = dragAccum; dragAccum = 0;
+  if (drivingCar) {
+    Move.stepCar(drivingCar.state, { throttle: a.fwd, steer: a.steer }, dt, carObstacles(drivingCar));
+    walker.x = drivingCar.state.x; walker.z = drivingCar.state.z; walker.yaw = drivingCar.state.yaw;
   } else {
-    data.head.rotation.y = wave * 0.15;
-    arms[0].upper.rotation.x = wave2 * 0.08;
-    arms[1].upper.rotation.x = -wave2 * 0.08;
-    g.position.y = Math.sin(t * 0.002 + phase) * 0.012;
+    Move.stepWalker(walker, a, camState.yaw, dt, carObstacles(null));
   }
+  const others = [{ x: walker.x, z: walker.z }];
+  if (drivingCar) others.push(...Move.carCircles(drivingCar.state));
+  for (const c of cars) if (c !== drivingCar) others.push({ x: c.state.x, z: c.state.z });
+  Move.stepTraffic(traffic, dt, others);
+  const target = drivingCar
+    ? { x: drivingCar.state.x, z: drivingCar.state.z, yaw: drivingCar.state.yaw, speed: drivingCar.state.speed, driving: true }
+    : { x: walker.x, z: walker.z, yaw: walker.yaw, speed: walker.speed, driving: false, movingForward: a.fwd > 0 };
+  // Standing still next to a target: frame them over GHOST's shoulder.
+  const idleNear = !drivingCar && nearNPC && walker.speed < 0.5 && !a.fwd && !a.right && !drag;
+  Move.stepCamera(camState, target, { drag, rotate: drivingCar ? 0 : a.rotate }, dt,
+    { autoFollow: settings.autoFollow, reducedMotion, focus: idleNear ? { x: nearNPC.x, z: nearNPC.z } : null });
+  updateProximity();
 }
 
-function animate(t) {
-  requestAnimationFrame(animate);
-  frame++;
-
-  if (gameStarted) {
-    updateTrafficCars();
-    updatePlayer();
-    checkProximity();
-    if (player.visible) animateHuman(player, t, 1.25);
-
-    // NPC idle (boss doesn't slow-rotate)
-    NPCS.forEach((npc, i) => {
-      if (!npc.done && npc.mesh) {
-        if (!npc.isBoss) {
-          animateHuman(npc.mesh, t, 0.7);
-          npc.mesh.rotation.y += 0.0025;
-        }
-      }
-    });
-
-    // Convention walkers
-    WALKERS.forEach((w, i) => {
-      w.angle += w.spd * w.dir;
-      const wx = 0 + Math.cos(w.angle) * w.r;
-      const wz = -90 + Math.sin(w.angle) * w.r;
-      w.mesh.position.set(wx, 0, wz);
-      // Face direction of travel
-      w.mesh.rotation.y = w.dir > 0 ? -w.angle - Math.PI / 2 : -w.angle + Math.PI / 2;
-      animateHuman(w.mesh, t + i * 100, 1.15);
-    });
-
-    AMBIENT_HUMANS.forEach((h, i) => animateHuman(h, t + i * 120, 1));
-
-    // Convention building label visibility
-    if (frame % 6 === 0) {
-      const cdx = player.position.x - 0, cdz = player.position.z - (-83);
-      const cDist = Math.sqrt(cdx*cdx + cdz*cdz);
-      if (cDist < 35) {
-        const cv = new THREE.Vector3(0, 26, -78);
-        cv.project(camera);
-        const csx = (cv.x * 0.5 + 0.5) * window.innerWidth;
-        const csy = (-cv.y * 0.5 + 0.5) * window.innerHeight;
-        convLabelEl.style.display = cv.z < 1 ? 'block' : 'none';
-        convLabelEl.style.left = csx + 'px';
-        convLabelEl.style.top = (csy - 2) + 'px';
-      } else {
-        convLabelEl.style.display = 'none';
-      }
-    }
-
-    if (frame % 6 === 0) {
-      updateLabels();
-      drawMinimap();
-      zoneEl.textContent = getZone(player.position.x, player.position.z);
-    }
+// Places meshes from simulation state and animates every character.
+function present(dt) {
+  const k = Math.min(1, dt * 12);
+  const now = performance.now() / 1000;
+  if (action && now > action.until) action = null;
+  // GHOST
+  if (!drivingCar) {
+    let x = walker.x, z = walker.z;
+    if (exitAnim) { exitAnim.t += dt / 0.3; const t = Math.min(1, exitAnim.t); x = exitAnim.fx + (walker.x - exitAnim.fx) * t; z = exitAnim.fz + (walker.z - exitAnim.fz) * t; if (t >= 1) exitAnim = null; }
+    ghost.root.position.set(x, 0, z);
+    ghost.root.rotation.y = walker.yaw;
+    stride += walker.speed * dt * 2.1;
+    let mode = walker.speed > 0.3 ? 'walk' : Math.abs(walker.turn) > 1.5 ? 'turn' : 'idle';
+    if (action && walker.speed < 1.5) mode = action.mode;
+    const target = Char.pose(mode, clock, stride, { speed: walker.speed, turn: walker.turn });
+    // Glance towards a target within reach.
+    if (nearNPC && mode === 'idle') target.headY = Math.max(-0.8, Math.min(0.8, Move.wrap(Math.atan2(nearNPC.x - walker.x, nearNPC.z - walker.z) - walker.yaw)));
+    Char.blendPose(ghost.pose, target, k);
+    Char.applyPose(ghost, ghost.pose);
+  } else {
+    const target = Char.pose('drive', clock, 0, { turn: drivingCar.state.steer * 2 });
+    Char.blendPose(ghost.pose, target, k);
+    Char.applyPose(ghost, ghost.pose);
   }
+  if (ghost.glow) ghost.glow.material.emissiveIntensity = action ? 0.9 + Math.sin(now * 12) * 0.4 : 0.5;
 
-  updateCamera();
+  // Cars
+  for (const c of cars) {
+    c.mesh.position.set(c.state.x, 0, c.state.z); c.mesh.rotation.y = c.state.yaw;
+    c.mesh.rotation.z = drivingCar === c && !reducedMotion ? -c.state.steer * Math.min(1, Math.abs(c.state.speed) / 15) * 0.035 : 0;
+  }
+  for (const t of traffic) { t.mesh.position.set(t.x, 0, t.z); t.mesh.rotation.y = t.yaw; }
+
+  // NPCs: characteristic idle, turn to face GHOST when near, wave once.
+  for (const n of NPCS) {
+    const d = Math.hypot(walker.x - n.x, walker.z - n.z);
+    const done = n.id === 'cipher' ? op.cipher.done : op.cases[n.id].status === 'completed';
+    let mode = n.rig.mode;
+    if (!done && !n.waved && d < 10 && (n.id === 'coco' || n.id === 'carlos')) { n.waved = true; n.wave = clock + 1.6; }
+    if (clock < n.wave) mode = 'wave';
+    const look = Move.wrap(Math.atan2(walker.x - n.x, walker.z - n.z) - n.rig.root.rotation.y);
+    const turnable = n.id === 'coco' || n.id === 'marcus';
+    if (turnable && d < 9) n.rig.root.rotation.y = Move.wrap(n.rig.root.rotation.y + Move.wrap(Math.atan2(walker.x - n.x, walker.z - n.z) - n.rig.root.rotation.y) * Math.min(1, dt * 3));
+    const p = Char.pose(mode, clock, n.id.length, { look: d < 12 ? look : 0 });
+    if (d < 9 && !turnable && mode !== 'typing') p.headY = Math.max(-0.7, Math.min(0.7, look));
+    Char.blendPose(n.rig.pose, p, k);
+    Char.applyPose(n.rig, n.rig.pose);
+    if (n.rig.rings && !reducedMotion) n.rig.rings.forEach((r, i) => { r.rotation.z = clock * (0.3 + i * 0.15) * (i % 2 ? -1 : 1); });
+    // Ground ring: colour + visibility by state
+    const state = op.markerState(n.id);
+    n.ring.visible = !done && d < 22;
+    n.ring.material.color.setHex(state === 'ACTIVE' ? 0x62DCE7 : state === 'LOCKED' ? 0xF58FC4 : 0xF3BC75);
+    const s = nearNPC === n ? 1.25 + (reducedMotion ? 0 : Math.sin(clock * 5) * 0.08) : 1;
+    n.ring.scale.set(s, s, s);
+  }
+  // Pedestrians
+  for (const p of peds) {
+    const pos = pedPos(p);
+    const ahead = Math.hypot(walker.x - pos.x, walker.z - pos.z) < 1.6;
+    if (!ahead) p.s = (p.s + p.speed * dt) % p.total;
+    p.rig.root.position.set(pos.x, 0, pos.z); p.rig.root.rotation.y = pos.yaw;
+    p.stride = (p.stride || 0) + (ahead ? 0 : p.speed * dt * 2.1);
+    const pose = Char.pose(ahead ? 'idle' : 'walk', clock, p.stride, { speed: ahead ? 0 : p.speed * 2.6 });
+    Char.blendPose(p.rig.pose, pose, k); Char.applyPose(p.rig, p.rig.pose);
+  }
+  idlers.forEach((r, i) => { Char.blendPose(r.pose, Char.pose('idle', clock, i), k); Char.applyPose(r, r.pose); });
+
+  city.follow(walker.x, walker.z);
+  city.update(clock);
+  camera.position.set(camState.x, camState.y, camState.z);
+  camera.lookAt(camState.lx, camState.ly, camState.lz);
+}
+function pedPos(p) {
+  let s = ((p.s % p.total) + p.total) % p.total;
+  const seg = p.segs.find(g => s >= g.at && s <= g.at + g.L) || p.segs[0];
+  const t = (s - seg.at) / seg.L;
+  return { x: seg.a[0] + (seg.b[0] - seg.a[0]) * t, z: seg.a[1] + (seg.b[1] - seg.a[1]) * t, yaw: Math.atan2(seg.b[0] - seg.a[0], seg.b[1] - seg.a[1]) };
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  const dt = Math.min(0.1, (now - lastTime) / 1000);
+  lastTime = now;
+  $('npc-labels').style.display = gamePhase === 'playing' ? '' : 'none';   // world labels only while exploring
+  if (gamePhase === 'playing') {
+    clock += dt;
+    simulate(dt);
+    present(dt);
+    if (++hudTick % 3 === 0) updateHUD();
+    updateLabels();
+  } else if (gamePhase === 'case' || gamePhase === 'menu') {
+    // Characters keep breathing behind the panel; nothing moves in the world.
+    // In a case the camera frames the person on the left, clear of the panel.
+    clock += dt;
+    const n = gamePhase === 'case' && npcById(caseId);
+    if (n) Move.stepCamera(camState, { x: walker.x, z: walker.z, yaw: walker.yaw, speed: 0, driving: !!drivingCar }, {}, dt,
+      { autoFollow: false, focus: { x: n.x, z: n.z }, shift: window.innerWidth > 900 ? 2.4 : 0 });
+    present(dt);
+  }
   renderer.render(scene, camera);
 }
 
-// ═══════════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════════
 function startGame() {
-  document.getElementById('intro-screen').style.display = 'none';
-  document.getElementById('hud').style.display = 'block';
-  NPCS.forEach(npc => { if (npc.labelEl) npc.labelEl.style.display = 'block'; });
-  gameStarted = true;
-
   initAudio();
-  musicOn = true;
-  document.getElementById('music-toggle').textContent = '♪ MUSIC: ON';
-  setTimeout(playMusicLoop, 300);
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  $('intro-screen').classList.add('closed');
+  $('hud').classList.remove('hidden');
+  gameStarted = true;
+  gamePhase = 'playing';
+  lastTime = performance.now();
+  setMusic(musicOn);
+  updateHUD();
+  renderer.domElement.focus();
+  toast('FIND YOUR FIRST TARGET — [M] CITY MAP SHOWS THE WAY');
+}
+$('start-btn').onclick = startGame;
+
+// Restart: a fresh operation, everyone back in place, no reload.
+function restartMission() {
+  closeAllScreens();
+  if (drivingCar) { scene.add(ghost.root); drivingCar = null; }
+  op = Intel.createOperation();
+  completionRecorded = false;
+  walker = Move.createWalker(World.PLAYER_START.x, World.PLAYER_START.z, World.PLAYER_START.yaw);
+  camState = Move.createCamera(World.PLAYER_START.yaw);
+  cars.forEach((c, i) => Object.assign(c.state, Move.createCar(World.CAR_SPOTS[i])));
+  NPCS.forEach(n => { n.waved = false; n.wave = 0; n.rig.root.rotation.y = n.baseYaw; });
+  route = null; routeTarget = null; nextRouteAt = 0;
+  caseSession++;
+  gamePhase = 'playing';
+  if (musicOn) playMusicLoop();
+  lastTime = performance.now();
+  updateHUD();
+  renderer.domElement.focus();
+}
+</script>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════
+//  HUD
+// ═══════════════════════════════════════════════════════════
+const shown = {};
+const setText = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
+function targetOf(id) { return id ? npcById(id) : null; }
+function activeTarget() { return targetOf(op.active); }
+
+function updateHUD() {
+  setText('intel-count', String(op.intelCount()));
+  [...$('intel-pips').children].forEach((p, i) => p.classList.toggle('on', i < op.intelCount()));
+  setText('zone-display', World.placeName(walker.x, walker.z));
+  const t = activeTarget();
+  if (!t) { setText('active-case', op.complete() ? 'Operation complete.' : 'All cases resolved.'); setText('active-loc-text', '—'); }
+  else {
+    const c = Cases.byId(t.id);
+    setText('active-case', t.id === 'cipher'
+      ? (op.cipherUnlocked() ? 'Confront CIPHER with your five files.' : 'Collect all five intel files first.')
+      : (op.cases[t.id].status === 'active' ? 'Continue: ' : '') + c.objective);
+    const loc = t.id === 'cipher' ? 'HACKER CONVENTION' : c.location;
+    const dist = route ? World.pathLength(route) : Math.hypot(t.x - walker.x, t.z - walker.z);
+    setText('active-loc-text', loc + ' · ' + Math.round(dist) + ' m ' + World.bearing(walker, t));
+    // On-screen arrow: target direction relative to where the camera looks.
+    const ang = Move.wrap(Math.atan2(t.x - walker.x, t.z - walker.z) - camState.yaw);
+    $('guide-arrow').style.transform = 'rotate(' + (-ang).toFixed(2) + 'rad)';
+  }
+  updatePrompt();
+  updateRoute();
+  drawMinimap();
 }
 
-animate(0);
+function updateRoute() {
+  const t = activeTarget();
+  if (!t) { route = null; return; }
+  const now = performance.now();
+  const key = t.id;
+  if (key === routeTarget && now < nextRouteAt) return;
+  routeTarget = key; nextRouteAt = now + 1200;
+  const spot = World.NPC_SPOTS[t.id].spot;
+  route = World.findPath({ x: walker.x, z: walker.z }, { x: spot[0], z: spot[1] });
+}
+
+function toast(text, good) {
+  const t = el('div', 'toast' + (good ? ' good' : ''), text);
+  $('toasts').append(t);
+  setTimeout(() => t.remove(), 3700);
+}
+
+// Labels above NPCs: name, role, state (text + symbol, never colour alone), distance.
+const SYM = { AVAILABLE: '◇', ACTIVE: '◆', COMPLETED: '✓', LOCKED: '🔒' };
+const _v = new THREE.Vector3();
+function updateLabels() {
+  for (const n of NPCS) {
+    const d = Math.hypot(walker.x - n.x, walker.z - n.z);
+    _v.set(n.x, n.id === 'cipher' ? 2.9 : 2.35, n.z).project(camera);
+    const visible = d < 60 && _v.z < 1 && Math.abs(_v.x) < 1.1 && Math.abs(_v.y) < 1.1;
+    if (!visible) { n.label.style.display = 'none'; continue; }
+    const state = op.markerState(n.id);
+    const sig = state + '|' + (d > 12 ? Math.round(d / 5) * 5 : 0);
+    if (n.label.dataset.sig !== sig) {
+      n.label.dataset.sig = sig;
+      n.label.className = 'npc-label ' + state;
+      n.label.replaceChildren(el('span', 'n', n.name), document.createTextNode(' '), el('span', 'r', n.role),
+        el('span', 's', SYM[state] + ' ' + state + (d > 12 ? ' · ' + Math.round(d / 5) * 5 + ' m' : '')));
+    }
+    n.label.style.display = 'block';
+    n.label.style.left = ((_v.x * 0.5 + 0.5) * window.innerWidth).toFixed(0) + 'px';
+    n.label.style.top = ((-_v.y * 0.5 + 0.5) * window.innerHeight).toFixed(0) + 'px';
+    n.label.style.opacity = d > 40 ? 0.55 : 1;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MAPS (minimap + full city map share one drawing routine)
+// ═══════════════════════════════════════════════════════════
+function drawCity(ctx, toPx, scale, o) {
+  const B = World.BOUNDS;
+  const rect = (x0, z0, x1, z1) => { const a = toPx(x0, z0), b = toPx(x1, z1); ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y); };
+  ctx.fillStyle = '#2c7f9a'; rect(B.minX - 60, World.SHORE_Z, B.maxX + 60, World.SHORE_Z + 60);
+  for (const d of World.DISTRICTS) { ctx.fillStyle = d.color; ctx.globalAlpha = 0.28; rect(d.minX, d.minZ, d.maxX, d.maxZ); }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#3d4158';
+  for (const r of World.ROADS) rect(r.minX, r.minZ, r.maxX, r.maxZ);
+  ctx.fillStyle = '#121629';
+  for (const b of World.BUILDINGS) rect(b.x - b.w / 2, b.z - b.d / 2, b.x + b.w / 2, b.z + b.d / 2);
+  ctx.fillStyle = '#5a4a6a';
+  for (const b of World.OBSTACLES) rect(b.x - b.w / 2, b.z - b.d / 2, b.x + b.w / 2, b.z + b.d / 2);
+  if (o.labels) {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold ' + o.labels + 'px "Trebuchet MS", sans-serif';
+    for (const d of World.DISTRICTS) { const p = toPx(d.label[0], d.label[1]); ctx.fillStyle = '#f4eadf'; ctx.fillText(d.name, p.x, p.y); }
+  }
+  // Route along walkable streets (never through buildings)
+  if (route && route.length > 1) {
+    ctx.strokeStyle = '#62DCE7'; ctx.lineWidth = o.routeW; ctx.setLineDash([o.routeW * 2, o.routeW * 1.5]);
+    ctx.beginPath();
+    route.forEach((p, i) => { const q = toPx(p.x, p.z); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  // Markers
+  for (const n of NPCS) {
+    const p = toPx(n.x, n.z), s = o.marker, state = op.markerState(n.id);
+    ctx.save(); ctx.translate(p.x, p.y);
+    if (n.id === 'cipher') {
+      ctx.fillStyle = state === 'LOCKED' ? '#F58FC4' : state === 'COMPLETED' ? '#8fe3c4' : '#62DCE7';
+      star(ctx, s * 1.25);
+    } else if (state === 'COMPLETED') {
+      ctx.strokeStyle = '#8fe3c4'; ctx.lineWidth = Math.max(2, s / 3);
+      ctx.beginPath(); ctx.moveTo(-s * 0.6, 0); ctx.lineTo(-s * 0.1, s * 0.5); ctx.lineTo(s * 0.7, -s * 0.6); ctx.stroke();
+    } else {
+      ctx.rotate(Math.PI / 4);
+      if (state === 'ACTIVE') { ctx.fillStyle = '#62DCE7'; ctx.fillRect(-s * 0.75, -s * 0.75, s * 1.5, s * 1.5); }
+      else { ctx.strokeStyle = '#F3BC75'; ctx.lineWidth = Math.max(1.5, s / 4); ctx.strokeRect(-s * 0.55, -s * 0.55, s * 1.1, s * 1.1); }
+    }
+    ctx.restore();
+    if (o.names || state === 'ACTIVE') {
+      ctx.font = 'bold ' + o.nameSize + 'px "Trebuchet MS", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = state === 'ACTIVE' ? '#62DCE7' : '#f4eadf';
+      ctx.fillText(n.name, p.x + s * 1.4, p.y);
+    }
+  }
+  // GHOST
+  const me = toPx(walker.x, walker.z), yaw = drivingCar ? drivingCar.state.yaw : walker.yaw;
+  ctx.save(); ctx.translate(me.x, me.y); ctx.rotate(Math.PI - yaw);
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#121629'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, -o.marker * 1.4); ctx.lineTo(o.marker, o.marker); ctx.lineTo(0, o.marker * 0.5); ctx.lineTo(-o.marker, o.marker); ctx.closePath();
+  ctx.fill(); ctx.stroke(); ctx.restore();
+}
+function star(ctx, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  ctx.closePath(); ctx.fill();
+}
+
+const mm = $('minimap'), mctx = mm.getContext('2d');
+function drawMinimap() {
+  const S = mm.width, scale = S / 130;                     // 130 m across
+  mctx.fillStyle = '#4b4560'; mctx.fillRect(0, 0, S, S);
+  const toPx = (x, z) => ({ x: S / 2 + (x - walker.x) * scale, y: S / 2 + (z - walker.z) * scale });
+  drawCity(mctx, toPx, scale, { routeW: 5, marker: 9, nameSize: 22, names: false, labels: 0 });
+  // Off-screen active target: an arrow on the edge
+  const t = activeTarget();
+  if (t) {
+    const p = toPx(t.x, t.z);
+    if (p.x < 0 || p.y < 0 || p.x > S || p.y > S) {
+      const a = Math.atan2(p.y - S / 2, p.x - S / 2), r = S / 2 - 16;
+      mctx.save(); mctx.translate(S / 2 + Math.cos(a) * r, S / 2 + Math.sin(a) * r); mctx.rotate(a);
+      mctx.fillStyle = '#62DCE7'; mctx.beginPath(); mctx.moveTo(14, 0); mctx.lineTo(-8, -10); mctx.lineTo(-8, 10); mctx.closePath(); mctx.fill(); mctx.restore();
+    }
+  }
+  mctx.fillStyle = '#F3BC75'; mctx.font = 'bold 22px "Trebuchet MS", sans-serif'; mctx.textAlign = 'center'; mctx.fillText('N', S / 2, 22);
+  mctx.strokeStyle = 'rgba(240,216,196,0.4)'; mctx.lineWidth = 2; mctx.strokeRect(1, 1, S - 2, S - 2);
+}
+
+const bigmap = $('bigmap'), bctx = bigmap.getContext('2d');
+const MAP = { pad: 30 };
+function mapToPx(x, z) {
+  const B = World.BOUNDS, S = bigmap.width - MAP.pad * 2;
+  const span = Math.max(B.maxX - B.minX, B.maxZ - B.minZ + 8);
+  return { x: MAP.pad + (x - B.minX) / span * S, y: MAP.pad + (z - B.minZ) / span * S };
+}
+function drawBigMap() {
+  bctx.fillStyle = '#1a1d33'; bctx.fillRect(0, 0, bigmap.width, bigmap.height);
+  drawCity(bctx, mapToPx, 1, { routeW: 6, marker: 13, nameSize: 22, names: true, labels: 21 });
+  bctx.fillStyle = '#F3BC75'; bctx.font = 'bold 24px "Trebuchet MS", sans-serif'; bctx.textAlign = 'center'; bctx.fillText('N ▲', bigmap.width / 2, 22);
+}
+function renderDestinations() {
+  const list = $('map-dest'); list.replaceChildren();
+  NPCS.forEach((n, i) => {
+    const state = op.markerState(n.id);
+    const loc = n.id === 'cipher' ? 'HACKER CONVENTION' : Cases.byId(n.id).location;
+    const b = el('button', 'btn');
+    b.dataset.dest = n.id;
+    b.append(el('span', 'k', String(i + 1)), document.createTextNode(n.name + ' — ' + loc));
+    b.append(el('span', 'file-st', SYM[state] + ' ' + state + ' · ' + Math.round(Math.hypot(n.x - walker.x, n.z - walker.z)) + ' m'));
+    b.setAttribute('aria-current', op.active === n.id ? 'true' : 'false');
+    b.disabled = state === 'COMPLETED' || state === 'LOCKED';
+    b.onclick = () => { selectDestination(n.id); };
+    list.append(b);
+  });
+}
+function selectDestination(id) {
+  if (!op.setActive(id)) return false;
+  routeTarget = null; updateRoute(); drawBigMap(); renderDestinations(); updateHUD();
+  const btn = $('map-dest').querySelector('[data-dest="' + id + '"]'); if (btn) btn.focus();
+  return true;
+}
+bigmap.addEventListener('click', e => {
+  const r = bigmap.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * bigmap.width, y = (e.clientY - r.top) / r.height * bigmap.height;
+  let best = null, bd = 40;
+  for (const n of NPCS) { const p = mapToPx(n.x, n.z), d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = n; } }
+  if (best) selectDestination(best.id);
+});
+function openMap() {
+  phaseBeforeOverlay = gamePhase; gamePhase = 'map'; releaseKeys();
+  routeTarget = null; updateRoute();
+  drawBigMap(); renderDestinations();
+  $('map-screen').classList.add('open');
+  const cur = $('map-dest').querySelector('[aria-current="true"]') || $('map-close'); cur.focus();
+}
+function closeMap() { $('map-screen').classList.remove('open'); gamePhase = 'playing'; lastTime = performance.now(); updateHUD(); renderer.domElement.focus(); }
+$('map-close').onclick = closeMap;
+$('map-screen').addEventListener('keydown', e => {
+  const n = Number(e.key);
+  if (n >= 1 && n <= NPCS.length) { e.preventDefault(); selectDestination(NPCS[n - 1].id); }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  CASE FILES
+// ═══════════════════════════════════════════════════════════
+let fileSel = null;
+function openFiles(from) {
+  phaseBeforeOverlay = from || gamePhase; gamePhase = 'files'; releaseKeys();
+  fileSel = fileSel || op.active || 'coco';
+  if (fileSel === 'cipher') fileSel = 'coco';
+  renderFiles();
+  $('files-screen').classList.add('open');
+  ($('files-list').querySelector('[aria-current="true"]') || $('files-close')).focus();
+}
+function closeFiles() {
+  $('files-screen').classList.remove('open');
+  const back = phaseBeforeOverlay;
+  gamePhase = back === 'case' || back === 'results' ? back : 'playing';
+  lastTime = performance.now();
+  if (gamePhase === 'case') { renderCase(); focusCase(); }
+  else if (gamePhase === 'results') { $('results-screen').classList.add('open'); $('review-btn').focus(); }
+  else { updateHUD(); renderer.domElement.focus(); }
+}
+$('files-close').onclick = closeFiles;
+function renderFiles() {
+  const list = $('files-list'); list.replaceChildren();
+  Cases.CASES.forEach(c => {
+    const f = op.caseFile(c.id);
+    const b = el('button', 'btn');
+    b.append(el('span', 'k', f.file), document.createTextNode(f.npc + ' · ' + f.location));
+    b.append(el('span', 'file-st', (f.status === 'RESOLVED' ? '✓ ' : f.marker === 'ACTIVE' ? '◆ ' : '◇ ') + f.status));
+    b.setAttribute('aria-current', fileSel === c.id ? 'true' : 'false');
+    b.onclick = () => { fileSel = c.id; renderFiles(); list.querySelector('[aria-current="true"]').focus(); };
+    list.append(b);
+  });
+  const f = op.caseFile(fileSel), det = $('file-detail');
+  det.replaceChildren();
+  det.append(el('div', 'kicker', 'CASE FILE ' + f.file));
+  const dl = el('dl');
+  const row = (k, v, cls) => { dl.append(el('dt', '', k), el('dd', cls || '', v)); };
+  row('TARGET', f.npc + ' — ' + f.role);
+  row('LOCATION', f.location);
+  row('TECHNIQUE', f.technique || '??? (not identified yet)');
+  row('OBSERVED', f.observed || 'Not investigated yet.');
+  const ev = el('dd');
+  if (f.evidence.length) f.evidence.forEach(e => ev.append(evidenceCard(e)));
+  else ev.textContent = '—';
+  dl.append(el('dt', '', 'EVIDENCE'), ev);
+  row('RISK', f.risk || '—');
+  row('CONTROL', f.control || '—');
+  if (f.intel) row('INTEL', f.intel);
+  row('STATUS', f.status);
+  det.append(dl);
+  if (f.status !== 'RESOLVED' && gamePhase === 'files' && phaseBeforeOverlay === 'playing') {
+    const set = el('button', 'btn' + (op.active === f.id ? '' : ' primary'), op.active === f.id ? '◆ ACTIVE CASE' : 'SET AS ACTIVE CASE');
+    set.style.marginTop = '12px';
+    set.disabled = op.active === f.id;
+    set.onclick = () => { op.setActive(f.id); routeTarget = null; renderFiles(); toast('ACTIVE CASE: ' + f.npc); };
+    det.append(set);
+  }
+}
+function evidenceCard(e, fresh) {
+  const card = el('div', 'ev' + (fresh ? ' new-ev' : ''));
+  const h = el('div', 'ev-h'); h.append(el('b', '', e.kind), el('span', '', e.title));
+  const ul = el('ul'); e.lines.forEach(l => ul.append(el('li', '', l)));
+  card.append(h, ul);
+  return card;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CASE PANEL — OBSERVE → TALK → INSPECT → DECIDE → LEARN
+// ═══════════════════════════════════════════════════════════
+let caseId = null, caseSession = 0, sel = null, viewTalk = false, lastNewEvidence = null;
+const STEP_NAMES = ['OBSERVE', 'TALK', 'INSPECT', 'DECIDE', 'LEARN'];
+
+function openCase(id) {
+  caseId = id; sel = null; viewTalk = false;
+  caseSession++;
+  if (id === 'cipher') {
+    if (op.cipherUnlocked()) op.setActive('cipher');
+  } else {
+    if (!op.open(id)) return;
+  }
+  gamePhase = 'case'; releaseKeys();
+  promptEl.style.display = 'none';
+  playAction('interact', 1.2); sfx('open');
+  $('case-panel').classList.add('open');
+  $('case-panel').classList.toggle('boss', id === 'cipher');
+  drawPortrait(id);
+  setFeedback(null);
+  renderCase();
+  focusCase();
+}
+function closeCase() {
+  caseSession++;
+  $('case-panel').classList.remove('open');
+  caseId = null;
+  gamePhase = 'playing'; lastTime = performance.now();
+  updateHUD(); renderer.domElement.focus();
+}
+$('case-close').onclick = () => closeCase();
+
+function focusCase() {
+  const first = $('case-body').querySelector('button:not(:disabled), input') || $('case-actions').querySelector('button:not(:disabled)') || $('case-close');
+  first.focus();
+}
+function setFeedback(kind, title, text) {
+  const f = $('case-feedback');
+  f.className = kind || ''; f.replaceChildren();
+  if (!kind) return;
+  f.append(el('b', '', title)); f.append(document.createTextNode(text));
+}
+function actions(...btns) { $('case-actions').replaceChildren(...btns.filter(Boolean)); }
+function button(label, onClick, o = {}) {
+  const b = el('button', 'btn' + (o.primary ? ' primary' : ''));
+  if (o.key) b.append(el('span', 'k', o.key));
+  b.append(document.createTextNode(label));
+  if (o.id) b.id = o.id;
+  b.onclick = () => { if (!b.disabled) onClick(b); };
+  return b;
+}
+function stepsBar(current, total = STEP_NAMES) {
+  const bar = $('case-steps'); bar.replaceChildren();
+  const idx = total.indexOf(current);
+  total.forEach((s, i) => { const sp = el('span', i < idx ? 'done' : i === idx ? 'now' : '', (i < idx ? '✓ ' : '') + s); if (i === idx) sp.setAttribute('aria-current', 'step'); bar.append(sp); });
+}
+
+function renderCase() {
+  if (caseId === 'cipher') return renderCipher();
+  const c = Cases.byId(caseId), s = op.cases[caseId];
+  const body = $('case-body'); body.replaceChildren(); body.scrollTop = 0;
+  $('case-name').textContent = c.npc;
+  $('case-role').textContent = c.role + ' · ' + c.location + ' · CASE ' + c.file;
+  const revealed = s.step === 'learn' || s.status === 'completed';
+  $('case-tech').textContent = 'TECHNIQUE: ' + (revealed ? c.technique : '???');
+  const step = s.step;
+  stepsBar(step === 'done' ? 'LEARN' : step.toUpperCase());
+  const evidence = () => s.evidence.map(id => ({ id, ...c.evidence[id] }));
+
+  if (step === 'observe') {
+    body.append(el('p', 'scene', c.observe.text));
+    const sig = el('div', 'signal'); sig.append(el('b', '', '◉ AI SIGNAL'), document.createTextNode(c.observe.signal)); body.append(sig);
+    body.append(el('h2', 'sec', 'FIRST EVIDENCE'));
+    evidence().forEach(e => body.append(evidenceCard(e, true)));
+    actions(button('TALK TO ' + c.npc, () => { op.observed(caseId); sfx('ask'); renderCase(); focusCase(); }, { primary: true, key: '1' }));
+  } else if (step === 'talk' || (step === 'inspect' && viewTalk)) {
+    body.append(el('p', 'muted', 'Ask your questions. Each answer may give you new evidence.'));
+    const transcript = el('div');
+    s.asked.forEach(i => { const q = c.talk[i], line = el('div', 'talk-line'); line.append(el('div', 'q', 'GHOST: ' + q.ask), el('div', 'a', q.reply)); transcript.append(line); });
+    body.append(transcript);
+    const opts = el('div', 'opts');
+    c.talk.forEach((q, i) => {
+      if (s.asked.includes(i)) return;
+      const b = button(q.ask, () => {
+        op.ask(caseId, i); viewTalk = true;          // stay on the conversation so the answer can be read
+        sfx('ask'); setTimeout(() => sfx('evidence'), 120);
+        lastNewEvidence = q.evidence; playAction('interact', 0.9);
+        renderCase(); focusCase();
+      }, { key: String(i + 1) });
+      b.classList.add('opt'); b.dataset.opt = String(i + 1);
+      opts.append(b);
+    });
+    body.append(opts);
+    body.append(el('h2', 'sec', 'EVIDENCE (' + s.evidence.length + ' / ' + (c.talk.length + 1) + ')'));
+    evidence().forEach(e => body.append(evidenceCard(e, e.id === lastNewEvidence)));
+    lastNewEvidence = null;
+    actions(op.canInspect(caseId) ? button('INSPECT THE EVIDENCE', () => { viewTalk = false; renderCase(); focusCase(); }, { primary: true }) : null);
+  } else if (step === 'inspect') {
+    renderInspect(c, s, body, evidence());
+  } else if (step === 'decide') {
+    body.append(el('p', 'scene', c.decide.prompt));
+    const opts = el('div', 'opts');
+    c.decide.options.forEach((o, i) => {
+      const b = button(o.text, () => {
+        const r = op.decide(caseId, o.id);
+        if (r.ok) { sfx('good'); setFeedback('ok', '✓ OUTCOME', r.outcome); renderCase(); focusCase(); }
+        else { sfx('bad'); b.classList.add('tried'); b.disabled = true; setFeedback('bad', '✗ WHAT WOULD HAPPEN', r.outcome + ' Try another response.'); const next = opts.querySelector('button:not(:disabled)'); if (next) next.focus(); }
+      }, { key: String(i + 1) });
+      b.classList.add('opt'); b.dataset.opt = String(i + 1);
+      opts.append(b);
+    });
+    body.append(opts);
+    body.append(refEvidence(evidence()));
+    actions(button('REVIEW EVIDENCE', () => { const d = body.querySelector('details'); d.open = true; d.scrollIntoView({ block: 'nearest' }); d.querySelector('summary').focus(); }));
+  } else if (step === 'learn' || step === 'done') {
+    body.append(el('div', 'kicker', 'TECHNIQUE IDENTIFIED'));
+    body.append(el('div', 'tech-reveal', c.technique));
+    const dl = el('dl', 'learn');
+    for (const [k, v] of [['WHAT HAPPENED', c.learn.happened], ['THE EVIDENCE', c.learn.evidence], ['THE RISK', c.learn.risk], ['THE CONTROL THAT WORKS', c.learn.control], ['THE AI ANGLE', c.learn.ai]]) dl.append(el('dt', '', k), el('dd', '', v));
+    body.append(dl);
+    const tries = s.decideTries > 1 ? 'You needed ' + s.decideTries + ' tries to pick the response — each wrong one showed you its consequence.' : 'Right response first time.';
+    body.append(el('p', 'muted', tries));
+    if (step === 'learn') actions(button('FILE INTEL ' + c.file, () => fileIntel(), { primary: true, key: 'ENTER' }));
+    else actions(button('CLOSE', () => closeCase(), { primary: true }));
+  }
+}
+
+function refEvidence(list) {
+  const d = el('details', 'ref');
+  d.append(el('summary', '', 'EVIDENCE COLLECTED (' + list.length + ')'));
+  list.forEach(e => d.append(evidenceCard(e)));
+  return d;
+}
+
+// Five analysis styles: bait / fields / exchange / mark / probe.
+function renderInspect(c, s, body, evidence) {
+  const ins = c.inspect;
+  body.append(el('p', 'scene', ins.prompt));
+  sel = sel || (ins.type === 'bait' ? { lure: null, cost: [] } : ins.type === 'mark' || ins.type === 'probe' ? [] : {});
+  let n = 0;
+  const toggle = (text, pressed, onClick) => {
+    const b = button(text, onClick, { key: String(++n) });
+    b.classList.add('opt'); b.dataset.opt = String(n);
+    b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    return b;
+  };
+  const rerender = () => { const y = $('case-body').scrollTop; const f = document.activeElement && document.activeElement.dataset.opt; renderCase(); $('case-body').scrollTop = y; const again = f && $('case-body').querySelector('[data-opt="' + f + '"]'); if (again) again.focus(); };
+
+  if (ins.type === 'bait') {
+    body.append(el('h2', 'sec', ins.lure.question));
+    const o1 = el('div', 'opts');
+    ins.lure.options.forEach(o => o1.append(toggle(o.text, sel.lure === o.id, () => { sel.lure = o.id; rerender(); })));
+    body.append(o1);
+    body.append(el('h2', 'sec', ins.cost.question));
+    const o2 = el('div', 'opts');
+    ins.cost.options.forEach(o => o2.append(toggle(o.text, sel.cost.includes(o.id), () => { sel.cost = sel.cost.includes(o.id) ? sel.cost.filter(x => x !== o.id) : sel.cost.concat(o.id); rerender(); })));
+    body.append(o2);
+  } else if (ins.type === 'fields' || ins.type === 'exchange') {
+    if (ins.type === 'exchange') {
+      const bal = el('div', 'balance');
+      ins.labels.forEach(L => { const col = el('div'); col.append(el('b', '', L)); ins.items.filter(it => sel[it.id] === L).forEach(it => col.append(el('div', '', '· ' + it.text))); bal.append(col); });
+      body.append(bal);
+    }
+    ins.items.forEach(it => {
+      const row = el('div', 'sort-row');
+      row.append(el('div', '', it.text));
+      const seg = el('div', 'seg'); seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', it.text);
+      ins.labels.forEach(L => {
+        const b = el('button', 'btn', L);
+        b.setAttribute('aria-pressed', sel[it.id] === L ? 'true' : 'false');
+        b.onclick = () => { sel[it.id] = L; rerender(); };
+        b.dataset.opt = String(++n);
+        seg.append(b);
+      });
+      row.append(seg); body.append(row);
+    });
+  } else {
+    const src = c.evidence[ins.source];
+    body.append(el('h2', 'sec', src.kind + ' · ' + src.title));
+    const o = el('div', 'opts');
+    src.lines.forEach((line, i) => o.append(toggle(line, sel.includes(i), () => { sel = sel.includes(i) ? sel.filter(x => x !== i) : sel.concat(i); rerender(); })));
+    body.append(o);
+  }
+  body.append(refEvidence(evidence));
+  actions(
+    button('SUBMIT ANALYSIS', () => {
+      const r = op.inspect(caseId, sel);
+      if (r.ok) { sfx('evidence'); playAction('interact', 1); setFeedback('ok', '✓ ANALYSIS CONFIRMED', r.feedback + ' Now decide what ' + c.npc + ' should do.'); sel = null; renderCase(); focusCase(); }
+      else { sfx('bad'); setFeedback('bad', '✗ NOT YET', r.feedback); }
+    }, { primary: true, id: 'submit-analysis' }),
+    button('REVIEW EVIDENCE', () => { const d = $('case-body').querySelector('details'); d.open = true; d.scrollIntoView({ block: 'nearest' }); d.querySelector('summary').focus(); }),
+    button('RE-READ CONVERSATION', () => { viewTalk = true; renderCase(); focusCase(); }),
+  );
+}
+
+function fileIntel() {
+  const c = Cases.byId(caseId);
+  if (!op.file(caseId)) return;
+  sfx('file'); playAction('celebrate', 1.6);
+  setFeedback(null);
+  closeCase();
+  toast('INTEL FILE ' + c.file + ' ACQUIRED · ' + op.intelCount() + ' / 5', true);
+  if (op.cipherUnlocked()) setTimeout(() => toast('ALL FIVE FILES. CIPHER IS WAITING AT THE HACKER CONVENTION.', true), 700);
+  else toast('NEXT: ' + (activeTarget() ? activeTarget().name : '—') + ' · [M] TO CHOOSE ANOTHER');
+  routeTarget = null; updateHUD();
+}
+
+// Keyboard inside a case: Esc closes, Tab opens case files, digits pick options.
+function caseKey(e) {
+  if (e.code === 'Escape') { e.preventDefault(); closeCase(); return; }
+  if (e.key === 'Enter' && document.activeElement === document.body) { const p = $('case-actions').querySelector('.primary'); if (p) { e.preventDefault(); p.click(); } return; }
+  const n = Number(e.key);
+  if (n >= 1 && n <= 9 && !e.repeat) {
+    const b = $('case-body').querySelector('[data-opt="' + n + '"]') || (n === 1 && $('case-actions').querySelector('.primary'));
+    if (b && !b.disabled) { e.preventDefault(); b.click(); }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CIPHER — THE TRUST NETWORK
+// ═══════════════════════════════════════════════════════════
+function renderCipher() {
+  const body = $('case-body'); body.replaceChildren(); body.scrollTop = 0;
+  $('case-name').textContent = 'CIPHER';
+  $('case-role').textContent = 'THE TRUST NETWORK · HACKER CONVENTION';
+  if (!op.cipherUnlocked()) {
+    $('case-tech').textContent = 'LOCKED · INTEL ' + op.intelCount() + ' / 5';
+    stepsBar('LOCKED', ['LOCKED']);
+    body.append(el('p', 'scene', '"Not yet, GHOST. You walk in here with ' + op.intelCount() + ' of 5 files? Work the city first — I only talk to people who have seen the whole picture."'));
+    const missing = Cases.CASES.filter(c => op.cases[c.id].status !== 'completed').map(c => c.npc + ' (' + c.location + ')');
+    body.append(el('p', 'muted', 'Still open: ' + missing.join(', ') + '.'));
+    actions(button('CLOSE', () => closeCase(), { primary: true }));
+    return;
+  }
+  const steps = Cases.CIPHER.steps, i = op.cipher.step, step = op.cipherStep();
+  $('case-tech').textContent = 'FINAL INVESTIGATION · STEP ' + Math.min(i + 1, steps.length) + ' / ' + steps.length;
+  stepsBar(step ? step.title : 'CONCLUDE', steps.map(s => s.title));
+  if (i === 0 && !sel) body.append(el('p', 'scene', Cases.CIPHER.intro));
+  body.append(el('p', 'scene', step.prompt));
+  sel = sel && sel.step === step.id ? sel : { step: step.id, v: step.type === 'multi' ? [] : step.type === 'single' ? null : {} };
+  const rer = () => { const y = body.scrollTop; const f = document.activeElement && document.activeElement.dataset.opt; renderCipher(); body.scrollTop = y; const again = f && body.querySelector('[data-opt="' + f + '"]'); if (again) again.focus(); };
+  let n = 0;
+  if (step.type === 'match' || step.type === 'labels') {
+    const labels = step.type === 'match' ? Cases.CASES.map(c => ({ id: c.id, text: c.file + ' ' + c.npc })) : step.labels.map(l => ({ id: l, text: l }));
+    step.items.forEach(it => {
+      const row = el('div', 'sort-row'); row.style.gridTemplateColumns = '1fr';
+      row.append(el('div', '', it.text));
+      const seg = el('div', 'seg'); seg.style.flexWrap = 'wrap'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', it.text);
+      labels.forEach(L => {
+        const b = el('button', 'btn', L.text);
+        b.setAttribute('aria-pressed', sel.v[it.id] === L.id ? 'true' : 'false');
+        b.onclick = () => { sel.v[it.id] = L.id; rer(); };
+        b.dataset.opt = String(++n);
+        seg.append(b);
+      });
+      row.append(seg); body.append(row);
+    });
+  } else {
+    const opts = el('div', 'opts');
+    step.options.forEach(o => {
+      const pressed = step.type === 'multi' ? sel.v.includes(o.id) : sel.v === o.id;
+      const b = button(o.text, () => { sel.v = step.type === 'multi' ? (sel.v.includes(o.id) ? sel.v.filter(x => x !== o.id) : sel.v.concat(o.id)) : o.id; rer(); }, { key: String(++n) });
+      b.classList.add('opt'); b.dataset.opt = String(n); b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+      opts.append(b);
+    });
+    body.append(opts);
+  }
+  actions(
+    button(step.id === 'conclusion' ? 'PRESENT CONCLUSION' : 'SUBMIT', () => {
+      const r = op.cipherAnswer(sel.v);
+      if (r.ok) {
+        sfx('good'); setFeedback('ok', '✓ CIPHER', r.cipher); sel = null;
+        if (op.complete()) { setTimeout(() => showResults(), reducedMotion ? 0 : 900); actions(); return; }
+        renderCipher(); focusCase();
+      } else { sfx('bad'); setFeedback('bad', '✗ THE EVIDENCE DISAGREES', r.feedback); }
+    }, { primary: true, id: 'cipher-submit' }),
+    button('OPEN CASE FILES', () => openFiles('case'), { key: 'TAB' }),
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PAUSE · RESULTS
+// ═══════════════════════════════════════════════════════════
+function pauseGame() {
+  gamePhase = 'paused'; releaseKeys(); stopMusic();
+  showControls(false);
+  $('pause-screen').classList.add('open');
+  $('resume-btn').focus();
+}
+function resumeGame() {
+  $('pause-screen').classList.remove('open');
+  gamePhase = 'playing'; lastTime = performance.now();
+  if (musicOn) playMusicLoop();
+  renderer.domElement.focus();
+}
+function showControls(on) {
+  $('controls-panel').classList.toggle('hidden', !on);
+  $('pause-menu').classList.toggle('hidden', on);
+  (on ? $('sens') : $('resume-btn')).focus();
+}
+$('resume-btn').onclick = resumeGame;
+$('controls-btn').onclick = () => showControls(true);
+$('controls-back').onclick = () => showControls(false);
+$('music-btn').onclick = () => { musicOn = !musicOn; $('music-btn').textContent = 'MUSIC: ' + (musicOn ? 'ON' : 'OFF'); };
+$('restart-btn').onclick = () => restartMission();
+$('sens').value = settings.sens; $('invert').checked = settings.invert; $('autocam').checked = settings.autoFollow;
+$('sens-val').textContent = Number(settings.sens).toFixed(1) + '×';
+$('sens').oninput = () => { settings.sens = Number($('sens').value); $('sens-val').textContent = settings.sens.toFixed(1) + '×'; saveSettings(); };
+$('invert').onchange = () => { settings.invert = $('invert').checked; saveSettings(); };
+$('autocam').onchange = () => { settings.autoFollow = $('autocam').checked; saveSettings(); };
+
+function closeAllScreens() {
+  document.querySelectorAll('.screen').forEach(s => { if (s.id !== 'intro-screen') s.classList.remove('open'); });
+  $('case-panel').classList.remove('open');
+  setFeedback(null);
+}
+
+function showResults() {
+  if (!op.complete()) return;
+  const sum = op.summary();
+  if (!completionRecorded) {
+    completionRecorded = true;
+    HTPProgress.recordCompletion(3, { firstTryDecisions: sum.firstTryDecisions });
+  }
+  closeAllScreens();
+  gamePhase = 'results'; releaseKeys();
+  const kv = $('results-kv'); kv.replaceChildren();
+  const add = (k, v) => kv.append(el('dt', '', k), el('dd', '', v));
+  add('INTEL FILES', sum.files + ' / ' + sum.required);
+  add('FINAL INVESTIGATION', sum.networkIdentified ? 'THREAT NETWORK IDENTIFIED' : 'INCOMPLETE');
+  add('SECURITY CONTROLS REVIEWED', sum.controls + ' / ' + sum.required);
+  add('ANALYSES RIGHT FIRST TIME', sum.firstTryAnalyses + ' / ' + sum.required);
+  add('RESPONSES RIGHT FIRST TIME', sum.firstTryDecisions + ' / ' + sum.required);
+  add('FINAL STEPS RIGHT FIRST TIME', sum.finalFirstTry + ' / ' + sum.finalSteps);
+  const ul = $('results-tech'); ul.replaceChildren();
+  Cases.CASES.forEach(c => ul.append(el('li', '', c.technique.charAt(0) + c.technique.slice(1).toLowerCase().replace('pro quo', 'Pro Quo'))));
+  $('results-note').textContent = 'No hidden score: each line is a plain count. "First time" means no wrong analysis, response or final step for that item. The lesson that ties them together: a convincing communication does not prove its origin — verify through a channel you already trust.';
+  $('results-screen').classList.add('open');
+  $('next-btn').focus();
+}
+$('next-btn').onclick = () => { window.location.href = HTPProgress.nextLevel(3).url; };
+$('review-btn').onclick = () => { $('results-screen').classList.remove('open'); fileSel = 'coco'; openFiles('results'); };
+$('replay-btn').onclick = () => restartMission();
+
+// ═══════════════════════════════════════════════════════════
+//  PORTRAITS (2D, drawn from each character's palette)
+// ═══════════════════════════════════════════════════════════
+function drawPortrait(id) {
+  const cv = $('case-portrait'), g = cv.getContext('2d'), S = cv.width;
+  const P = { coco: ['#F58FC4', '#f1c7a3', '#d8a24a', '#F27D78'], marcus: ['#62DCE7', '#8d5a3b', '#15100c', '#1d2540'], rico: ['#F58FC4', '#5a3a28', '#0d0d12', '#121629'],
+    diana: ['#F3BC75', '#e0b48f', '#3a2216', '#468C79'], carlos: ['#F3BC75', '#c28a62', '#5b5b5b', '#F0D8C4'], cipher: ['#302444', '#2a2440', '#0b0d18', '#121629'] }[id];
+  g.clearRect(0, 0, S, S);
+  const grd = g.createLinearGradient(0, 0, 0, S); grd.addColorStop(0, P[0]); grd.addColorStop(1, '#121629');
+  g.fillStyle = grd; g.fillRect(0, 0, S, S);
+  g.fillStyle = P[3]; g.beginPath(); g.ellipse(S / 2, S * 1.02, S * 0.42, S * 0.36, 0, 0, Math.PI * 2); g.fill();   // shoulders
+  g.fillStyle = P[1]; g.beginPath(); g.ellipse(S / 2, S * 0.48, S * 0.2, S * 0.24, 0, 0, Math.PI * 2); g.fill();     // face
+  g.fillStyle = P[2]; g.beginPath(); g.ellipse(S / 2, S * 0.33, S * 0.21, S * 0.12, 0, Math.PI, 0); g.fill();        // hair
+  g.fillStyle = '#121629'; for (const s of [-1, 1]) g.fillRect(S / 2 + s * S * 0.08 - 4, S * 0.47, 8, 5);              // eyes
+  if (id === 'cipher') { g.fillStyle = '#F58FC4'; g.fillRect(S * 0.3, S * 0.45, S * 0.4, S * 0.06); }
+  if (id === 'coco') { g.fillStyle = '#f3e2b8'; g.fillRect(S * 0.2, S * 0.27, S * 0.6, S * 0.05); }
+  if (id === 'carlos') { g.fillStyle = '#468C79'; g.fillRect(S * 0.3, S * 0.22, S * 0.4, S * 0.1); }
+  if (id === 'rico') { g.fillStyle = '#0d0d12'; g.fillRect(S * 0.3, S * 0.45, S * 0.4, S * 0.06); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════
+Move.stepCamera(camState, { x: walker.x, z: walker.z, yaw: walker.yaw, speed: 0, driving: false }, {}, 0.016, {});
+present(0.016);
+requestAnimationFrame(loop);
+$('start-btn').focus();
 </script>
 </body>
 </html>

@@ -29,7 +29,7 @@ function checkAll() {
     scripts.forEach((script, i) => checkSource(`${file} inline script #${i + 1}`, script));
     report.push(`${file}: ${scripts.length} inline script block(s)`);
   }
-  for (const dir of ['js', 'js/racer', 'js/arena', 'js/incident']) {
+  for (const dir of ['js', 'js/racer', 'js/arena', 'js/incident', 'js/social']) {
     for (const file of fs.readdirSync(path.join(ROOT, dir)).filter(f => f.endsWith('.js'))) {
       checkSource(`${dir}/${file}`, fs.readFileSync(path.join(ROOT, dir, file), 'utf8'));
       report.push(`${dir}/${file}`);
