@@ -1,0 +1,29 @@
+# HACK THE PLANET — game server for a Debian VM (or any Docker host).
+# `restart: unless-stopped` keeps the server running and brings it back after
+# a crash or a VM reboot (as long as the Docker service is enabled on boot).
+
+services:
+  game:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    image: hack-the-planet:latest
+    container_name: hack-the-planet
+    restart: unless-stopped
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+    ports:
+      # Published on every VM interface. Change the left side to use another
+      # host port (e.g. "80:8080"), or "127.0.0.1:8080:8080" for local only.
+      - "${GAME_PORT:-8080}:8080"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

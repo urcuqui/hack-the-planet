@@ -1,510 +1,425 @@
 #!/usr/bin/env python3
-"""Generate a Hack The Planet level trailer GIF.
+"""Build the HACK THE PLANET gameplay trailer GIF from real captured footage.
 
-Usage: python3 gen_gif.py [OUTPUT]
-Output defaults to trailer.gif in the repository root; HTP_GIF_OUTPUT also works.
+Usage:
+    python3 gen_gif.py [OUTPUT]                   # capture + compose (default: trailer.gif)
+    python3 gen_gif.py trailer.gif --frames DIR   # compose from an earlier capture
+    python3 gen_gif.py --capture-only DIR         # only record the footage
+
+Pipeline:
+  1. tools/capture-trailer.js plays the four levels in headless Chrome with real
+     keyboard/mouse input and records timestamped 1280x720 frames, plus a little
+     game state per frame that is used here to find the action.
+  2. This script picks each scene's window, crops and pushes in, adds titles,
+     cuts and short glitch transitions, and encodes a looping 640x360 GIF at
+     12 fps with ImageMagick. It also writes a contact sheet for review.
+
+Needs Node 22+, Chrome/Chromium (CHROME_PATH to override) and ImageMagick 7
+(`magick`). Fonts are looked up on the system; HTP_FONT_DISPLAY and
+HTP_FONT_MONO override them. Every frame between the opening title and the
+closing card is game footage; only titles and transitions are drawn here.
 """
+import argparse
+import json
 import os
-import sys
 import random
 import shutil
 import subprocess
+import sys
 import tempfile
 
-W, H = 640, 360
-FPS_DELAY = 7
-TMPDIR = tempfile.mkdtemp(prefix="htp_trailer_")
 ROOT = os.path.dirname(os.path.abspath(__file__))
-OUTPUT = os.path.abspath(
-    sys.argv[1] if len(sys.argv) > 1 else os.environ.get("HTP_GIF_OUTPUT", os.path.join(ROOT, "trailer.gif"))
-)
-random.seed(2600)
+W, H = 640, 360
+FPS = 12
+FRAME_MS = 1000.0 / FPS
+# Storyboard cut points (seconds): opening, four levels, call to action.
+CUTS = [0.0, 0.6, 1.7, 2.8, 3.9, 5.1, 6.5]
 
-BG = (0, 2, 8)
-BLACK = (0, 0, 0)
-GREEN_D = (0, 55, 18)
-GREEN = (0, 210, 65)
-GREEN_B = (0, 255, 95)
-CYAN = (0, 230, 255)
-CYAN_D = (0, 95, 120)
-PINK = (255, 70, 185)
-PINK_D = (95, 10, 70)
-YELLOW = (255, 236, 88)
-ORANGE = (255, 126, 52)
-RED = (255, 51, 30)
-WHITE = (235, 255, 245)
-BLUE = (52, 112, 255)
-PURPLE = (140, 92, 255)
-GRAY = (75, 88, 105)
-DKBLUE = (4, 10, 28)
+BG = "#000300"
+GREEN = "#00ff41"
 
+FONT_CANDIDATES = {
+    "display": [
+        os.environ.get("HTP_FONT_DISPLAY"),
+        "/System/Library/Fonts/Supplemental/Impact.ttf",
+        "/Library/Fonts/Impact.ttf",
+        "/usr/share/fonts/truetype/msttcorefonts/Impact.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Black.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ],
+    "mono": [
+        os.environ.get("HTP_FONT_MONO"),
+        "/System/Library/Fonts/Supplemental/Courier New Bold.ttf",
+        "/Library/Fonts/Courier New Bold.ttf",
+        "/usr/share/fonts/truetype/msttcorefonts/courbd.ttf",
+        "/usr/share/fonts/truetype/msttcorefonts/Courier_New_Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
+    ],
+}
 
-def new_frame(color=BG):
-    buf = bytearray(W * H * 3)
-    r, g, b = color
-    for i in range(0, len(buf), 3):
-        buf[i] = r
-        buf[i + 1] = g
-        buf[i + 2] = b
-    return buf
-
-
-def fill_rect(buf, x, y, w, h, c):
-    r, g, b = c
-    x0, y0 = max(0, int(x)), max(0, int(y))
-    x1, y1 = min(W, int(x + w)), min(H, int(y + h))
-    for ry in range(y0, y1):
-        base = ry * W * 3
-        for rx in range(x0, x1):
-            i = base + rx * 3
-            buf[i] = r
-            buf[i + 1] = g
-            buf[i + 2] = b
-
-
-def border(buf, x, y, w, h, c, t=2):
-    fill_rect(buf, x, y, w, t, c)
-    fill_rect(buf, x, y + h - t, w, t, c)
-    fill_rect(buf, x, y, t, h, c)
-    fill_rect(buf, x + w - t, y, t, h, c)
-
-
-def line(buf, x0, y0, x1, y1, c, t=1):
-    steps = max(abs(int(x1 - x0)), abs(int(y1 - y0)), 1)
-    for s in range(steps + 1):
-        p = s / steps
-        x = x0 + (x1 - x0) * p
-        y = y0 + (y1 - y0) * p
-        fill_rect(buf, int(x), int(y), t, t, c)
-
-
-def write_ppm(buf, path):
-    with open(path, "wb") as f:
-        f.write(f"P6\n{W} {H}\n255\n".encode())
-        f.write(bytes(buf))
-
-
-G = {
-    " ": [0, 0, 0, 0, 0, 0, 0],
-    "A": [14, 17, 17, 31, 17, 17, 17],
-    "B": [30, 17, 17, 30, 17, 17, 30],
-    "C": [14, 17, 16, 16, 16, 17, 14],
-    "D": [28, 18, 17, 17, 17, 18, 28],
-    "E": [31, 16, 16, 30, 16, 16, 31],
-    "F": [31, 16, 16, 30, 16, 16, 16],
-    "G": [14, 17, 16, 23, 17, 17, 14],
-    "H": [17, 17, 17, 31, 17, 17, 17],
-    "I": [31, 4, 4, 4, 4, 4, 31],
-    "J": [1, 1, 1, 1, 17, 17, 14],
-    "K": [17, 18, 20, 24, 20, 18, 17],
-    "L": [16, 16, 16, 16, 16, 16, 31],
-    "M": [17, 27, 21, 17, 17, 17, 17],
-    "N": [17, 25, 21, 19, 17, 17, 17],
-    "O": [14, 17, 17, 17, 17, 17, 14],
-    "P": [30, 17, 17, 30, 16, 16, 16],
-    "Q": [14, 17, 17, 17, 21, 18, 13],
-    "R": [30, 17, 17, 30, 20, 18, 17],
-    "S": [15, 16, 16, 14, 1, 1, 30],
-    "T": [31, 4, 4, 4, 4, 4, 4],
-    "U": [17, 17, 17, 17, 17, 17, 14],
-    "V": [17, 17, 17, 17, 17, 10, 4],
-    "W": [17, 17, 17, 21, 21, 27, 17],
-    "X": [17, 17, 10, 4, 10, 17, 17],
-    "Y": [17, 17, 10, 4, 4, 4, 4],
-    "Z": [31, 1, 2, 4, 8, 16, 31],
-    "0": [14, 17, 19, 21, 25, 17, 14],
-    "1": [4, 12, 4, 4, 4, 4, 14],
-    "2": [14, 17, 1, 2, 4, 8, 31],
-    "3": [30, 1, 1, 14, 1, 1, 30],
-    "4": [2, 6, 10, 18, 31, 2, 2],
-    "5": [31, 16, 16, 30, 1, 1, 30],
-    "6": [14, 16, 16, 30, 17, 17, 14],
-    "7": [31, 1, 2, 4, 8, 8, 8],
-    "8": [14, 17, 17, 14, 17, 17, 14],
-    "9": [14, 17, 17, 15, 1, 1, 14],
-    ">": [16, 8, 4, 2, 4, 8, 16],
-    "/": [1, 2, 4, 8, 16, 0, 0],
-    ".": [0, 0, 0, 0, 0, 4, 4],
-    "-": [0, 0, 0, 31, 0, 0, 0],
-    ":": [0, 4, 4, 0, 4, 4, 0],
-    "!": [4, 4, 4, 4, 4, 0, 4],
-    "[": [14, 8, 8, 8, 8, 8, 14],
-    "]": [14, 2, 2, 2, 2, 2, 14],
-    "_": [0, 0, 0, 0, 0, 0, 31],
+# name, tagline, mission chip, accent. The footage keeps each level's own
+# palette; only the accent of its title changes.
+LEVELS = {
+    "level1": ("FSYNDICATE", "HUNT ROGUE AGENTS", "MISSION 01 · THE AGENTIC FRONTIER", "#26e8ff"),
+    "level2": ("AI INCIDENT LAB", "INVESTIGATE. PATCH. VERIFY.", "MISSION 02 · VULNERABILITY HUNTER", GREEN),
+    "level3": ("OPERATION GHOST", "TRUST NO SIGNAL", "MISSION 03 · CYBER MIAMI NOIR", "#ff6eb4"),
+    "level4": ("NEON GRAND PRIX", "DRIVE. DEFEND. WIN.", "MISSION 04 · MIAMI SMART CIRCUIT", "#ffe14d"),
 }
 
 
-def draw_char(buf, ch, x, y, sc, color):
-    rows = G.get(ch.upper(), G[" "])
-    for r, bits in enumerate(rows):
-        for c in range(5):
-            if (bits >> (4 - c)) & 1:
-                fill_rect(buf, x + c * sc, y + r * sc, sc, sc, color)
+def find_font(kind):
+    for path in FONT_CANDIDATES[kind]:
+        if path and os.path.exists(path):
+            return path
+    sys.exit(f"No {kind} font found; set HTP_FONT_{kind.upper()} to a .ttf/.otf file.")
 
 
-def str_w(text, sc):
-    gap = max(1, sc // 2)
-    return len(text) * (5 * sc + gap) - gap if text else 0
+def magick(*args):
+    subprocess.run(["magick", *[str(a) for a in args]], check=True)
 
 
-def draw_str(buf, text, x, y, sc, color):
-    cx = int(x)
-    for ch in text:
-        draw_char(buf, ch, cx, int(y), sc, color)
-        cx += 5 * sc + max(1, sc // 2)
+def scene_lengths():
+    marks = [round(c * FPS) for c in CUTS]
+    return [b - a for a, b in zip(marks, marks[1:])]
 
 
-def center(buf, text, y, sc, color):
-    draw_str(buf, text, (W - str_w(text, sc)) // 2, y, sc, color)
+# ── Picking the moments (by recorded game state, not frame numbers) ──────
+
+def sample(frames, t_start, n, speed=1.0):
+    """Nearest captured frame for each output tick from t_start (ms)."""
+    return [min(frames, key=lambda f: abs(f["t"] - (t_start + i * FRAME_MS * speed))) for i in range(n)]
 
 
-def scanlines(buf):
-    for sy in range(2, H, 4):
-        base = sy * W * 3
-        for sx in range(W):
-            i = base + sx * 3
-            buf[i] = buf[i] * 3 // 5
-            buf[i + 1] = buf[i + 1] * 3 // 5
-            buf[i + 2] = buf[i + 2] * 3 // 5
+def window_level1(frames, n):
+    # End just after THE SCOUT is contained: pulses, hit, burst, banner.
+    playing = [f for f in frames if f.get("phase", "playing") == "playing"]
+    down = next((f for f in playing if f.get("alive") is False), None)
+    t_end = min((down["t"] + 330) if down else playing[-1]["t"], playing[-1]["t"])
+    return sample(playing, max(0, t_end - (n - 1) * FRAME_MS), n)
 
 
-def glitch(buf, y0, y1, strength=12):
-    for gy in range(max(0, y0), min(H, y1)):
-        if random.random() < 0.18:
-            off = random.choice([-strength, -strength // 2, strength // 2, strength])
-            rs, re = gy * W * 3, gy * W * 3 + W * 3
-            row = bytearray(buf[rs:re])
-            ro = abs(off) * 3
-            buf[rs:re] = row[-ro:] + row[:-ro] if off > 0 else row[ro:] + row[:ro]
+def window_level2(shots, n):
+    n_walk, n_fix = 5, 4
+    n_ver = n - n_walk - n_fix
+    walk = shots["walk"]
+    arrive = next((f for f in walk if f.get("d", 99) < 40), walk[-1])
+    walk_sel = sample(walk, max(0, arrive["t"] - (n_walk - 2) * FRAME_MS * 1.6), n_walk, 1.6)
+    fix = shots["mitigate"]
+    fix_sel = sample(fix, max(0, fix[-1]["t"] - (n_fix + 1) * FRAME_MS * 1.3), n_fix, 1.3)
+    ver = shots["verify"]
+    done = next((f for f in ver if f.get("done")), ver[-1])
+    ver_sel = sample(ver, max(0, done["t"] - 2 * FRAME_MS * 1.5), n_ver, 1.5)
+    return walk_sel, fix_sel, ver_sel
 
 
-def draw_grid(buf, fi):
-    horizon = 214
-    for i in range(18):
-        y = horizon + i * i * 0.55
-        line(buf, 0, y, W, y, CYAN_D if i % 2 else PINK_D, 1)
-    for i in range(-12, 13):
-        x = W / 2 + i * 26
-        line(buf, W / 2, horizon, x + (i * 28), H, CYAN_D, 1)
-    fill_rect(buf, 0, horizon - 2, W, 2, PINK)
-    for k in range(0, W, 38):
-        fill_rect(buf, (k + fi * 7) % W, horizon - 4, 16, 4, CYAN)
+def window_level3(frames, n):
+    return sample(frames, 1100, n)                 # camera settled, GHOST mid-stride
 
 
-def matrix_bg(buf, fi):
-    chars = "010101HTP"
-    for x in range(0, W, 18):
-        shift = (fi * 9 + x * 3) % (H + 80) - 80
-        for y in range(shift, H, 22):
-            ch = chars[(x + y + fi) % len(chars)]
-            draw_char(buf, ch, x, y, 1, GREEN_D)
+def window_level4(frames, n, speed=1.2):
+    # The fastest stretch with no decision panel open, slightly overcranked.
+    span = (n - 1) * FRAME_MS * speed
+    best, best_t = -1, 0
+    for f in frames:
+        if f["t"] + span > frames[-1]["t"]:
+            break
+        win = [g for g in frames if f["t"] <= g["t"] <= f["t"] + span]
+        if any(g.get("decision") for g in win):
+            continue
+        score = sum(g.get("mph", 0) for g in win) / len(win)
+        if score > best:
+            best, best_t = score, f["t"]
+    return sample(frames, best_t, n, speed)
 
 
-def city(buf, fi, palette):
-    base = 250
-    widths = [32, 44, 24, 52, 36, 28, 48, 30, 42, 26, 50]
-    x = 30
-    for i, bw in enumerate(widths):
-        bh = 65 + ((i * 29 + fi * 2) % 86)
-        color = palette[i % len(palette)]
-        fill_rect(buf, x, base - bh, bw, bh, color)
-        border(buf, x, base - bh, bw, bh, BLACK, 1)
-        for wx in range(x + 6, x + bw - 4, 10):
-            for wy in range(base - bh + 10, base - 8, 14):
-                if (wx + wy + fi + i) % 3:
-                    fill_rect(buf, wx, wy, 4, 5, YELLOW if i % 2 else CYAN)
-        x += bw + 13
+# ── Drawing ──────────────────────────────────────────────────────────────
+
+class Ink:
+    """Text images measured by ImageMagick itself (label:), so layout is exact."""
+
+    def __init__(self, tmp, fonts):
+        self.tmp, self.fonts, self.n = tmp, fonts, 0
+
+    def _path(self):
+        self.n += 1
+        return os.path.join(self.tmp, f"ink_{self.n}.png")
+
+    def text(self, text, font, pt, fill, glow=None, kern=0):
+        """Text with a drop shadow and an optional neon glow, on transparency."""
+        p = self._path()
+        args = ["-background", "none", "-font", self.fonts[font], "-pointsize", pt, "-kerning", kern,
+                "-fill", fill, f"label:{text}", "-bordercolor", "none", "-border", 14,
+                "-write", "mpr:t", "+delete"]
+        # A soft dark halo keeps text legible over bright skies.
+        args += ["(", "mpr:t", "-fill", "black", "-colorize", 100, "-blur", "0x4", "-channel", "A",
+                 "-evaluate", "multiply", 0.7, "+channel", ")"]
+        if glow:
+            args += ["(", "mpr:t", "-fill", glow, "-colorize", 100, "-blur", "0x7", ")",
+                     "(", "mpr:t", "-fill", glow, "-colorize", 100, "-blur", "0x2", ")"]
+        args += ["(", "mpr:t", "-fill", "black", "-colorize", 100, "-channel", "A", "-evaluate", "multiply", 0.85,
+                 "+channel", "-roll", "+2+2", ")", "mpr:t", "-background", "none", "-flatten"]
+        magick(*args, p)
+        return p, 14                                 # image, transparent margin
+
+    def chip(self, text, bg, fg="#000000", pt=12, pad=(7, 3)):
+        p = self._path()
+        magick("-background", bg, "-font", self.fonts["mono"], "-pointsize", pt, "-kerning", 0.6, "-fill", fg,
+               f"label:{text}", "-bordercolor", bg, "-border", f"{pad[0]}x{pad[1]}", p)
+        return p
+
+    def play_button(self, glow):
+        p = self._path()
+        magick("-background", GREEN, "-font", self.fonts["mono"], "-pointsize", 24, "-kerning", 3, "-fill", BG,
+               "label:PLAY NOW", "-gravity", "west", "-splice", "30x0", "-bordercolor", GREEN, "-border", "16x10",
+               "-fill", BG, "-draw", "polygon 18,14 18,36 36,25", p)
+        if glow:
+            magick(p, "(", "+clone", "-background", GREEN, "-shadow", "95x8+0+0", ")", "+swap",
+                   "-background", "none", "-layers", "merge", "+repage", p)
+        magick(p, "-gravity", "center", "-background", "none", "-extent", "260x100", p)
+        return p
 
 
-def title_frame(fi):
-    buf = new_frame()
-    matrix_bg(buf, fi)
-    draw_grid(buf, fi)
-    if fi % 9 in (3, 4):
-        glitch(buf, 78, 160, 18)
-    center(buf, "HACK THE PLANET", 82, 5, GREEN_B)
-    center(buf, "LEVEL TRAILER", 148, 3, CYAN)
-    center(buf, "> FOUR OPERATIONS // ONE SYSTEM", 300, 2, PINK)
-    scanlines(buf)
-    return buf
+def layer(tmp, name, parts):
+    """Composite parts onto a transparent 640x360 layer.
+    parts: ("band", y, h, top_alpha, bottom_alpha) | ("img", path, x, y)"""
+    path = os.path.join(tmp, name)
+    args = ["-size", f"{W}x{H}", "xc:none"]
+    for kind, *rest in parts:
+        if kind == "band":
+            y, h, a0, a1 = rest
+            args += ["(", "-size", f"{W}x{h}", f"gradient:rgba(0,0,0,{a0})-rgba(0,0,0,{a1})", ")",
+                     "-geometry", f"+0+{y}", "-composite"]
+        else:
+            img, x, y = rest
+            args += [img, "-geometry", f"{x:+d}{y:+d}", "-composite"]
+    magick(*args, path)
+    return path
 
 
-def story_frame(fi, headline, body, color=GREEN_B, accent=CYAN):
-    buf = new_frame()
-    matrix_bg(buf, fi)
-    fill_rect(buf, 46, 58, 548, 230, (0, 8, 12))
-    border(buf, 46, 58, 548, 230, color, 3)
-    draw_str(buf, "> PANDECORP.GLOBAL", 76, 84, 2, RED)
-    fill_rect(buf, 76, 118, 488, 2, GREEN_D)
-    center(buf, headline, 142, 3, color)
-    for i, text in enumerate(body):
-        center(buf, text, 198 + i * 28, 2, accent if i % 2 else WHITE)
-    if fi % 11 in (2, 3):
-        glitch(buf, 132, 230, 18)
-    scanlines(buf)
-    return buf
+def level_overlay(tmp, ink, key, anchor):
+    name, tag, chip, accent = LEVELS[key]
+    title, m = ink.text(name, "display", 46, "#ffffff", glow=accent, kern=1.5)
+    sub, sm = ink.text(tag, "mono", 17, accent, kern=2.5)
+    chip_img = ink.chip(chip, accent)
+    x, y = 24, (60 if anchor == "top" else 240)
+    band = ("band", 40, 150, 0.7, 0) if anchor == "top" else ("band", 196, 164, 0, 0.82)
+    return layer(tmp, f"ov_{key}.png", [
+        band,
+        ("img", chip_img, x, y),
+        ("img", title, x - 2 - m, y + 12 - m),
+        ("img", sub, x + 1 - sm, y + 66 - sm),
+    ])
 
 
-def level_card(fi, num, name, tag, color, accent, art):
-    buf = new_frame()
-    matrix_bg(buf, fi)
-    draw_grid(buf, fi)
-    fill_rect(buf, 40, 42, 560, 210, (0, 8, 16))
-    border(buf, 40, 42, 560, 210, color, 3)
-    draw_str(buf, f"LEVEL {num:02d}", 68, 66, 3, color)
-    draw_str(buf, name, 68, 108, 4, WHITE)
-    draw_str(buf, tag, 70, 166, 2, accent)
-    fill_rect(buf, 420, 68, 132, 130, (0, 0, 0))
-    border(buf, 420, 68, 132, 130, accent, 2)
-    art(buf, fi, 420, 68, 132, 130, color, accent)
-    if fi % 10 in (1, 2):
-        glitch(buf, 92, 150, 10)
-    scanlines(buf)
-    return buf
+def footage_frame(src, rect, dst, overlay, dx=0, grade="0x0"):
+    x, y, w, h = rect
+    magick(src, "-crop", f"{w}x{h}+{x}+{y}", "+repage", "-resize", f"{W}x{H}!",
+           "-brightness-contrast", grade, overlay, "-geometry", f"{dx:+d}+0", "-composite", dst)
 
 
-def draw_gameplay_shell(buf, label, objective, color, accent):
-    fill_rect(buf, 22, 18, 596, 304, DKBLUE)
-    border(buf, 22, 18, 596, 304, color, 3)
-    fill_rect(buf, 22, 18, 596, 28, (0, 14, 20))
-    draw_str(buf, label, 38, 28, 1, color)
-    draw_str(buf, objective, 350, 28, 1, accent)
-    fill_rect(buf, 48, 62, 138, 12, GREEN_D)
-    fill_rect(buf, 48, 62, 110, 12, GREEN_B)
-    draw_str(buf, "INTEGRITY", 50, 80, 1, GREEN_B)
-    fill_rect(buf, 452, 62, 118, 12, PINK_D)
-    fill_rect(buf, 452, 62, 72, 12, RED)
-    draw_str(buf, "THREAT", 472, 80, 1, RED)
+def glitch(src, dst, shift, slices=0, seed=0):
+    """RGB split plus a few displaced horizontal slices."""
+    rnd = random.Random(seed)
+    args = [src, "-write", "mpr:g", "+delete",
+            "(", "mpr:g", "-channel", "R", "-separate", "+channel", "-roll", f"{shift:+d}+0", ")",
+            "(", "mpr:g", "-channel", "G", "-separate", "+channel", ")",
+            "(", "mpr:g", "-channel", "B", "-separate", "+channel", "-roll", f"{-shift:+d}+0", ")",
+            "-combine"]
+    for _ in range(slices):
+        h = rnd.randint(6, 28)
+        y = rnd.randint(0, H - h)
+        args += ["-region", f"{W}x{h}+0+{y}", "-roll", f"{rnd.choice([-1, 1]) * rnd.randint(8, 40):+d}+0", "+region"]
+    magick(*args, dst)
 
 
-def gameplay_level1(fi):
-    buf = new_frame()
-    matrix_bg(buf, fi)
-    draw_gameplay_shell(buf, "LEVEL 01 // ROOT ACCESS", "BREACH PANDECORP", GREEN_B, CYAN)
-    for i, x in enumerate(range(82, 530, 74)):
-        fill_rect(buf, x, 176 - (i % 2) * 24, 32, 96 + (i % 3) * 20, GREEN_D)
-        border(buf, x, 176 - (i % 2) * 24, 32, 96 + (i % 3) * 20, GREEN, 1)
-        for y in range(188 - (i % 2) * 24, 258, 18):
-            fill_rect(buf, x + 8, y, 16, 4, GREEN_B)
-    cx, cy = 320, 180
-    line(buf, cx - 16, cy, cx + 16, cy, CYAN, 2)
-    line(buf, cx, cy - 16, cx, cy + 16, CYAN, 2)
-    enemy_x = 470 - fi * 5
-    fill_rect(buf, enemy_x, 138, 26, 34, RED)
-    fill_rect(buf, enemy_x + 6, 146, 5, 5, YELLOW)
-    fill_rect(buf, enemy_x + 16, 146, 5, 5, YELLOW)
-    line(buf, 340, 178, enemy_x + 12, 155, CYAN, 3)
-    fill_rect(buf, 276, 284, 88, 18, (0, 22, 14))
-    draw_str(buf, "EXPLOIT FIRED", 292, 290, 1, GREEN_B)
-    scanlines(buf)
-    return buf
+def lerp_rect(a, b, p):
+    p = p * p * (3 - 2 * p)                          # ease in-out
+    return [round(a[i] + (b[i] - a[i]) * p) for i in range(4)]
 
 
-def gameplay_level2(fi):
-    buf = new_frame()
-    matrix_bg(buf, fi)
-    draw_gameplay_shell(buf, "LEVEL 02 // VULN HUNTER", "PATCH ROGUE AI", GREEN_B, RED)
-    fill_rect(buf, 70, 106, 210, 170, (0, 12, 8))
-    border(buf, 70, 106, 210, 170, GREEN_B, 2)
-    for i in range(5):
-        rx = 95 + i * 34
-        ry = 166 + ((fi + i) % 3) * 6
-        fill_rect(buf, rx, ry, 20, 34, GRAY)
-        fill_rect(buf, rx + 5, ry - 10, 10, 10, RED)
-        fill_rect(buf, rx + 4, ry + 8, 4, 4, YELLOW)
-        fill_rect(buf, rx + 12, ry + 8, 4, 4, YELLOW)
-    fill_rect(buf, 332, 106, 232, 170, (8, 0, 8))
-    border(buf, 332, 106, 232, 170, RED, 2)
-    draw_str(buf, "SCAN: PROMPT INJECTION", 354, 128, 1, RED)
-    options = ["1 SANITIZE INPUT", "2 IGNORE SYSTEM", "3 LEAK TOKEN"]
-    for i, opt in enumerate(options):
-        y = 162 + i * 34
-        col = GREEN_B if i == (fi // 6) % 3 == 0 else WHITE
-        border(buf, 352, y, 170, 22, col, 1)
-        draw_str(buf, opt, 362, y + 7, 1, col)
-    if fi > 11:
-        draw_str(buf, "PATCH APPLIED", 388, 250, 2, GREEN_B)
-    scanlines(buf)
-    return buf
+# ── Scenes ───────────────────────────────────────────────────────────────
+
+def opening(tmp, ink, n, out):
+    title, _ = ink.text("HACK THE PLANET", "mono", 52, "#eafff0", glow=GREEN, kern=4)
+    base = os.path.join(tmp, "open_base.png")
+    magick("-size", f"{W}x{H}", f"xc:{BG}",           # dark screen, faint terminal scanlines
+           "(", "-size", f"{W}x2", "xc:rgba(0,255,65,0.045)", "-size", f"{W}x2", "xc:none", "-append",
+           "-write", "mpr:sl", "+delete", "-size", f"{W}x{H}", "tile:mpr:sl", ")", "-composite", base)
+    frames = []
+    for i in range(n):
+        dst = os.path.join(out, f"open_{i}.png")
+        if i == 0:
+            magick("-size", f"{W}x{H}", f"xc:{BG}", dst)  # matches the closing fade: seamless loop
+        else:
+            magick(base, "(", title, "-resize", f"{100 + i}%", ")", "-gravity", "center", "-geometry", "+0-4",
+                   "-composite", dst)
+            if i == 1:
+                glitch(dst, dst, 10, slices=8, seed=1)
+                magick(dst, "-brightness-contrast", "-30x0", dst)
+            elif i == 2:
+                glitch(dst, dst, 4, slices=3, seed=2)
+            elif i == n - 1:
+                glitch(dst, dst, 3, slices=2, seed=3)
+        frames.append(dst)
+    return frames
 
 
-def gameplay_level3(fi):
-    buf = new_frame()
-    matrix_bg(buf, fi)
-    draw_gameplay_shell(buf, "LEVEL 03 // SOCIAL ENGINEER", "INFILTRATE EKOPARTY", PINK, YELLOW)
-    fill_rect(buf, 50, 234, 540, 54, (22, 22, 36))
-    fill_rect(buf, 220, 104, 200, 112, (14, 22, 62))
-    border(buf, 220, 104, 200, 112, YELLOW, 2)
-    draw_str(buf, "EKOPARTY", 264, 130, 3, YELLOW)
-    for x in range(238, 392, 24):
-        for y in range(172, 204, 18):
-            fill_rect(buf, x, y, 9, 8, CYAN)
-    px = 118 + fi * 6
-    fill_rect(buf, px, 230, 12, 30, PINK)
-    fill_rect(buf, px + 2, 220, 8, 8, WHITE)
-    fill_rect(buf, 462, 230, 12, 30, CYAN)
-    fill_rect(buf, 464, 220, 8, 8, WHITE)
-    fill_rect(buf, 90, 292, 460, 22, (0, 0, 18))
-    border(buf, 90, 292, 460, 22, YELLOW, 1)
-    draw_str(buf, "CHOICE: I AM WITH SECURITY", 118, 299, 1, YELLOW)
-    line(buf, px + 12, 226, 462, 226, PINK, 1)
-    scanlines(buf)
-    return buf
+def closing(tmp, ink, stills, n, out):
+    grid = os.path.join(tmp, "grid.png")             # one real frame from each level
+    magick(*[a for s in stills for a in ("(", s, "-resize", f"{W // 2}x{H // 2}!", ")")],
+           "(", "-clone", "0,1", "+append", ")", "(", "-clone", "2,3", "+append", ")", "-delete", "0-3",
+           "-append", "-blur", "0x1", "-fill", BG, "-colorize", "55%", grid)
+    title, tm = ink.text("HACK THE PLANET", "mono", 50, "#eafff0", glow=GREEN, kern=4)
+    sub, _ = ink.text("4 MISSIONS. ONE CYBER WORLD.", "mono", 21, "#ffffff", kern=2)
+    btn = {True: ink.play_button(True), False: ink.play_button(False)}
+    frames = []
+    for i in range(n):
+        dst = os.path.join(out, f"end_{i}.png")
+        zoom = 112 - min(i, 6) * 2                   # the grid settles from 112% to 100%
+        args = [grid, "-gravity", "center", "-resize", f"{zoom}%", "-extent", f"{W}x{H}",
+                "(", "-size", f"{W}x200", "xc:rgba(0,3,0,0.74)", ")", "-geometry", "+0-4", "-composite"]
+        args += [title, "-geometry", "+0-62", "-composite"]
+        if i >= 3:
+            args += [sub, "-geometry", "+0-6", "-composite"]
+        if i >= 5:
+            args += [btn[(i // 2) % 2 == 1], "-geometry", "+0+56", "-composite"]
+        magick(*args, dst)
+        if i == 0:
+            glitch(dst, dst, 7, slices=5, seed=11)
+        elif i == 1:
+            glitch(dst, dst, 3, slices=2, seed=12)
+        fade = {n - 2: 45, n - 1: 85}.get(i)         # ease back toward the dark first frame
+        if fade:
+            magick(dst, "-fill", BG, "-colorize", f"{fade}%", dst)
+        frames.append(dst)
+    return frames
 
 
-def gameplay_level4(fi):
-    buf = new_frame()
-    matrix_bg(buf, fi)
-    draw_gameplay_shell(buf, "LEVEL 04 // NEON GRAND PRIX", "ESCAPE THE CITY", CYAN, PINK)
-    horizon = 114
-    fill_rect(buf, 70, horizon, 500, 184, (18, 18, 32))
-    for i in range(12):
-        y = horizon + i * i * 1.35
-        line(buf, 70, y, 570, y, CYAN_D, 1)
-    for i in range(-6, 7):
-        line(buf, 320, horizon, 320 + i * 48, 298, PINK_D, 1)
-    fill_rect(buf, 300 + (fi % 6), 236, 48, 22, PINK)
-    fill_rect(buf, 308 + (fi % 6), 224, 32, 14, PINK)
-    fill_rect(buf, 306 + (fi % 6), 256, 9, 9, BLACK)
-    fill_rect(buf, 334 + (fi % 6), 256, 9, 9, BLACK)
-    for i in range(3):
-        ox = 164 + i * 104 - fi * 3
-        fill_rect(buf, ox, 176 + i * 12, 32, 14, ORANGE if i % 2 else CYAN)
-    draw_str(buf, "BOOST", 486, 286, 2, YELLOW)
-    scanlines(buf)
-    return buf
+def compose(frames_dir, output, sheet_path, keep):
+    manifest = json.load(open(os.path.join(frames_dir, "manifest.json")))
+    for k in ("level1", "level2", "level3", "level4"):
+        if k not in manifest:
+            sys.exit(f"{frames_dir}/manifest.json has no {k}; capture all four levels.")
+    fonts = {k: find_font(k) for k in FONT_CANDIDATES}
+    tmp = tempfile.mkdtemp(prefix="htp_trailer_")
+    out = os.path.join(tmp, "out")
+    os.makedirs(out)
+    ink = Ink(tmp, fonts)
+    n_open, n1, n2, n3, n4, n_end = scene_lengths()
+    src = lambda sub, f: os.path.join(frames_dir, sub, f["file"])
+    seq = []                                         # (frame path, scene label)
+
+    seq += [(p, "OPENING") for p in opening(tmp, ink, n_open, out)]
+
+    def shoot(key, items, grade, anchor="bottom", whip_out=False):
+        ov = level_overlay(tmp, ink, key, anchor)
+        for i, (path, r0, r1, p) in enumerate(items):
+            dst = os.path.join(out, f"{key}_{i:02d}.png")
+            footage_frame(path, lerp_rect(r0, r1, p), dst, ov, [-44, -14][i] if i < 2 else 0, grade)
+            if i == 0:
+                glitch(dst, dst, 6, slices=4, seed=int(key[-1]))
+            elif i == 1:
+                glitch(dst, dst, 2, seed=5)
+            if whip_out and i == len(items) - 1:
+                magick(dst, "-motion-blur", "0x26+0", dst)
+            seq.append((dst, LEVELS[key][0]))
+
+    ramp = lambda sel: [i / (len(sel) - 1) for i in range(len(sel))]
+    # Level 1: push in on the duel with THE SCOUT.
+    sel1 = window_level1(manifest["level1"], n1)
+    shoot("level1", [(src("l1", f), (0, 0, 1280, 720), (100, 50, 1080, 608), p) for f, p in zip(sel1, ramp(sel1))], "4x8")
+    # Level 2: KUKY reaches the robot, picks controls, verification passes.
+    # The lab's dark left margin carries the title; the action sits right of it.
+    walk, fix, ver = window_level2(manifest["level2"], n2)
+    items = [(src("l2walk", f), (0, 140, 620, 349), (70, 170, 540, 304), p) for f, p in zip(walk, ramp(walk))]
+    items += [(src("l2mitigate", f), (214, 270, 840, 472), (220, 280, 800, 450), p) for f, p in zip(fix, ramp(fix))]
+    items += [(src("l2verify", f), (214, 210, 840, 472), (226, 330, 704, 396), p) for f, p in zip(ver, ramp(ver))]
+    shoot("level2", items, "2x10")
+    # Level 3: GHOST walks into the sunset; framed right of centre to clear the title.
+    sel3 = window_level3(manifest["level3"], n3)
+    shoot("level3", [(src("l3", f), (0, 20, 1040, 585), (40, 50, 960, 540), p) for f, p in zip(sel3, ramp(sel3))],
+          "0x6", whip_out=True)
+    # Level 4: the fastest stretch; title up in the sky, the car stays clear.
+    sel4 = window_level4(manifest["level4"], n4)
+    shoot("level4", [(src("l4", f), (0, 0, 1280, 720), (32, 18, 1216, 684), p) for f, p in zip(sel4, ramp(sel4))],
+          "2x10", anchor="top")
+
+    stills = [src("l1", sel1[3]), src("l2walk", walk[-1]), src("l3", sel3[n3 // 2]), src("l4", sel4[n4 // 2])]
+    seq += [(p, "CALL TO ACTION") for p in closing(tmp, ink, stills, n_end, out)]
+
+    assert len(seq) == round(CUTS[-1] * FPS), len(seq)
+    encode([p for p, _ in seq], output)
+    if sheet_path:
+        contact_sheet(seq, sheet_path, fonts)
+    if keep:
+        print("composed frames kept in", out)
+    else:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
-def art_fps(buf, fi, x, y, w, h, color, accent):
-    for bx in range(x + 12, x + w - 10, 24):
-        bh = 30 + (bx + fi) % 44
-        fill_rect(buf, bx, y + h - bh - 12, 16, bh, GREEN_D)
-        fill_rect(buf, bx + 4, y + h - bh - 4, 8, bh - 12, GREEN)
-    fill_rect(buf, x + 52, y + 75, 50, 12, accent)
-    fill_rect(buf, x + 92, y + 70, 18, 7, accent)
-    fill_rect(buf, x + 32 + fi % 36, y + 38, 8, 8, RED)
+def encode(paths, output):
+    # 12 fps in GIF centiseconds: alternate 8/9 cs so the total is exact.
+    args = []
+    for i, p in enumerate(paths):
+        args += ["-delay", round(100 * (i + 1) / FPS) - round(100 * i / FPS), p]
+    tmp_out = output + ".tmp.gif"
+    # The games are flat-shaded, so an undithered 255-colour palette per frame
+    # looks the same as a dithered one and compresses far better.
+    magick(*args, "-loop", "0", "+dither", "-colors", "255",
+           "-fuzz", "2%", "-layers", "OptimizeTransparency", tmp_out)
+    os.replace(tmp_out, output)
 
 
-def art_vuln(buf, fi, x, y, w, h, color, accent):
-    for i in range(4):
-        rx = x + 18 + i * 25
-        fill_rect(buf, rx, y + 50 + (i % 2) * 16, 16, 28, GRAY)
-        fill_rect(buf, rx + 4, y + 42 + (i % 2) * 16, 8, 8, RED)
-        line(buf, rx + 8, y + 78, x + w // 2, y + h - 20, accent, 2)
-    draw_str(buf, "PATCH", x + 30, y + 102, 2, GREEN_B)
+def contact_sheet(seq, path, fonts):
+    """Opening, three frames per level, two of the closing card, with timestamps."""
+    groups = {}
+    for i, (_, label) in enumerate(seq):
+        groups.setdefault(label, []).append(i)
+    picks = []
+    for label, idx in groups.items():
+        k = {"OPENING": 1, "CALL TO ACTION": 2}.get(label, 3)
+        for j in range(k):
+            picks.append(idx[min(len(idx) - 1, (2 * j + 1) * len(idx) // (2 * k) + (2 if k == 1 else 1))])
+    args = []
+    for j in picks:
+        args += ["-label", f"{j / FPS:4.2f}s  {seq[j][1]}", seq[j][0]]
+    magick("montage", "-font", fonts["mono"], "-pointsize", 13, "-fill", "#d8ffe0", "-background", "#0b0f0b",
+           *args, "-tile", "4x", "-geometry", "320x180+6+6", "-colors", "256", "PNG8:" + path)
 
 
-def art_social(buf, fi, x, y, w, h, color, accent):
-    city(buf, fi, [PINK_D, CYAN_D, PURPLE, BLUE])
-    fill_rect(buf, x + 24, y + 42, 84, 62, (12, 18, 54))
-    border(buf, x + 24, y + 42, 84, 62, YELLOW, 2)
-    draw_str(buf, "EKOPARTY", x + 34, y + 64, 1, YELLOW)
-    fill_rect(buf, x + 55, y + 112, 12, 16, PINK)
-    fill_rect(buf, x + 82, y + 112, 12, 16, CYAN)
-
-
-def art_race(buf, fi, x, y, w, h, color, accent):
-    for i in range(8):
-        yy = y + 28 + i * 12
-        line(buf, x + 18, yy, x + w - 18, yy + 28, CYAN_D, 1)
-    fill_rect(buf, x + 48 + fi % 22, y + 86, 36, 18, PINK)
-    fill_rect(buf, x + 52 + fi % 22, y + 80, 24, 10, PINK)
-    fill_rect(buf, x + 54 + fi % 22, y + 102, 7, 7, BLACK)
-    fill_rect(buf, x + 75 + fi % 22, y + 102, 7, 7, BLACK)
-    fill_rect(buf, x + 26, y + 116, 84, 4, YELLOW)
-
-
-def final_frame(fi):
-    buf = new_frame()
-    matrix_bg(buf, fi)
-    city(buf, fi, [GREEN_D, CYAN_D, PINK_D, PURPLE])
-    draw_grid(buf, fi)
-    center(buf, "ALL LEVELS ONLINE", 72, 4, YELLOW)
-    center(buf, "01 FPS  02 VULNS  03 EKOPARTY  04 RACE", 150, 2, WHITE)
-    center(buf, "> PLAY THE MISSION", 288, 3, GREEN_B)
-    if fi % 8 in (0, 1):
-        glitch(buf, 64, 130, 16)
-    scanlines(buf)
-    return buf
-
-
-def add_frames(frames, count, maker):
-    for fi in range(count):
-        buf = maker(fi)
-        path = os.path.join(TMPDIR, f"f{len(frames):04d}.ppm")
-        write_ppm(buf, path)
-        frames.append(path)
-
-
-def find_magick():
-    return shutil.which("magick") or shutil.which("convert")
+def capture(dest, levels="1234"):
+    subprocess.run(["node", os.path.join(ROOT, "tools", "capture-trailer.js"), dest, levels], check=True)
 
 
 def main():
-    frames = []
-    scenes = [
-        (18, title_frame),
-        (
-            16,
-            lambda fi: story_frame(
-                fi,
-                "PANDECORP CONTROLS THE NET",
-                ["SURVEILLANCE IS THE PRODUCT", "THE SYSTEM IS WATCHING"],
-                RED,
-                WHITE,
-            ),
-        ),
-        (
-            14,
-            lambda fi: story_frame(
-                fi,
-                "URCUQUI GOES OFF GRID",
-                ["CODE IS THE WEAPON", "TRUTH IS THE PAYLOAD"],
-                GREEN_B,
-                CYAN,
-            ),
-        ),
-        (24, gameplay_level1),
-        (24, gameplay_level2),
-        (24, gameplay_level3),
-        (24, gameplay_level4),
-        (18, final_frame),
-    ]
-    total = sum(count for count, _ in scenes)
-    print(f"Generating {total} trailer frames into {TMPDIR}...")
-    for count, maker in scenes:
-        add_frames(frames, count, maker)
-        print(f"  {len(frames)}/{total}")
-
-    magick = find_magick()
-    if not magick:
-        raise SystemExit("ImageMagick is required. Install `magick` or `convert` and rerun gen_gif.py.")
-
-    cmd = [
-        magick,
-        "-delay",
-        str(FPS_DELAY),
-        "-loop",
-        "0",
-        *frames,
-        "-dither",
-        "Riemersma",
-        "-colors",
-        "64",
-        "-layers",
-        "optimize",
-        OUTPUT,
-    ]
-    print(f"Building {os.path.basename(OUTPUT)} with ImageMagick...")
-    result = subprocess.run(cmd, capture_output=True)
-    if result.returncode != 0:
-        raise SystemExit(result.stderr.decode())
-    size = os.path.getsize(OUTPUT) // 1024
-    print(f"Created: {OUTPUT} ({size} KB)")
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("output", nargs="?", default=os.environ.get("HTP_GIF_OUTPUT", os.path.join(ROOT, "trailer.gif")))
+    ap.add_argument("--frames", help="compose from footage already captured in this directory")
+    ap.add_argument("--capture-only", metavar="DIR", help="capture footage into DIR and stop")
+    ap.add_argument("--sheet", help="contact sheet path (default: trailer-contact-sheet.png beside the GIF; 'none' skips)")
+    ap.add_argument("--keep", action="store_true", help="keep the captured footage and composed frames")
+    a = ap.parse_args()
+    if not shutil.which("magick"):
+        sys.exit("ImageMagick 7 (`magick`) is required.")
+    if a.capture_only:
+        capture(os.path.abspath(a.capture_only))
+        return
+    output = os.path.abspath(a.output)
+    sheet = None if a.sheet == "none" else os.path.abspath(
+        a.sheet or os.path.join(os.path.dirname(output), "trailer-contact-sheet.png"))
+    frames_dir = os.path.abspath(a.frames) if a.frames else tempfile.mkdtemp(prefix="htp_capture_")
+    try:
+        if not a.frames:
+            capture(frames_dir)
+        compose(frames_dir, output, sheet, a.keep)
+    finally:
+        if not a.frames and not a.keep:
+            shutil.rmtree(frames_dir, ignore_errors=True)
+    print(f"{output}: {os.path.getsize(output) / 1e6:.2f} MB")
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    finally:
-        shutil.rmtree(TMPDIR, ignore_errors=True)
+    main()

@@ -14,6 +14,11 @@ npm-debug.log*
 __pycache__/
 *.pyc
 
-# Generated artifacts (rebuild with gen_gif.py)
-trailer.gif
+# Generated artifacts. trailer.gif and trailer-contact-sheet.png are committed
+# (the README shows them); rebuild them with `python3 gen_gif.py`.
 *.tmp
+*.tmp.gif
+trailer-frames/
+
+# Local deploy settings
+.env

@@ -2,7 +2,9 @@
 
 > *"Systems don't change the world… people do."* — Urcuqui
 
-![Hack The Planet intro](preview.gif)
+![HACK THE PLANET gameplay trailer: FSYNDICATE duel, AI Incident Lab, Operation Ghost, Neon Grand Prix](trailer.gif)
+
+<sub>Real gameplay of all four missions, captured from the current build with `python3 gen_gif.py`.</sub>
 
 A four-mission cyberpunk browser game. You start as KUKY, breaking into the PandeCorp arena, and go on to hunt rogue AIs, work the streets of a neon Miami as GHOST, and race the circuit against eight AI rivals. All four missions are reached from one **Mission Hub** that tracks your progress.
 
@@ -173,7 +175,8 @@ hack-the-planet/
 │       └── render.js        #   pseudo-3D Canvas renderer
 ├── tools/
 │   ├── serve.js             # Hardened local static server
-│   └── check-scripts.js     # Syntax check for every inline <script>
+│   ├── check-scripts.js     # Syntax check for every inline <script>
+│   └── capture-trailer.js   # Records real gameplay of the four levels for the trailer
 ├── tests/
 │   ├── progress.test.js     # Progression, unlock and storage-failure tests
 │   ├── arena.test.js        # Level 1: controls, cover, pulses, agents, tools/permissions, audit, bounties, objectives
@@ -186,8 +189,10 @@ hack-the-planet/
 │       ├── cdp.js               # Minimal DevTools Protocol client (no dependencies)
 │       ├── smoke.browser.js     # Headless Chrome campaign run (hooks + navigation)
 │       └── gameplay.browser.js  # Plays the levels with real keyboard/mouse input
-├── gen_gif.py               # Generates the trailer GIF (needs ImageMagick)
-├── preview.gif              # README preview
+├── gen_gif.py               # Builds trailer.gif from captured gameplay (needs Chrome + ImageMagick)
+├── trailer.gif              # README trailer (6.5 s, 640×360, 12 fps)
+├── trailer-contact-sheet.png  # Frames from each scene, for reviewing the trailer
+├── preview.gif              # Earlier illustrated preview
 ├── package.json             # npm scripts only, no dependencies
 └── LICENSE
 ```
@@ -248,10 +253,27 @@ On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffein
 
 ### Trailer GIF
 
+The README trailer is built from real gameplay. `tools/capture-trailer.js` starts the local server, opens each level in headless Chrome and plays it with keyboard and mouse input only, the same way the gameplay test does. It reads game state to steer, never writes it, and the game itself has no trailer or demo mode. `gen_gif.py` then picks each shot from the recorded state (the Scout being contained, the analyzer's verification passing, the fastest stretch of the race), adds the titles and transitions, and encodes the GIF with ImageMagick.
+
 ```bash
-python3 gen_gif.py                 # writes ./trailer.gif (git-ignored)
-python3 gen_gif.py out/teaser.gif  # or any path; HTP_GIF_OUTPUT also works
+python3 gen_gif.py                          # capture + build ./trailer.gif and ./trailer-contact-sheet.png (~1 min)
+python3 gen_gif.py out/teaser.gif           # any output path; HTP_GIF_OUTPUT also works
+python3 gen_gif.py --capture-only footage/  # only record the footage (1280×720 JPEGs + manifest.json)
+python3 gen_gif.py trailer.gif --frames footage/   # rebuild from saved footage, no browser needed
 ```
+
+Needs Node 22+, Chrome or Chromium (`CHROME_PATH` to override; a GPU keeps the 3D levels smooth), network access to cdnjs for three.js, and ImageMagick 7. It uses system fonts (Impact and Courier New Bold, with DejaVu/Liberation fallbacks); set `HTP_FONT_DISPLAY` / `HTP_FONT_MONO` to use others. Temporary frames are written to the system temp directory and removed afterwards.
+
+| Time | Scene | Footage |
+|------|-------|---------|
+| 0.0–0.6 s | Opening | Title card |
+| 0.6–1.7 s | FSYNDICATE | Duel with THE SCOUT, through its containment |
+| 1.7–2.8 s | AI Incident Lab | KUKY reaches INJECTOR-9, controls chosen, verification passes |
+| 2.8–3.9 s | Operation Ghost | GHOST walks Central Ave toward the sunset and the Art Deco blocks |
+| 3.9–5.1 s | Neon Grand Prix | The fastest stretch of lap 1 in the pack, played at 1.2× |
+| 5.1–6.5 s | Call to action | Title over one frame from each level, then fades back into the loop |
+
+Gameplay timing varies a little between runs, so each capture yields a slightly different (but equivalent) cut. Check `trailer-contact-sheet.png` after rebuilding.
 
 ---
 
