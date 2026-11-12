@@ -447,3 +447,49 @@ test('city layout: routes on roads, no overlaps, field paths clear of buildings'
     assert.deepEqual([...phases].sort(), ['ew', 'ew-amber', 'ns', 'ns-amber']);
   }
 });
+
+// ── Phase 6: observability, recovery plan and learning transfer ──
+test('policy trace separates requested, policy decision, authorised and outcome', () => {
+  const sim = Sim.create();
+  detected(sim, 'INC-01');
+  let tr = sim.policyTrace('INC-01');
+  const over = tr.find(r => r.unsafe);
+  const legit = tr.find(r => !r.unsafe);
+  assert.equal(over.call, 'override_signal(INT-04)');
+  assert.deepEqual([over.verdict, over.authorized], ['ALLOW', true], 'monitor mode lets it through');
+  assert.deepEqual(over.findings, ['OUT OF SCOPE']);
+  assert.match(over.outcome, /^Executes → Gridlock/);
+  assert.equal(legit.call, 'set_signal_timing(INT-01)', 'the agent\'s legitimate work is shown too');
+  sim.respond('INC-01', 'restrict');
+  tr = sim.policyTrace('INC-01');
+  assert.deepEqual([tr.find(r => r.unsafe).verdict, tr.find(r => !r.unsafe).verdict], ['DENY', 'ALLOW'], 'targeted: threat refused, work continues');
+  const plan = sim.recoveryPlan('INC-01');
+  assert.deepEqual(plan.blocked, ['override_signal(INT-04)']);
+  assert.equal(plan.next, 'RE-SYNC INT-04 ADAPTIVE TIMING');
+});
+
+test('over-restriction shows up in the trace as legitimate work stopping', () => {
+  const sim = Sim.create();
+  for (const id of ['INC-01']) { detected(sim, id); sim.respond(id, 'restrict'); recoverAndVerify(sim, id); }
+  detected(sim, 'INC-02');
+  sim.respond('INC-02', 'isolate');
+  const tr = sim.policyTrace('INC-02');
+  assert.ok(tr.filter(r => !r.unsafe).every(r => !r.authorized && /legitimate work stops/.test(r.outcome)));
+});
+
+test('every incident debrief has real-world application and what to verify', () => {
+  for (const inc of Incidents.INCIDENTS) assert.ok(inc.learn.practice && inc.learn.check, inc.id);
+  const r = Sim.create().report();
+  assert.ok(r.incidents.every(i => i.practice && i.check));
+});
+
+test('level 5 page: the guide only reads state and can be skipped; reduced alerts exist', () => {
+  const html = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'level5.html'), 'utf8');
+  const guide = html.slice(html.indexOf('function guideState()'), html.indexOf('function objectiveState()'));
+  assert.ok(guide.length > 200);
+  assert.doesNotMatch(guide, /sim\.(respond|recover|verify|step|advance|open|select|observe|fieldReport)\(/, 'the guide never acts for the player');
+  assert.match(html, /id="coach-skip"/);
+  assert.match(html, /id="guide-on"/);
+  assert.match(html, /id="opt-calm"/);
+  assert.match(html, /renderTrace\(p, d\.id\)/);
+});

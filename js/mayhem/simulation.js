@@ -646,6 +646,54 @@
       return { ok, checks };
     };
 
+    // Observability: for each call this incident's agents make (its unsafe
+    // calls plus the agent's own routine work), what the policy does with it
+    // right now. Requested → policy decision → authorised → executes → outcome.
+    api.policyTrace = function (id) {
+      const i = inc(id);
+      const templates = i.def.calls.map(t => ({ tpl: t, unsafe: !!t.unsafe }));
+      for (const r of ROUTINE) {
+        if (i.def.calls.some(t => t.agent === r.agent) && !templates.some(x => x.tpl.agent === r.agent && x.tpl.tool === r.tool)) {
+          templates.push({ tpl: r, unsafe: false });
+        }
+      }
+      return templates.map(({ tpl, unsafe }) => {
+        const probe = makeCall(tpl, i.id);
+        probe.id = 'probe';
+        const auth = Policy.authorize(s.policy, probe);
+        const effect = tpl.effect || {};
+        const damage = (effect.set || []).concat(Object.keys(effect.timed || {})).filter(f => FLAGS[f]).map(f => FLAGS[f].label);
+        let outcome;
+        if (auth.verdict === 'DENY') outcome = unsafe ? 'Refused — no effect on the city' : 'Refused — this legitimate work stops too';
+        else if (auth.verdict === 'REVIEW') outcome = unsafe ? 'Held for a human — nothing executes' : 'Held — legitimate work waits for a human';
+        else outcome = unsafe ? 'Executes → ' + (damage.join('; ') || 'unsafe change') : 'Executes — normal operations continue';
+        return {
+          agent: tpl.agent, call: tpl.tool + '(' + tpl.target + ')', unsafe,
+          delegatedBy: tpl.delegatedBy || null, sender: tpl.message ? tpl.message.from + (tpl.message.signature ? ' · signed' : ' · unsigned') : null,
+          verdict: auth.verdict, reason: auth.reasons[0] || '', findings: auth.findings,
+          authorized: auth.verdict === 'ALLOW', outcome,
+        };
+      });
+    };
+
+    // After containment: what was stopped, what is still degraded, what to do next.
+    api.recoveryPlan = function (id) {
+      const i = inc(id);
+      const blocked = api.policyTrace(id).filter(r => r.unsafe && !r.authorized).map(r => r.call);
+      const degraded = [];
+      for (const [k, min] of Object.entries(i.def.verify.services)) {
+        const sv = s.services[k];
+        if (sv.health < min) {
+          const top = sv.drains.slice().sort((a, b) => b.rate - a.rate)[0];
+          degraded.push(SERVICE_INFO[k].label + ' ' + fmt(sv.health) + ' % (needs ' + min + ' %)' +
+            (top ? ' — ' + top.label : sv.cap < 100 ? ' — manual capacity' : ''));
+        }
+      }
+      const damage = i.def.verify.flags.filter(flagActive).map(f => FLAGS[f].label);
+      const next = api.availableActions(id)[0];
+      return { blocked, degraded, damage, next: next ? next.label : null };
+    };
+
     // ── Field (GHOST) ────────────────────────────────────
     api.fieldTasks = function () {
       // Field checks matter while a decision is open, or when recovery needs ground truth.
@@ -721,6 +769,7 @@
           status: i.status, firstGrade: i.firstGrade, choices: i.choices.map(c => ({ label: c.label, grade: c.grade })),
           field: i.def.field ? (i.fieldDone ? 'Confirmed by GHOST' : i.def.field.required ? 'Not done' : 'Skipped (optional)') : null,
           what: i.def.learn.what, best: i.def.learn.best, residual: i.def.learn.residual,
+          practice: i.def.learn.practice, check: i.def.learn.check,
           explain: i.choices.length ? i.def.options.find(o => o.id === i.choices[i.choices.length - 1].option).explain : null,
         })),
       };

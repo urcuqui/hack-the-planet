@@ -16,7 +16,7 @@
   'use strict';
 
   const SETTINGS_KEY = 'htp.mayhem.audio';
-  const DEFAULTS = { master: 0.8, music: 0.7, sfx: 0.8, musicOn: true, radioOn: true, voice: false };
+  const DEFAULTS = { master: 0.8, music: 0.7, sfx: 0.8, musicOn: true, radioOn: true, voice: false, calmAlerts: false };
   const STATES = ['pulse', 'alert', 'mayhem', 'recovery'];
   const TEMPO = { pulse: 100, alert: 112, mayhem: 126, recovery: 92 };
   const LOOKAHEAD = 0.12;                 // s of music scheduled ahead
@@ -46,7 +46,7 @@
       const out = Object.assign({}, DEFAULTS);
       if (raw && typeof raw === 'object') {
         for (const k of ['master', 'music', 'sfx']) if (Number.isFinite(raw[k])) out[k] = Math.max(0, Math.min(1, raw[k]));
-        for (const k of ['musicOn', 'radioOn', 'voice']) if (typeof raw[k] === 'boolean') out[k] = raw[k];
+        for (const k of ['musicOn', 'radioOn', 'voice', 'calmAlerts']) if (typeof raw[k] === 'boolean') out[k] = raw[k];
       }
       return out;
     } catch (e) {
@@ -297,6 +297,8 @@
       },
       setRadio(on) { settings.radioOn = !!on; saveSettings(); applyVolumes(); },
       setVoice(on) { settings.voice = !!on; saveSettings(); },
+      // Reduced alert intensity: no sirens or alert pings, softer alarm effects.
+      setCalmAlerts(on) { settings.calmAlerts = !!on; saveSettings(); },
 
       // Victory / defeat stings end the soundtrack.
       // Intro title hit: a low impact, a minor stab and a rising three-note figure.
@@ -337,7 +339,7 @@
         ramp(amb.traffic.gain, 0.05 + 0.12 * traffic, t, 0.4);
         ramp(amb.hum.gain, 0.025 * hum, t, 0.3);
         ramp(amb.drones.gain, 0.02 * drones, t, 0.3);
-        if (paused || ended) return;
+        if (paused || ended || settings.calmAlerts) return;
         // Escalation layer: sirens and alert pings get more frequent with pressure.
         const sirenEvery = pressure >= 5 ? 6 : pressure >= 4 ? 9 : pressure >= 3 ? 16 : Infinity;
         if (t - lastSiren > sirenEvery) { lastSiren = t; siren(t); }
@@ -349,7 +351,13 @@
         if (!ctx) return;
         const t = ctx.currentTime + 0.005, o = bus.sfx;
         const R = SFX[name];
-        if (R) R(t, o);
+        if (!R) return;
+        if (settings.calmAlerts && LOUD.includes(name)) {
+          const soft = ctx.createGain();            // a quieter one-off path for alarms
+          soft.gain.value = 0.4;
+          soft.connect(bus.sfx);
+          R(t, soft);
+        } else R(t, o);
       },
 
       radio() {
@@ -414,6 +422,7 @@
       }
     }
 
+    const LOUD = ['incident', 'failed', 'pressureUp', 'blocked', 'isolated'];
     // Sound effects: short, distinct, never melodic enough to clash with music.
     const SFX = {
       hover: (t, o) => tone('sine', 1500, t, 0.03, 0.02, o),

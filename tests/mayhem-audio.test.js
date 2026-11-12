@@ -256,3 +256,22 @@ test('the soundtrack is original procedural synthesis in four looping states', (
   assert.ok(Audio.TEMPO.mayhem > Audio.TEMPO.alert && Audio.TEMPO.alert > Audio.TEMPO.pulse && Audio.TEMPO.pulse > Audio.TEMPO.recovery,
     'tempo follows the tension');
 });
+
+test('reduced alerts: no sirens or pings, softer alarms, persisted', () => {
+  const env = fakeEnv();
+  const audio = Audio.createAudio({ AudioContext: env.Ctx, storage: env.storage, timers: env.timers });
+  audio.unlock();
+  audio.setCalmAlerts(true);
+  assert.equal(JSON.parse(env.memory.get(Audio.SETTINGS_KEY)).calmAlerts, true);
+  const ctx = env.created[0].ctx;
+  ctx.advance(60);
+  const mark = env.created.length;
+  audio.setAmbience({ traffic: 1, pressure: 5 });
+  assert.equal(env.created.slice(mark).filter(n => n.kind === 'osc').length, 0, 'no siren at pressure 5');
+  const before = env.created.length;
+  audio.sfx('incident');
+  const soft = env.created.slice(before).find(n => n.kind === 'gain');
+  assert.equal(soft.gain.value, 0.4, 'alarm routed through a quieter path');
+  assert.ok(env.created.length - before > 2, 'but still audible');
+  assert.equal(Audio.createAudio({ AudioContext: env.Ctx, storage: env.storage, timers: env.timers }).settings.calmAlerts, true);
+});

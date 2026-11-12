@@ -349,3 +349,26 @@ test('the page builds Main Street from the world data and describes agents as si
   assert.match(html, /simulation/i);
   assert.doesNotMatch(html, /FSOCIETY|fsociety/);
 });
+
+// ── Phase 6: learning transfer and honest labels ──
+test('every security objective explains real-world application and what to verify', () => {
+  for (const def of [Security.OBSERVABILITY, Security.TOOL_REVIEW, Security.MESSAGE_CHECK]) {
+    assert.ok(def.apply && def.apply.length > 40, def.concept + ' apply');
+    assert.ok(def.verify && def.verify.length > 40, def.concept + ' verify');
+  }
+  const report = Security.createSecurity().report();
+  assert.ok(report.every(r => r.apply && r.verify), 'the end report carries both');
+  assert.equal(Security.LABEL.exploited, 'UNSAFE · EXECUTED', 'an executed unsafe action is not shown as a partial answer');
+  assert.notEqual(Security.LABEL.exploited, Security.LABEL['needs-improvement']);
+});
+
+test('level 1 page: run-scoped timers, music lifecycle, decide-later and a contextual hint', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'level1.html'), 'utf8');
+  assert.match(html, /function resetMission\(\) \{\s*for \(const id of runTimers\) clearTimeout\(id\);/, 'restart cancels the previous run\'s timers');
+  assert.match(html, /function hitPlayer\(dmg, vel\) \{\s*if \(matchOver/, 'no breach after the match is decided');
+  assert.match(html, /function pauseGame\(reason\) \{[\s\S]{0,80}stopMusicLoop\(\);/, 'pause stops the music loop');
+  assert.match(html, /function showResults\(win\) \{[\s\S]{0,80}stopMusicLoop\(\);/, 'results stop the music loop');
+  assert.match(html, /decide later: nothing executes, the request stays held/);
+  assert.match(html, /function nextHint\(\)/);
+  assert.doesNotMatch(html, /setTimeout\(\(\) => showResults\(false\)/, 'defeat goes through the run-scoped timer');
+});

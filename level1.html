@@ -312,7 +312,10 @@
   .report details { border-bottom: 1px solid var(--panel-line); padding: 8px 0; }
   .report summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
   .res-complete { color: var(--green); } .res-complete::before { content: "✓ "; }
-  .res-needs-improvement, .res-exploited { color: var(--amber); } .res-needs-improvement::before, .res-exploited::before { content: "◐ "; }
+  .res-needs-improvement { color: var(--amber); } .res-needs-improvement::before { content: "◐ "; }
+  .res-exploited { color: var(--red); } .res-exploited::before { content: "✕ "; }
+  #hint-line { margin-top: 6px; color: var(--amber); font-size: 12px; line-height: 1.45; }
+  #hint-line:empty { display: none; }
   .res-not-completed { color: var(--red); } .res-not-completed::before { content: "✕ "; }
   .report dl { display: grid; grid-template-columns: 120px 1fr; gap: 5px 10px; font-size: 12px; line-height: 1.55; margin-top: 8px; }
   .report dt { color: rgba(245,221,180,0.6); font-size: 10px; letter-spacing: 2px; padding-top: 2px; }
@@ -424,11 +427,12 @@
   <div class="hud-chip" id="action-chip">
     <div><span class="keycap">Q</span>SCAN AGENT <span class="keycap">I</span>LOG</div>
     <div class="lbl" style="margin-top:6px">AI SECURITY <span id="sec-score">0</span>/3</div>
-    <div id="objective-text"></div>
+    <div id="objective-text" aria-live="polite"></div>
+    <div id="hint-line" aria-live="polite"></div>
     <div id="interact"><span class="keycap">E</span><span id="interact-text"></span></div>
     <div id="cylinder" aria-label="Pulse revolver charges"></div>
   </div>
-  <button id="music-btn" onclick="toggleMusic()">♪ BGM: ON</button>
+  <button id="music-btn" onclick="toggleMusic()" aria-pressed="true" aria-label="Music (M)">♪ BGM: ON</button>
 </div>
 
 <!-- ══ BRIEFING ══ -->
@@ -1312,6 +1316,14 @@ function playMusic() {
   loopTimeoutId = setTimeout(playMusic, len - 80);
 }
 
+// Stops the loop and everything it already scheduled (sound effects use their
+// own path and keep working). initMusic() starts a fresh loop.
+function stopMusicLoop() {
+  if (loopTimeoutId) clearTimeout(loopTimeoutId);
+  loopTimeoutId = null;
+  musicStarted = false;
+  if (musicBus) { musicBus.disconnect(); musicBus = null; }
+}
 function initMusic() {
   if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
   if (!musicStarted && musicEnabled) { musicStarted = true; playMusic(); }
@@ -1320,6 +1332,7 @@ function initMusic() {
 function toggleMusic() {
   musicEnabled = !musicEnabled;
   document.getElementById('music-btn').textContent = '♪ BGM: '+(musicEnabled?'ON':'OFF');
+  document.getElementById('music-btn').setAttribute('aria-pressed', String(musicEnabled));
   if (musicEnabled) { initMusic(); }
   else {
     if (loopTimeoutId) clearTimeout(loopTimeoutId);
@@ -1695,7 +1708,14 @@ const keys = {};
 // Kept for the campaign tests and the HUD: neutralizations / breaches.
 let playerKills = 0, enemyKills = 0;
 
+// Delayed match-flow steps (board after a kill, defeat screen) belong to one
+// run: a restart cancels them so they can never fire into the next run.
+let runTimers = [];
+function later(fn, ms) { const id = setTimeout(() => { runTimers = runTimers.filter(t => t !== id); fn(); }, ms); runTimers.push(id); }
 function resetMission() {
+  for (const id of runTimers) clearTimeout(id);
+  runTimers = [];
+  openInspector.done = false;
   for (const b of bolts) if (b.mesh) scene.remove(b.mesh);
   bolts = [];
   clearBarriers();
@@ -1821,10 +1841,14 @@ function containAgent() {
   playSFX('kill');
   spawnSparks({ x: agent.pos.x, y: 1.3, z: agent.pos.z }, C.green, reducedMotion ? 8 : 26);
   if (agentModel) agentModel.root.visible = false;
-  setTimeout(() => {
-    if (matchOver) return;
-    if (board.complete()) { matchOver = true; showResults(true); }
-    else openBoard(agent.cfg.name + ' contained. The next bounty is open.');
+  // Combat and security are scored separately: say both.
+  const sec = security.outcomes()[agent.kind];
+  const secLine = 'Security objective: ' + Security.LABEL[sec] + (sec === 'complete' ? '.' : ' — see the report for what to do differently.');
+  const name = agent.cfg.name;
+  if (board.complete()) matchOver = true;           // no breach can land after the last containment
+  later(() => {
+    if (board.complete()) showResults(true);
+    else openBoard(name + ' contained. ' + secLine + ' The next bounty is open.');
   }, 1400);
 }
 
@@ -1915,7 +1939,7 @@ function hitAgent(dmg, point) {
 }
 
 function hitPlayer(dmg, vel) {
-  if (!player.alive || player.invulnerable > 0) return;
+  if (matchOver || !player.alive || player.invulnerable > 0) return;
   player.health = Math.max(0, player.health - dmg);
   playSFX('hit');
   if (vel) damageArrow(Math.atan2(vel.x, vel.z));   // the shooter is opposite the pulse's travel
@@ -1924,7 +1948,7 @@ function hitPlayer(dmg, vel) {
   player.respawnTimer = 2.5;
   enemyKills++;
   showStatus('KUKY DOWN · BREACH ' + enemyKills + '/3', 'danger');
-  if (board.breach()) { matchOver = true; setTimeout(() => showResults(false), 900); }
+  if (board.breach()) { matchOver = true; later(() => showResults(false), 900); }
 }
 // Smoke tests call these names; they map onto the bounty flow.
 function hitEnemy(dmg) { hitAgent(dmg); }
@@ -1970,6 +1994,7 @@ function syncBolts() {
 let pauseReason = null;   // why the duel froze (shown on the pause screen)
 function pauseGame(reason) {
   if (phase !== 'playing' && phase !== 'draw') return;
+  stopMusicLoop();
   pauseReason = reason || 'key';
   pausedFrom = phase;
   phase = 'paused';
@@ -1982,6 +2007,7 @@ function pauseGame(reason) {
 function resumeGame() {
   closeScreens();
   phase = pausedFrom || 'playing';
+  if (audioCtx) initMusic();                 // restarts the loop if BGM is on
   if (phase === 'draw') $('draw').classList.add('open');
   clock.getDelta();
   requestLock();
@@ -2027,12 +2053,14 @@ function updateHUD() {
   const incident = c && agent ? security.consoleIncident(agent.kind, c.id) : null;
   $('interact').style.display = c && player.alive ? 'block' : 'none';
   if (c) setText('interact-text', incident ? (incident.id === 'enforcer' ? 'REVIEW TOOL REQUEST' : 'VERIFY AGENT MESSAGE') : c.label + ' · NOTHING PENDING');
+  setText('hint-line', nextHint());
 
   const cyl = $('cylinder');
   const key = chambers + '|' + !!reloadUntil;
   if (cyl.dataset.k !== key) {
     cyl.dataset.k = key;
-    cyl.replaceChildren(el('span', 'lbl', 'PULSE REVOLVER '));
+    cyl.replaceChildren(el('span', 'lbl', 'PULSE REVOLVER ' + chambers + '/' + CHAMBERS + ' '));
+    cyl.setAttribute('aria-label', 'Pulse revolver: ' + chambers + ' of ' + CHAMBERS + ' charges' + (reloadUntil ? ', reloading' : ''));
     for (let i = 0; i < CHAMBERS; i++) cyl.append(el('span', i < chambers ? '' : 'empty', '●'));
     if (reloadUntil) { const r = el('div', '', 'RELOADING…'); r.id = 'reloading'; cyl.append(r); }
     else if (chambers < CHAMBERS) cyl.append(el('div', 'lbl', '[R] RELOAD'));
@@ -2040,6 +2068,21 @@ function updateHUD() {
   const resp = $('respawn-msg');
   resp.style.display = player.alive ? 'none' : 'block';
   if (!player.alive) resp.textContent = 'KUKY DOWN\nRECONNECTING IN ' + Math.max(1, Math.ceil(player.respawnTimer)) + ' s';
+}
+
+// One contextual next step, derived from what the player has (not) done yet.
+// Each hint disappears as soon as its action happens.
+function nextHint() {
+  if (!agent || !agent.alive || !player.alive || phase !== 'playing') return '';
+  for (const c of Object.values(World.CONSOLES)) {
+    if (!security.consoleIncident(agent.kind, c.id)) continue;
+    const d = Math.round(Math.hypot(player.pos.x - c.x, player.pos.z - c.z));
+    return '▸ [E] at the ' + c.label + ' terminal (' + d + ' m): review the pending request. The duel freezes while you decide.';
+  }
+  if (!locked()) return '▸ Click the street to aim with the mouse.';
+  if (!everScanned) return '▸ [Q] Scan the agent while it is in view: see its state, tool and next action.';
+  if (agent.kind === 'scout' && !security.state.scout.logOpened) return '▸ [I] Open the activity log to trace what the Scout did and why.';
+  return '';
 }
 
 let statusTimer = null;
@@ -2265,7 +2308,7 @@ function openConsole(def) {
     b.onclick = () => chooseConsole(i);
     opts.append(b);
   });
-  card.append(opts, el('div', 'hint', '1–3 or ↑ ↓ + ENTER · no time limit · the duel is frozen while you decide'));
+  card.append(opts, el('div', 'hint', '1–3 or ↑ ↓ + ENTER · no time limit · the duel is frozen while you decide · ESC leaves without deciding (the request stays held)'));
   consoleView = { def, stage: 'choose' };
   openScreen('console-screen');
   opts.firstChild.focus();
@@ -2288,6 +2331,7 @@ function chooseConsole(i) {
   card.append(el('p', 'muted', 'Audit log: ' + last));
   if (option.residual) card.append(el('p', 'muted', option.residual));
   card.append(el('p', '', 'Better practice: ' + def.best));
+  if (def.verify) card.append(el('p', 'muted', 'In a real system, verify: ' + def.verify));
   const row = el('div', 'btn-row');
   const resume = el('button', 'btn primary', 'BACK TO THE DUEL [ENTER]'); resume.id = 'console-resume'; resume.onclick = closeConsole;
   row.append(resume); card.append(row);
@@ -2305,6 +2349,16 @@ function closeConsole() {
 function consoleKey(e) {
   if (!consoleView) return;
   if (consoleView.stage === 'choose') {
+    if (e.code === 'Escape') {               // decide later: nothing executes, the request stays held
+      e.preventDefault();
+      consoleView = null;
+      closeScreens();
+      phase = 'playing';
+      clock.getDelta();
+      requestLock();
+      showStatus('REQUEST STILL HELD · DECIDE AT THE TERMINAL');
+      return;
+    }
     const n = Number(e.key);
     if (n >= 1 && n <= 3) { e.preventDefault(); chooseConsole(n - 1); return; }
     if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
@@ -2321,6 +2375,7 @@ function formatTime(sec) { const s = Math.floor(sec); return String(Math.floor(s
 function showResults(win) {
   phase = 'gameOver';
   releaseLock();
+  stopMusicLoop();
   const securityScore = security.score();
   if (win) HTPProgress.recordCompletion(1, { securityScore });
   $('results-pre').textContent = '> FSYNDICATE · THE AGENTIC FRONTIER';
@@ -2343,6 +2398,8 @@ function showResults(win) {
     const dl = el('dl');
     const row = (k, v) => { if (v) dl.append(el('dt', '', k), el('dd', '', v)); };
     row('WHAT HAPPENED', r.happened); row('EVIDENCE', r.evidence); row('WHY IT MATTERS', r.why); row('BETTER PRACTICE', r.best); row('RESIDUAL RISK', r.residual);
+    row('IN THE REAL WORLD', r.apply); row('WHAT TO VERIFY', r.verify);
+    det.open = r.outcome !== 'complete';
     det.append(sum, dl);
     rep.append(det);
     knowledge.append(el('li', '', r.knowledge));

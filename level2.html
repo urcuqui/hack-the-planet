@@ -106,6 +106,9 @@
     #hud { grid-template-columns: 1fr 1fr; }
   }
   @media (prefers-reduced-motion: reduce) { .screen h1 { text-shadow: none; } }
+  .stepper { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 4px; font-size: 12px; letter-spacing: 2px; color: rgba(255,255,255,0.5); }
+  .stepper li.done { color: #7dff9a; }
+  .stepper li.cur { color: #ffcc33; text-decoration: underline; text-underline-offset: 4px; }
 </style>
 <script src="js/progress.js"></script>
 <script src="js/incident/world.js"></script>
@@ -431,6 +434,11 @@ function draw(t) {
   if (near) {
     ctx.strokeStyle = '#ffcc33'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.arc(near.x, near.y, 26, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    if (!everInspected) {
+      ctx.font = 'bold 12px "Courier New", monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(near.x - 52, near.y - 50, 104, 18);
+      ctx.fillStyle = '#ffcc33'; ctx.fillText('[E] INSPECT', near.x, near.y - 37);
+    }
   }
 }
 
@@ -453,6 +461,7 @@ function openAnalyzer(caseId) {
     draft: null, mit: new Set(s.selected), result: null, verifyResult: null,
   };
   if (an.stage === 'investigate') lab.viewEvidence(caseId, an.ev);
+  everInspected = true;
   gamePhase = 'analyzer';
   for (const k in keys) keys[k] = false;
   playScanSound();
@@ -460,7 +469,9 @@ function openAnalyzer(caseId) {
   $('analyzer').classList.add('open');
   focusFirst();
 }
+let everInspected = false;
 function closeAnalyzer() {
+  if (an && an.replayTimer) clearTimeout(an.replayTimer);
   an = null;
   $('analyzer').classList.remove('open');
   updateHUD();
@@ -486,6 +497,16 @@ function renderAnalyzer() {
   row('OBSERVED', c.observed);
   if (v.concept) row('DIAGNOSIS', v.concept);
   card.append(head);
+  const STEPS = [['EVIDENCE', ['investigate']], ['DIAGNOSE', ['diagnose', 'diag-result']], ['MITIGATE', ['mitigate']], ['VERIFY', ['verify']]];
+  const cur = STEPS.findIndex(([, st]) => st.includes(an.stage));
+  const stepper = el('ol', 'stepper');
+  stepper.setAttribute('aria-label', 'Investigation steps');
+  STEPS.forEach(([label], k) => {
+    const li = el('li', k < cur ? 'done' : k === cur ? 'cur' : '', (k < cur ? '✓ ' : k === cur ? '▸ ' : '') + label);
+    if (k === cur) li.setAttribute('aria-current', 'step');
+    stepper.append(li);
+  });
+  card.append(stepper);
   ({ investigate: stageInvestigate, diagnose: stageDiagnose, 'diag-result': stageDiagResult, mitigate: stageMitigate, verify: stageVerify })[an.stage](card, s, c, v);
 }
 
@@ -661,9 +682,15 @@ function stageDiagResult(card) {
     review.onclick = () => { an.stage = 'investigate'; renderAnalyzer(); focusFirst(); };
     const retry = el('button', 'btn primary', 'TRY AGAIN'); retry.dataset.first = '1';
     retry.onclick = () => { an.stage = 'diagnose'; renderAnalyzer(); focusFirst(); };
-    rowEl.append(retry, review);
-    card.append(box, rowEl);
-    if (lab.defeated()) card.append(el('p', 'muted', 'System integrity is at 0%. Close the analyzer to see the report.'));
+    if (lab.defeated()) {
+      // At 0% integrity the mission is over: no more attempts.
+      const end = el('button', 'btn primary', 'END MISSION · SEE THE REPORT'); end.dataset.first = '1'; end.onclick = closeAnalyzer;
+      rowEl.replaceChildren(end);
+      card.append(box, el('p', 'muted', 'System integrity is at 0%. The lab is compromised.'), rowEl);
+    } else {
+      rowEl.append(retry, review);
+      card.append(box, rowEl);
+    }
   }
 }
 
@@ -671,6 +698,7 @@ function stageDiagResult(card) {
 function stageMitigate(card, s, c) {
   const m = c.mitigation;
   card.append(el('h2', '', 'MITIGATE'), el('p', '', m.prompt));
+  if (!lab.verifiedCount()) card.append(el('div', 'hint', 'ⓘ Choose controls that address the cause you diagnosed. Verification replays the incident against them.'));
   if (s.status === 'needs-review' && s.lastVerification) {
     const box = el('div', 'result fail');
     box.append(el('div', 'head', 'LAST VERIFICATION FAILED · WHY'));
@@ -679,10 +707,14 @@ function stageMitigate(card, s, c) {
   }
   const wrap = el('div', 'choices');
   m.options.forEach((o, i) => wrap.append(choiceButton(i, o.label, null, an.mit.has(o.id), () => {
-    if (an.mit.has(o.id)) an.mit.delete(o.id); else if (an.mit.size < m.max) an.mit.add(o.id);
+    an.flash = null;
+    if (an.mit.has(o.id)) an.mit.delete(o.id);
+    else if (an.mit.size < m.max) an.mit.add(o.id);
+    else { an.flash = 'Up to ' + m.max + ' controls — deselect one first.'; playErrorSound(); }
     renderAnalyzer(); refocus('[data-opt="' + i + '"]');
   }, 'checkbox')));
   card.append(wrap, el('div', 'hint', 'SELECTED ' + an.mit.size + ' / ' + m.max + ' · 1–' + m.options.length + ' toggle · ENTER on APPLY'));
+  if (an.flash) card.append(el('div', 'hint', '⚠ ' + an.flash));
   const rowEl = el('div', 'btn-row');
   const apply = el('button', 'btn primary', 'APPLY CONTROLS');
   apply.id = 'apply-controls';
@@ -718,7 +750,11 @@ function stageVerify(card, s, c) {
   r.steps.slice(0, an.shownSteps).forEach(st => steps.append(el('li', '', st)));
   box.append(steps);
   const done = an.shownSteps >= r.steps.length;
-  if (done && r.pass) box.append(el('p', '', c.passed), el('p', 'muted', 'Remaining risk: ' + c.residual));
+  if (done && r.pass) {
+    box.append(el('p', '', c.passed));
+    for (const n of r.ineffective || []) box.append(el('p', 'muted', '◐ One of your controls didn\'t help: ' + n));
+    box.append(el('p', 'muted', 'Remaining risk: ' + c.residual));
+  }
   if (done && !r.pass) {
     r.reasons.forEach(x => box.append(el('p', '', '· ' + x)));
     box.append(el('p', '', 'SYSTEM INTEGRITY −' + r.penalty + '% (now ' + lab.integrity + '%)'));
@@ -735,8 +771,10 @@ function stageVerify(card, s, c) {
     adjust.onclick = () => { an.stage = 'mitigate'; renderAnalyzer(); focusFirst(); };
     const review = el('button', 'btn', 'REVIEW EVIDENCE');
     review.onclick = () => { an.stage = 'investigate'; renderAnalyzer(); focusFirst(); };
-    rowEl.append(adjust, review);
-    if (lab.defeated()) { const end = el('button', 'btn', 'END MISSION'); end.onclick = closeAnalyzer; rowEl.append(end); }
+    if (lab.defeated()) {
+      const end = el('button', 'btn primary', 'END MISSION · SEE THE REPORT'); end.dataset.first = '1'; end.onclick = closeAnalyzer;
+      rowEl.append(end);
+    } else rowEl.append(adjust, review);
   }
   card.append(rowEl);
   focusFirst();
@@ -747,17 +785,28 @@ function runVerification() {
   an.shownSteps = reducedMotion ? an.verifyResult.steps.length : 1;
   playScanSound();
   renderAnalyzer();
+  keepFocus();
   // Reveal the replay one step at a time (instantly with reduced motion).
+  // The run is bound to this analyzer session: closing it ends the replay.
+  const run = an;
   const tick = () => {
-    if (!an || !an.verifyResult || an.shownSteps >= an.verifyResult.steps.length) {
-      if (an && an.verifyResult) { an.verifyResult.pass ? playPatchSound() : playErrorSound(); renderAnalyzer(); }
+    if (an !== run) return;
+    if (!an.verifyResult || an.shownSteps >= an.verifyResult.steps.length) {
+      if (an.verifyResult) { an.verifyResult.pass ? playPatchSound() : playErrorSound(); renderAnalyzer(); }
       return;
     }
     an.shownSteps++;
     renderAnalyzer();
-    setTimeout(tick, 260);
+    keepFocus();
+    run.replayTimer = setTimeout(tick, 260);
   };
-  if (!reducedMotion) setTimeout(tick, 260); else tick();
+  if (!reducedMotion) run.replayTimer = setTimeout(tick, 260); else tick();
+}
+// While the replay re-renders, keep keyboard focus inside the analyzer.
+function keepFocus() {
+  if (document.activeElement && $('analyzer-card').contains(document.activeElement)) return;
+  const t = $('an-title');
+  if (t) { t.tabIndex = -1; t.focus(); }
 }
 
 // Number keys pick the nth option of the current stage.
@@ -840,6 +889,7 @@ function showResults(win) {
   gamePhase = win ? 'victory' : 'defeat';
   updateHUD();
   stopBattleMusic();
+  stopMapMusic();
   const sum = lab.summary();
   if (win && !completionRecorded) {
     completionRecorded = true;
@@ -862,14 +912,15 @@ function showResults(win) {
   lab.report().forEach(r => {
     const det = el('details');
     const sum2 = el('summary');
-    sum2.append(el('span', '', r.robot + ' · ' + r.concept), el('span', r.verified ? 'ok-t' : 'no-t', r.status));
+    sum2.append(el('span', '', r.robot + ' · ' + (r.revealed ? r.concept : 'not diagnosed')), el('span', r.verified ? 'ok-t' : 'no-t', (r.verified ? '✓ ' : '✕ ') + r.status));
     const dl = el('dl');
     const row = (k, v) => { if (v) dl.append(el('dt', '', k), el('dd', '', v)); };
     row('WHAT HAPPENED', r.happened);
-    row('WHAT THE EVIDENCE SHOWED', r.verified || r.status !== 'INVESTIGATING' ? r.evidence : null);
+    row('WHAT THE EVIDENCE SHOWED', r.revealed ? r.evidence : null);
     row('CONTROLS APPLIED', r.controls.length ? r.controls.join(' · ') : '—');
     row('CHECK PERFORMED', r.check);
     row('RISK THAT MAY REMAIN', r.residual);
+    if (r.revealed) { row('IN THE REAL WORLD', r.realWorld); row('WHAT TO VERIFY', r.checkInPractice); }
     det.append(sum2, dl);
     rep.append(det);
     if (r.verified) know.append(el('li', '', r.knowledge));

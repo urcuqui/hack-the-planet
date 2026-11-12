@@ -609,6 +609,13 @@
       root.add(grp);
       return (markers[id] = { grp, ring, beam, state: 'none' });
     }
+    // Consequence pings: a short ring where something just changed.
+    const pings = [];
+    for (let k = 0; k < 4; k++) {
+      const m = new THREE.Mesh(G('ring', 0.92, 1, 48), new THREE.MeshBasicMaterial({ color: C.selected, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; m.position.y = 0.35; m.visible = false; root.add(m);
+      pings.push({ mesh: m, t: 1 });
+    }
     const selRing = new THREE.Mesh(G('ring', 9, 9.8, 48), new THREE.MeshBasicMaterial({ color: C.selected, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
     selRing.rotation.x = -Math.PI / 2; selRing.position.y = 0.25; selRing.visible = false; root.add(selRing);
 
@@ -715,6 +722,14 @@
         mk.ring.scale.setScalar(pulse);
       }
       if (selRing.visible && !reducedMotion) selRing.rotation.z += dt * 0.6;
+      for (const p of pings) {
+        if (!p.mesh.visible) continue;
+        p.t += dt / 1.4;
+        const k = Math.min(1, p.t);
+        p.mesh.scale.setScalar(reducedMotion ? 12 : 6 + 14 * k);
+        p.mesh.material.opacity = 0.9 * (1 - k);
+        if (k >= 1) p.mesh.visible = false;
+      }
       // Links
       for (const ln of Object.values(links)) {
         const col = ln.state === 'alert' ? C.critical : ln.state === 'selected' ? C.selected : ln.state === 'isolated' ? 0x555b6e : C.cyan;
@@ -782,6 +797,15 @@
       pk.mesh.material.color.setHex(verdict === 'ALLOW' ? C.stable : verdict === 'REVIEW' ? C.warning : C.critical);
     }
 
+    function ping(id, color) {
+      const f = FACILITIES[id];
+      if (!f) return;
+      const p = pings.find(x => !x.mesh.visible) || pings[0];
+      p.t = 0;
+      p.mesh.position.set(f.label[0], 0.35, f.label[2]);
+      p.mesh.material.color.setHex(color === 'bad' ? C.critical : color === 'good' ? C.stable : color === 'warn' ? C.warning : C.selected);
+      p.mesh.visible = true;
+    }
     function setMarker(id, state) { if (FACILITIES[id]) marker(id).state = state; }
     function setSelected(id) {
       if (!id || !FACILITIES[id]) { selRing.visible = false; return; }
@@ -792,6 +816,7 @@
     function setLink(id, state) { if (links[id]) links[id].state = state; }
     function dronesFlying() { return drones.filter(d => d.flying).length; }
     function reset() {
+      for (const p of pings) p.mesh.visible = false;
       for (const d of drones) { d.task = null; d.pos.copy(d.home); d.mesh.position.copy(d.home); }
       for (const pk of packets) { pk.active = false; pk.mesh.visible = false; }
       for (const mk of Object.values(markers)) mk.state = 'none';
@@ -799,7 +824,7 @@
       selRing.visible = false;
     }
 
-    return { root, picks, update, droneTask, packet, setMarker, setSelected, setLink, dronesFlying, reset, sun, hemi, sky, kit,
+    return { root, picks, update, droneTask, packet, ping, setMarker, setSelected, setLink, dronesFlying, reset, sun, hemi, sky, kit,
       anchor: id => new THREE.Vector3(...FACILITIES[id].label), drones, cars };
   }
 

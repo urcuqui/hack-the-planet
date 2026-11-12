@@ -320,3 +320,11 @@ test('animation keeps feet on the ground in every mode, and walking lifts the sw
   Char.blendPose(cur, target, 0.2);
   assert.ok(cur.legs[0].hip < 0 && cur.legs[0].hip > target.legs[0].hip, 'blends towards the seated pose');
 });
+
+// ── Phase 6: learning transfer ──
+test('every case tells the player what to verify in real life, once decided', () => {
+  for (const c of Cases.CASES) assert.ok(c.learn.verify && c.learn.verify.length > 40, c.id);
+  const op = Intel.createOperation();
+  const c = Cases.CASES[0];
+  assert.equal(op.caseFile(c.id).verify, null, 'hidden before the decision');
+});

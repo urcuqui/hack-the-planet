@@ -125,6 +125,7 @@
         evidence: s.evidence.map(e => ({ id: e, ...c.evidence[e] })),
         risk: decided ? c.learn.risk : null,
         control: decided ? c.learn.control : null,
+        verify: decided ? c.learn.verify : null,
         intel: done ? c.intel : null,
       };
     };

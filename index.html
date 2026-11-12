@@ -44,6 +44,9 @@
     animation: glitch 6s infinite;
   }
   .tagline { margin-top: 10px; font-size: 12px; letter-spacing: 3px; color: var(--green-dim); }
+  .purpose { max-width: 720px; margin: 14px auto 0; font-size: 13px; line-height: 1.6; color: rgba(210,255,215,0.8); }
+  .purpose b { display: block; margin-top: 6px; letter-spacing: 4px; color: var(--cyan); font-weight: normal; }
+  .disclaimer { font-size: 11px; color: rgba(210,255,215,0.5); letter-spacing: 1px; text-align: center; margin-top: 18px; line-height: 1.6; }
 
   /* campaign summary */
   #campaign {
@@ -149,6 +152,8 @@
     <div class="pre">&gt; FSYNDICATE // MISSION CONTROL</div>
     <h1>HACK THE PLANET</h1>
     <div class="tagline">FIVE OPERATIONS. ONE CORPORATION. PANDECORP IS WATCHING.</div>
+    <p class="purpose">Five short games, five genres, one theme: securing AI systems. Each mission teaches through what you investigate, decide and see happen — not through quizzes.
+      <b>PLAY. INVESTIGATE. DEFEND. LEARN.</b></p>
   </header>
 
   <section id="campaign" aria-labelledby="campaign-label">
@@ -167,6 +172,7 @@
     <span>Arrow keys move between missions · Enter launches</span>
     <button class="btn danger" id="reset-btn" type="button">RESET PROGRESS</button>
   </footer>
+  <p class="disclaimer">An independent, experimental learning project. Not affiliated with or endorsed by TryHackMe or any other company. All organisations, agents and places in the games are fictional.</p>
   <div class="sr-only" role="status" aria-live="polite" id="announce"></div>
 </main>
 

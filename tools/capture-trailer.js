@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Captures real gameplay footage of the four levels for the trailer GIF.
+// Captures real gameplay footage of the five levels for the trailer GIF.
 //
-//   node tools/capture-trailer.js OUT_DIR [levels]     e.g. ... /tmp/htp 134
+//   node tools/capture-trailer.js OUT_DIR [levels]     e.g. ... /tmp/htp 135
 //
 // Runs the game from the local dev server in headless Chrome (the same CDP
 // client the browser tests use) and plays each level with real keyboard and
@@ -254,11 +254,29 @@ async function level4(page, base, out) {
   return frames;
 }
 
-const LEVELS = { 1: level1, 2: level2, 3: level3, 4: level4 };
+// ── Level 5: the first CITYOS incident hits the live city; KUKY opens it ──
+async function level5(page, base, out) {
+  await page.goto(base + '/level5.html');
+  await page.eval('localStorage.setItem("htp.mayhem.guide", "skipped")');   // film the plain HUD, not the guide
+  await page.goto(base + '/level5.html');
+  await page.click('#skip-to-title-btn');
+  await page.waitFor('phase === "title"');
+  await page.click('#start-btn');
+  await page.waitFor('phase === "play"');
+  await page.waitFor('sim.incident("INC-01").status === "detected"', 20000);
+  await sleep(900);                                // the alert, the packet and the ⚠ marker land
+  return record(page, path.join(out, 'l5'), 3400, async stopped => {
+    await sleep(1500);
+    await page.click('.lbl[data-facility="int-04"]');    // real click on the map label: camera flies in, inspector opens
+    while (!stopped()) await sleep(50);
+  }, `({ insp: !!(insp && insp.kind === 'incident') })`);
+}
+
+const LEVELS = { 1: level1, 2: level2, 3: level3, 4: level4, 5: level5 };
 
 async function main() {
   const out = path.resolve(process.argv[2] || 'trailer-frames');
-  const which = (process.argv[3] || '1234').split('').filter(k => LEVELS[k]);
+  const which = (process.argv[3] || '12345').split('').filter(k => LEVELS[k]);
   if (!CHROME) throw new Error('Chrome/Chromium not found (set CHROME_PATH)');
   fs.mkdirSync(out, { recursive: true });
   const manifestPath = path.join(out, 'manifest.json');

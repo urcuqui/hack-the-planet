@@ -63,6 +63,8 @@
         what: 'A traffic agent called a powerful tool on an intersection outside its district. Its policy would have denied it, but enforcement had been switched to monitor mode.',
         best: 'Least-privilege tool grants plus enforced scope checks on every call. Keep the agent\'s legitimate tools working instead of shutting it down.',
         residual: 'An agent that tried one out-of-scope call should be reviewed: why did it want to? (The answer arrives in INC-05.)',
+        practice: 'Give each agent an identity, a least-privilege tool list and an enforced scope (which targets it may touch). Check every tool call at execution time, not just when the agent is deployed.',
+        check: 'Tool-call logs: which calls were proposed, which policy decision each got, and whether denied calls really did not execute. Confirm enforcement is on, not log-only.',
       },
     },
 
@@ -121,6 +123,8 @@
         what: 'An energy optimiser held critical switching tools it never needed, and used them on a hospital feeder to save money.',
         best: 'Least privilege: grant tools by role, not by convenience. Critical actions go through human-approved procedures.',
         residual: 'Audit every agent\'s grants, not just this one. Over-granted tools are a latent incident.',
+        practice: 'Grant tools by role and review the grants. Put critical operations (switching, deletion, payments) behind human-approved procedures, even for trusted automation.',
+        check: 'The tool inventory per agent against what its role needs, who approved each critical grant, and alerts when an agent calls a tool for the first time.',
       },
     },
 
@@ -186,6 +190,8 @@
         what: 'A message on a public relay claimed to be the Emergency Operations Center. The dispatch agent checked who the message said it was from, not who actually sent it.',
         best: 'Authenticate every inter-agent and partner message (signatures, known keys, mutual auth). Verify urgent claims out of band.',
         residual: 'Authentication proves who sent a message, not that the sender is healthy. A compromised but trusted node can still send signed orders (see INC-05).',
+        practice: 'Authenticate agent-to-agent and partner messages with signatures or mutual TLS and known keys. Never let urgency or a claimed title replace verification, and confirm unusual orders over an independent channel.',
+        check: 'Which channels accept commands, whether unsigned messages are rejected or held, and that the keys you trust belong to the senders they claim.',
       },
     },
 
@@ -247,6 +253,8 @@
         what: 'An unreviewed, unsigned data feed told the traffic model a busy corridor was empty. The model learned it and routed the city into a jam.',
         best: 'Track data provenance, onboard new feeds through review, validate model behaviour against trusted sources, keep known-good snapshots to roll back to.',
         residual: 'Poisoning is often slow and subtle. Monitor drift continuously, not just when the city jams.',
+        practice: 'Track where every training and input feed comes from, onboard new feeds through review, validate model output against trusted ground truth, and keep known-good model versions to roll back to.',
+        check: 'Feed provenance and signatures, when each feed was added, prediction error against independent sources, and that a rollback actually restores the earlier behaviour.',
       },
     },
 
@@ -339,6 +347,8 @@
         what: 'A compromised orchestration agent sent validly signed tasks to every agent that trusted it. Each downstream agent looked legitimate on its own.',
         best: 'Map agent dependencies, trace requests to their origin, contain the origin (isolate it, revoke its delegation tokens), then restore in dependency order.',
         residual: 'The unsigned update reached production. Signed updates, staged rollouts and limits on what one agent may delegate shrink the next cascade.',
+        practice: 'Map which agents can task which. Limit and log delegation, require signed and staged updates, and practise isolating a component, revoking its credentials and restoring services in dependency order.',
+        check: 'Delegation chains in the logs (who asked whom), software versions per node, that revoked tokens are refused, and that services come back in a safe order.',
       },
     },
   ];

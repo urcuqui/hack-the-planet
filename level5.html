@@ -209,6 +209,36 @@
   #crisis { position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%); display: none; font-size: 12px; letter-spacing: 3px;
     background: rgba(60, 10, 16, 0.92); border: 1px solid var(--critical); color: #ffd6d8; padding: 6px 14px; white-space: nowrap; }
 
+  /* objective / guide strip */
+  #coach { position: absolute; top: calc(var(--top) + 8px); left: 314px; right: 12px; max-width: 760px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 12px; font-size: 12px; line-height: 1.5;
+    background: rgba(10, 14, 26, 0.94); border: 1px solid var(--line); border-left: 4px solid var(--cyan); }
+  #coach.guide { border-left-color: var(--pink); }
+  #coach.tip { border-left-color: var(--warning); }
+  #coach .coach-k { font-size: 10px; letter-spacing: 3px; color: var(--cyan); white-space: nowrap; }
+  #coach.guide .coach-k { color: var(--pink); }
+  #coach.tip .coach-k { color: var(--warning); }
+  #coach-text { flex: 1 1 260px; }
+  #coach-keys kbd { margin-right: 4px; font-size: 11px; }
+  #coach:empty, #coach.off { display: none; }
+  #hud:has(#inspector.open) #coach { right: 454px; }
+  #toasts { top: calc(var(--top) + var(--coach, 0px) + 16px) !important; }
+  .coach-target { outline: 2px solid var(--pink) !important; outline-offset: 3px; animation: coachPulse 1.4s ease-in-out infinite; }
+  @keyframes coachPulse { 50% { outline-color: rgba(240,138,189,0.25); } }
+  .guide-opt { display: block; margin-top: 14px; font-size: 12px; letter-spacing: 1px; color: var(--muted); }
+  .guide-opt input { accent-color: var(--pink); margin-right: 6px; }
+
+  /* observability trace and recovery plan */
+  .trace { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; }
+  .trace th { text-align: left; font-weight: normal; font-size: 9px; letter-spacing: 2px; color: var(--muted); padding: 2px 4px; }
+  .trace td { padding: 4px; border-top: 1px solid rgba(255,255,255,0.07); vertical-align: top; overflow-wrap: anywhere; }
+  .trace tr.unsafe td:first-child { color: var(--coral); }
+  .trace .v-ALLOW { color: var(--stable); } .trace .v-DENY { color: var(--critical); } .trace .v-REVIEW { color: var(--warning); }
+  .trace tr.unsafe .v-ALLOW { color: var(--critical); }
+  .trace small { display: block; color: var(--muted); }
+  .plan { border: 1px solid rgba(242,190,92,0.45); background: rgba(242,190,92,0.06); padding: 8px 10px; font-size: 12px; line-height: 1.55; margin-bottom: 8px; }
+  .plan b { font-weight: normal; font-size: 10px; letter-spacing: 2px; color: var(--warning); }
+  details.raw summary { cursor: pointer; font-size: 10px; letter-spacing: 2px; color: var(--muted); margin-top: 8px; }
+
   /* field mode */
   .obs-done { color: var(--stable); }
   .finding { font-size: 12px; line-height: 1.5; border-left: 2px solid var(--pink); padding-left: 8px; margin: 4px 0 8px; }
@@ -244,10 +274,12 @@
     /* One panel at a time on small screens: the inspector replaces the queue,
        and toasts move to the bottom, one at a time. */
     #hud:has(#inspector.open) #side { display: none; }
+    #coach, #hud:has(#inspector.open) #coach { left: 8px; right: 8px; }
     #toasts { top: auto; bottom: 40px; }
     .toast + .toast { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
+    .coach-target { animation: none; }
     .meter > span, .svc .bar span, #intro-caption, #intro-title { transition: none; }
   }
 </style>
@@ -303,13 +335,12 @@
     <div class="subtitle">05 — CITY UNDER AI CONTROL</div>
     <div class="tagline">THE CITY IS SMART.<br>THE SYSTEM IS BROKEN.</div>
     <div class="brief">
-      PandeCorp's <b>CITYOS</b> runs the Coral District with six autonomous agents: traffic, power, drone dispatch, prediction,
-      hospital logistics and the orchestrator that tasks them. A compromised update just reached production.
-      As <b>KUKY</b> in the CITYOS Security Control Center you inspect every agent's tool calls, permissions and evidence,
-      then decide what the policy lets through. As <b>GHOST</b> you check the ground truth in the field.
+      PandeCorp's <b>CITYOS</b> runs the Coral District with six AI agents. A compromised update just reached production,
+      and their unsafe requests are no longer being stopped.
       <br><b>OBJECTIVE</b> contain five incidents, restore every service and verify the recovery — before a critical service fails.
-      <br><b>NO TIMER WHILE YOU READ:</b> the city holds while an incident decision or field check is open.
+      <br><b>NO TIMER WHILE YOU READ:</b> the city holds while you decide.
     </div>
+    <label class="guide-opt"><input type="checkbox" id="guide-on" checked> GUIDED FIRST INCIDENT · walks you through one real incident, step by step</label>
     <div class="btn-row">
       <button class="btn" id="start-btn" type="button">START MISSION</button>
       <button class="btn ghost" id="controls-btn" type="button">CONTROLS</button>
@@ -332,6 +363,7 @@
       <tr><td><kbd>L</kbd></td><td>Activity log (Tab keeps moving keyboard focus)</td></tr>
       <tr><td><kbd>Space</kbd></td><td>Pause / resume the simulation</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>Close panel · pause menu</td></tr>
+      <tr><td>Strip under the top bar</td><td>Your current objective and next step</td></tr>
       <tr><td><kbd>M</kbd> · <kbd>R</kbd></td><td>Music on/off · CITYOS radio panel</td></tr>
     </table>
     <div class="btn-row"><button class="btn" id="controls-close" type="button">BACK</button></div>
@@ -370,6 +402,13 @@
     </div>
   </header>
   <div id="crisis" role="alert"></div>
+  <div id="coach" role="status" aria-live="polite">
+    <span class="coach-k" id="coach-k">OBJECTIVE</span>
+    <span id="coach-text"></span>
+    <span id="coach-keys"></span>
+    <button class="btn small ghost" id="coach-ok" type="button" hidden>GOT IT</button>
+    <button class="btn small ghost" id="coach-skip" type="button" hidden>SKIP GUIDE</button>
+  </div>
 
   <aside id="side" aria-label="Incidents and services">
     <div class="sec-title"><span>INCIDENTS</span><span id="role-name">KUKY · CONTROL</span></div>
@@ -422,6 +461,7 @@
       <label><input type="checkbox" id="opt-music"> MUSIC ON</label>
       <label><input type="checkbox" id="opt-radio"> RADIO SOUND</label>
       <label><input type="checkbox" id="opt-voice"> SPOKEN RADIO</label>
+      <label><input type="checkbox" id="opt-calm"> REDUCED ALERTS (no sirens, softer alarms)</label>
     </div>
     <div class="btn-row">
       <button class="btn" id="resume-btn" type="button">RESUME [ESC]</button>
@@ -699,7 +739,12 @@ function startMission() {
   phase = 'play';
   $('hud').classList.add('open');
   resize();
-  toast('CITYOS ONLINE', 'Six agents running. Watch the incident queue — and the city.', 'good');
+  guide.on = $('guide-on').checked;
+  if (!guide.on && !storeGet(GUIDE_KEY)) storeSet(GUIDE_KEY, 'skipped');
+  if (guide.on) storeSet(GUIDE_KEY, '');
+  tip = null; tipsShown = {}; coachSig = '';
+  updateCoach();
+  toast('CITYOS ONLINE', 'Six agents running. Your objective is always in the strip at the top.', 'good');
   radio('CITYOS radio online. All districts nominal.');
   $('scene').focus();                // shortcuts work at once; Tab reaches the HUD
 }
@@ -731,7 +776,7 @@ $('restart-btn').onclick = () => { closeScreens(); startMission(); };
 function syncSettingsUI() {
   const s = audio.settings;
   for (const k of ['master', 'music', 'sfx']) { $('vol-' + k).value = Math.round(s[k] * 100); $('vol-' + k + '-o').textContent = Math.round(s[k] * 100); }
-  $('opt-music').checked = s.musicOn; $('opt-radio').checked = s.radioOn; $('opt-voice').checked = s.voice;
+  $('opt-music').checked = s.musicOn; $('opt-radio').checked = s.radioOn; $('opt-voice').checked = s.voice; $('opt-calm').checked = !!s.calmAlerts;
   $('radio-on').checked = s.radioOn; $('voice-on').checked = s.voice;
   $('music-btn').setAttribute('aria-pressed', String(s.musicOn));
   $('music-btn').textContent = s.musicOn ? 'MUSIC [M]' : 'MUSIC OFF [M]';
@@ -740,6 +785,7 @@ for (const k of ['master', 'music', 'sfx']) {
   $('vol-' + k).oninput = e => { audio.setVolume(k, e.target.value / 100); $('vol-' + k + '-o').textContent = e.target.value; };
 }
 $('opt-music').onchange = e => { audio.setMusicOn(e.target.checked); syncSettingsUI(); };
+$('opt-calm').onchange = e => { audio.setCalmAlerts(e.target.checked); syncSettingsUI(); };
 $('opt-radio').onchange = $('radio-on').onchange = e => { audio.setRadio(e.target.checked); syncSettingsUI(); };
 $('opt-voice').onchange = $('voice-on').onchange = e => { audio.setVoice(e.target.checked && 'speechSynthesis' in window); syncSettingsUI(); };
 if (!('speechSynthesis' in window)) { $('opt-voice').disabled = true; $('voice-on').disabled = true; }
@@ -791,7 +837,92 @@ const RADIO_DETECTED = {
   'INC-04': 'Heavy congestion reported on the Bayfront corridor.',
   'INC-05': 'Multiple districts reporting coordinated failures.',
 };
+const TIPS = {
+  'INC-01': '',
+  'INC-02': 'GHOST can check facts on the ground. Press G to switch roles — optional for this incident.',
+  'INC-03': 'Two messages wait in the dispatch queue. Check who actually sent each one.',
+  'INC-04': 'The model and the street disagree. This fix needs GHOST\'s ground truth: press G.',
+  'INC-05': 'Agents everywhere are acting at once. Use the DEPENDENCY MAP in the panel to see who tasks whom.',
+};
 const RADIO_RESTORED = { power: 'Power restoration underway.', traffic: 'Signals returning to adaptive timing.', dispatch: 'Drone fleet returning to service.', hospital: 'Meridian General reports normal operations.' };
+
+// ── Objective strip, guided first incident and tips ───────
+// The guide only reads simulation state and points at real controls: it never
+// acts for the player, so skipping it cannot skip, award or break anything.
+const GUIDE_KEY = 'htp.mayhem.guide';            // 'done' | 'skipped' | null
+let guide = { on: false };
+let tip = null;                                  // { text, until }
+let tipsShown = {};
+let coachSig = '';
+let coachTargets = [];
+$('guide-on').checked = !['done', 'skipped'].includes(storeGet(GUIDE_KEY));
+function endGuide(how) {
+  guide.on = false;
+  storeSet(GUIDE_KEY, how);
+  updateCoach();
+}
+$('coach-skip').onclick = () => { sfx('close'); endGuide('skipped'); toast('GUIDE OFF', 'Turn it back on from the title screen at any time.', 'info', 3000); };
+$('coach-ok').onclick = () => { sfx('confirm'); if (guide.on) endGuide('done'); else tip = null; updateCoach(); };
+function showTip(key, text) {
+  if (!text || tipsShown[key] || guide.on || storeGet(GUIDE_KEY) === 'skipped') return;
+  tipsShown[key] = true;
+  tip = { text, until: performance.now() + 15000 };
+  updateCoach();
+}
+function guideState() {
+  const i = sim.incident('INC-01');
+  const opened = insp && insp.kind === 'incident' && insp.id === 'INC-01';
+  if (i.status === 'pending') return { text: 'CITYOS is running. Each packet flying to the tower is an agent action passing a policy check. Watch the INCIDENTS queue.', targets: ['#incident-list'] };
+  if (i.status === 'verified') return { text: 'Loop complete: DETECT → INVESTIGATE → DECIDE → CONTAIN → RECOVER → VERIFY. Read LEARN in the panel. The next incidents are yours.', ok: true };
+  if (!opened) return { text: (i.status === 'detected' ? 'NEW INCIDENT · ' : '') + 'Open INC-01: click its card in the queue, or the ⚠ INTERSECTION 04 label on the map.',
+    targets: ['.inc-card[data-id="INC-01"]', '.lbl[data-facility="int-04"]'] };
+  if (i.status === 'detected' || i.status === 'investigating') {
+    if (i.escalated) return { text: 'The override EXECUTED — see what your response changed and the jam at INT-04. Approval did not make the call safe. Choose another response.', keys: ['1', '2'], targets: ['#inspector .actions'] };
+    return { text: 'READ, THEN DECIDE · POLICY CHECK flags override_signal as OUT OF SCOPE, but MONITOR MODE lets it run. AGENT OBSERVABILITY shows what each call does today. Pick the response that stops the out-of-scope call without stopping legitimate work.',
+      keys: ['1', '2', '3'], targets: ['#row-policy', '#trace-box', '#inspector .actions'] };
+  }
+  if (i.status === 'contained') return { text: 'CONTAINED ≠ RESOLVED · The policy now refuses the call, but INT-04 is still jammed. Run the recovery step.', keys: ['1'], targets: ['#plan-box', '#inspector .actions'] };
+  if (!sim.verifyChecks('INC-01').every(c => c.ok)) return { text: 'RECOVERING · The city runs again: watch TRAFFIC CONTROL climb on the left and the cars at INT-04 move. VERIFY works once every criterion shows ✓.', targets: ['.svc[data-svc="traffic"]', '#verify-live'] };
+  return { text: 'Every criterion passes. VERIFY RECOVERY closes INC-01.', keys: ['1'], targets: ['#inspector .actions'] };
+}
+function objectiveState() {
+  const inc = sim.state.incidents;
+  const done = inc.filter(i => i.status === 'verified').length;
+  const open = inc.find(i => i.status === 'detected' || i.status === 'investigating');
+  const rec = inc.find(i => i.status === 'contained' || i.status === 'recovering');
+  let text;
+  if (field) text = 'GHOST: check every observation, then send the field report to KUKY.';
+  else if (open) text = 'Respond to ' + open.id + ' · ' + open.def.title + (open.def.field && open.def.field.required && !open.fieldDone ? ' — needs GHOST\'s field check first [G]' : '');
+  else if (rec) text = (rec.status === 'contained' ? 'Recover ' : 'Verify ') + rec.id + ' · ' + rec.def.title + (rec.status === 'recovering' ? ' when its criteria pass' : '');
+  else if (done === inc.length) text = 'All incidents verified.';
+  else text = 'Watch the city. The next incident will appear in the queue.';
+  return { k: 'OBJECTIVE · ' + done + '/' + inc.length + ' VERIFIED', text };
+}
+function updateCoach() {
+  const box = $('coach');
+  if (!sim || phase !== 'play') return;
+  let st, mode;
+  if (guide.on) { st = guideState(); mode = 'guide'; st.k = 'GUIDE · FIRST INCIDENT'; }
+  else if (tip && performance.now() < tip.until) { st = { k: 'TIP', text: tip.text, ok: true }; mode = 'tip'; }
+  else { tip = null; st = objectiveState(); mode = 'objective'; }
+  const sig = mode + '|' + st.k + '|' + st.text + '|' + (st.keys || []).join();
+  if (sig !== coachSig) {
+    coachSig = sig;
+    box.className = mode;
+    $('coach-k').textContent = st.k;
+    $('coach-text').textContent = st.text;
+    const keys = $('coach-keys');
+    keys.replaceChildren();
+    for (const k of st.keys || []) keys.append(el('kbd', '', k));
+    $('coach-skip').hidden = mode !== 'guide' || !!st.ok;
+    $('coach-ok').hidden = !st.ok;
+    $('hud').style.setProperty('--coach', box.offsetHeight + 'px');
+  }
+  // Highlight what the guide is talking about (re-applied: panels re-render).
+  for (const n of coachTargets) n.classList.remove('coach-target');
+  coachTargets = mode === 'guide' ? (st.targets || []).flatMap(q => [...document.querySelectorAll(q)]) : [];
+  for (const n of coachTargets) n.classList.add('coach-target');
+}
 
 // ── Side panel: incidents and services ───────────────────
 const STATUS_TEXT = { detected: '■ DETECTED · NEEDS A DECISION', investigating: '■ INVESTIGATING', contained: '▲ CONTAINED · RECOVER IT', recovering: '▲ RECOVERING · VERIFY', verified: '✓ VERIFIED' };
@@ -949,16 +1080,22 @@ function openIncident(id, fly) {
   openInspectorPanel();
   renderSide();
 }
+let inspOpener = null;
 function openInspectorPanel() {
   const p = $('inspector');
+  if (!p.classList.contains('open') && document.activeElement && !p.contains(document.activeElement)) inspOpener = document.activeElement;
   if (!p.classList.contains('open')) sfx('open');
   p.classList.add('open');
 }
 function closeInspector(silent) {
   const p = $('inspector');
   if (p.classList.contains('open') && !silent) sfx('close');
+  const hadFocus = p.contains(document.activeElement);
   p.classList.remove('open');
   insp = null;
+  // Return focus to whatever opened the panel (or the map), never to <body>.
+  if (!silent && (hadFocus || document.activeElement === document.body)) (inspOpener && inspOpener.isConnected ? inspOpener : $('scene')).focus();
+  inspOpener = null;
   selected = null;
   if (city) city.setSelected(null);
   if (sim) renderSide();
@@ -1023,6 +1160,7 @@ function renderInspector() {
   else if (insp.kind === 'facility') renderFacility(p, head, close);
   else if (insp.kind === 'tasks') renderTasks(p, head, close);
   else if (insp.kind === 'field') renderField(p, head, close);
+  updateCoach();
   if (focusKey) {
     const again = p.querySelector('[data-n="' + focusKey + '"]') || (focusKey && document.getElementById(focusKey));
     if (again) again.focus();
@@ -1067,7 +1205,7 @@ function renderIncident(p, head, close) {
   const probe = { id: 'probe', agent: d.calls[0].agent, tool: d.calls[0].tool, target: d.calls[0].target, feed: d.calls[0].feed, delegatedBy: d.calls[0].delegatedBy, message: d.calls[0].message };
   const auth = Policy.authorize(sim.state.policy, probe);
   p.append(el('h3', '', 'INCIDENT REPORT'));
-  p.append(dl([
+  const report = dl([
     ['AGENT', d.agent],
     ['ROLE', agent.role + (agent.isolated ? ' · ISOLATED' : '') + ' · mode ' + agent.mode.toUpperCase(), agent.mode === 'monitor' ? 'warn' : ''],
     ['STATUS', STATUS_TEXT[i.status], open ? 'bad' : i.status === 'verified' ? 'ok' : 'warn'],
@@ -1076,7 +1214,9 @@ function renderIncident(p, head, close) {
     ['REQUEST', d.request.operation],
     ['POLICY CHECK', d.calls[0].tool + '(' + d.calls[0].target + ') · ' + (auth.findings.length ? auth.findings.join(' · ') : 'NO FINDINGS') + ' → ' + auth.verdict + (auth.reasons.length ? ' (' + auth.reasons[0] + ')' : ''), auth.verdict === 'ALLOW' && auth.findings.length ? 'bad' : auth.verdict === 'ALLOW' ? '' : 'ok'],
     ['PERMISSIONS', permissions(d.agent)],
-  ]));
+  ]);
+  report.querySelectorAll('dd')[6].id = 'row-policy';
+  p.append(report);
   p.append(el('h3', '', 'EVIDENCE'));
   const ev = el('ul', 'evidence');
   for (const e of d.evidence) { const li = el('li', e.kind); li.append(el('b', '', e.label), document.createTextNode(e.text)); ev.append(li); }
@@ -1088,26 +1228,40 @@ function renderIncident(p, head, close) {
   }
   p.append(ev);
   if (d.map) renderDepMap(p, i);
+  renderTrace(p, d.id);
   // Result of the last response
   if (insp.result) {
     const r = insp.result;
     p.append(el('h3', '', 'WHAT YOUR RESPONSE CHANGED'));
     p.append(el('div', 'outcome g-' + r.grade, GRADE_TEXT[r.grade]));
     p.append(el('p', 'risk', r.explain));
+    const raw = el('details', 'raw');
+    raw.append(el('summary', '', 'LOGGED ENTRIES FOR THIS DECISION (' + r.entries.length + ')'));
     const ch = el('ul', 'changes');
     for (const e of r.entries) {
       const li = el('li');
       li.append(el('span', '', e.kind === 'operator' ? e.text : e.agent + ' ' + e.tool + '(' + e.target + ')'), e.kind === 'operator' ? el('span', 'st-chain st-' + e.final, e.final) : chain(e));
       ch.append(li);
     }
-    p.append(ch);
+    raw.append(ch);
+    p.append(raw);
   }
 
   // Actions valid for the current state
   const acts = sim.availableActions(d.id);
   const hints = sim.blockedHints(d.id);
   if (open) p.append(el('h3', '', 'AVAILABLE RESPONSES'));
-  else if (i.status === 'contained' || i.status === 'recovering') p.append(el('h3', '', 'RECOVERY'));
+  else if (i.status === 'contained' || i.status === 'recovering') {
+    p.append(el('h3', '', 'RECOVERY'));
+    const plan = sim.recoveryPlan(d.id);
+    const box = el('div', 'plan');
+    box.id = 'plan-box';
+    const line = (k, v) => { const row = el('div'); row.append(el('b', '', k + ' '), document.createTextNode(v)); box.append(row); };
+    line('BLOCKED NOW', plan.blocked.length ? plan.blocked.join(', ') : '—');
+    line('STILL DEGRADED', plan.degraded.concat(plan.damage).join(' · ') || 'Nothing — services are back within limits.');
+    line('NEXT', plan.next || 'Wait for the criteria below.');
+    p.append(box);
+  }
   const box = el('div', 'actions');
   acts.forEach((a, k) => {
     box.append(actionButton(k + 1, a.label, a.detail, () => doAction(d.id, a), a.kind));
@@ -1149,8 +1303,32 @@ function renderIncident(p, head, close) {
     add('WHAT HAPPENED', d.learn.what);
     add('BETTER PRACTICE', d.learn.best);
     add('RESIDUAL RISK', d.learn.residual);
+    add('REAL-WORLD APPLICATION', d.learn.practice);
+    add('WHAT TO VERIFY', d.learn.check);
     p.append(l);
   }
+}
+
+// Agent observability: requested → policy decision → authorised → result.
+function renderTrace(p, id) {
+  p.append(el('h3', '', 'AGENT OBSERVABILITY · WHAT THE POLICY DOES NOW'));
+  const t = el('table', 'trace');
+  t.id = 'trace-box';
+  const head = el('tr');
+  for (const h of ['REQUESTED', 'POLICY DECISION', 'RESULT']) head.append(el('th', '', h));
+  t.append(head);
+  for (const r of sim.policyTrace(id)) {
+    const tr = el('tr', r.unsafe ? 'unsafe' : '');
+    const req = el('td');
+    req.append(document.createTextNode((r.unsafe ? '⚠ ' : '✓ ') + r.call));
+    req.append(el('small', '', r.agent + (r.delegatedBy ? ' ← ' + r.delegatedBy : '') + (r.sender ? ' · from ' + r.sender : '') + (r.unsafe ? ' · unsafe' : ' · legitimate work')));
+    const pol = el('td', 'v-' + r.verdict);
+    pol.append(document.createTextNode({ ALLOW: '✓ ALLOW', DENY: '✕ DENY', REVIEW: '⏸ REVIEW' }[r.verdict]));
+    pol.append(el('small', '', (r.findings.length ? r.findings.join(', ') + ' · ' : '') + r.reason));
+    tr.append(req, pol, el('td', '', r.outcome));
+    t.append(tr);
+  }
+  p.append(t);
 }
 
 function updateVerifyLive() {
@@ -1221,17 +1399,36 @@ function doAction(id, a) {
     const isolates = res.option.controls.some(c => c[0] === 'isolate');
     sfx(res.grade === 'best' ? 'approved' : res.grade === 'safe' ? (isolates ? 'isolated' : 'blocked') : 'failed');
     if (res.blocked.length || res.held.length) setTimeout(() => sfx('blocked'), 180);
-    if (res.contained) toast(id + ' CONTAINED', res.grade === 'best' ? 'Targeted control applied. Now recover and verify.' : 'Contained, at a cost. Recovery will restore service safely.', res.grade === 'best' ? 'good' : 'warn');
-    else toast(id + (res.grade === 'failed' ? ' CONTAINMENT FAILED' : ' ESCALATED'), 'Unsafe requests are still executing. Choose another response.', 'bad');
+    // Action → state → result → consequence → next step, from the real policy.
+    const d = sim.incident(id).def;
+    const trace = sim.policyTrace(id);
+    const stopped = trace.filter(r => r.unsafe && !r.authorized), running = trace.filter(r => r.unsafe && r.authorized);
+    const legitStopped = trace.filter(r => !r.unsafe && !r.authorized);
+    const lines = [
+      'AGENT: ' + (d.map && sim.incident(id).selected ? sim.incident(id).selected : d.agent),
+      'ACTION: ' + [stopped.length ? stopped.map(r => r.call).join(', ') + (stopped.every(r => r.verdict === 'REVIEW') ? ' held for review' : ' blocked') : '',
+        running.length ? 'still executing: ' + running.map(r => r.call).join(', ') : ''].filter(Boolean).join(' · '),
+      'IMPACT: ' + (running.length ? running[0].outcome.replace('Executes → ', '') : legitStopped.length ? 'Threat stopped, but legitimate work stopped too (' + legitStopped.map(r => r.call).join(', ') + ').' : 'Threat stopped; legitimate work continues.'),
+      'NEXT: ' + (res.contained ? 'Recover — ' + (sim.recoveryPlan(id).next || 'see the panel') : 'Choose another response.'),
+    ];
+    const title = res.contained ? 'POLICY UPDATED · ' + id + (res.grade === 'safe' ? ' · CONTAINED AT A COST' : '') : (res.grade === 'failed' ? 'CONTAINMENT FAILED · ' : 'UNSAFE ACTION EXECUTED · ') + id;
+    toast(title, '', res.contained ? (res.grade === 'best' ? 'good' : 'warn') : 'bad', 9000, lines);
+    if (city) city.ping(d.facility, res.contained ? (res.grade === 'best' ? 'good' : 'warn') : 'bad');
+    if (res.contained) showTip('log', 'L opens the activity log: every request, its policy decision and its result, for every agent.');
   } else if (a.kind === 'recover') {
     const res = sim.recover(id, a.id);
     if (!res) { sfx('invalid'); return; }
     if (!res.ok) { sfx('failed'); toast('RESTORE FAILED', res.why, 'bad'); insp.result = null; }
-    else { sfx('restored'); insp.result = null; }
+    else {
+      sfx('restored'); insp.result = null;
+      const plan = sim.recoveryPlan(id);
+      toast('RECOVERY STARTED · ' + id, '', 'good', 6000, [a.label, plan.next ? 'NEXT: ' + plan.next : 'NEXT: VERIFY when every criterion shows ✓.']);
+      if (city) city.ping(sim.incident(id).def.facility, 'good');
+    }
   } else if (a.kind === 'verify') {
     const res = sim.verify(id);
     if (!res) { sfx('invalid'); return; }
-    if (res.ok) { sfx('verified'); lastVerifiedAt = sim.state.t; }
+    if (res.ok) { sfx('verified'); lastVerifiedAt = sim.state.t; if (city) city.ping(sim.incident(id).def.facility, 'good'); }
     else { sfx('failed'); toast('VERIFICATION NOT MET', res.checks.filter(c => !c.ok).map(c => c.label + (c.detail ? ' — ' + c.detail : '')).join(' · '), 'warn', 7000); }
   }
   renderInspector();
@@ -1466,10 +1663,16 @@ function handleEvents() {
         sfx('incident');
         toast('⚠ INCIDENT ' + ev.id + ' DETECTED', ev.title + ' · ' + City.FACILITIES[ev.facility].name, 'bad', 7000, ['Open it from the queue or click the ⚠ marker.']);
         radio(RADIO_DETECTED[ev.id]);
+        if (city) city.ping(ev.facility, 'bad');
+        if (guide.on && ev.id !== 'INC-01') endGuide('done');
+        showTip(ev.id, TIPS[ev.id]);
         renderSide();
         break;
       }
-      case 'damage': toast('⚠ ' + ev.label, ev.agent + ' executed ' + ev.tool + '.', 'bad', 5000); break;
+      case 'damage':
+        toast('⚠ ' + ev.label, ev.agent + ' executed ' + ev.tool + '.', 'bad', 5000);
+        if (city && ev.incident) city.ping(sim.incident(ev.incident).def.facility, 'bad');
+        break;
       case 'world':
         if (city) city.droneTask(ev.event);
         if (ev.event === 'drones-pier') radio('Drones sighted over Pier 9.');
@@ -1486,6 +1689,7 @@ function handleEvents() {
         toast('SYSTEM PRESSURE ' + (up ? '+' : '') + ev.delta + ' → ' + ev.to + '/5 · ' + ev.label, '', up ? (ev.to >= 4 ? 'bad' : 'warn') : 'good', 7000,
           ['CAUSE: ' + ev.cause, ev.impact ? 'IMPACT: ' + ev.impact : '', ev.next ? 'NEXT ACTION: ' + ev.next : ''].filter(Boolean));
         sfx(up ? 'pressureUp' : 'pressureDown');
+        if (ev.to >= 3) showTip('pressure', 'SYSTEM PRESSURE rises with open incidents, unsafe actions and damaged services — never with reading time.');
         break;
       }
       case 'contained': case 'escalated': renderSide(); break;
@@ -1573,6 +1777,8 @@ function showResults() {
     a2('WHY', x.explain);
     a2('BETTER PRACTICE', x.best);
     a2('RESIDUAL RISK', x.residual);
+    a2('REAL-WORLD', x.practice);
+    a2('WHAT TO VERIFY', x.check);
     a2('KNOWLEDGE', x.knowledge);
     det.append(sum, d);
     rep.append(det);
@@ -1712,6 +1918,7 @@ function frame(now) {
       renderServices();
       renderLog(false);
       updateVerifyLive();
+      updateCoach();
       syncWorld();
       audio.setMusicState(musicFor());
       const vis = sim.visual();

@@ -506,7 +506,11 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       await page.key('Tab');
       assert.equal(await page.eval('gamePhase'), 'files');
       assert.match(await page.eval('document.getElementById("files-list").textContent'), /05CARLOS · LITTLE HAVANA MARKET✓ RESOLVED/);
-      await page.key('Tab');
+      // Tab moves keyboard focus between the files (it used to close the screen); Esc closes.
+      for (let i = 0; i < 3; i++) await page.key('Tab');
+      assert.equal(await page.eval('gamePhase'), 'files', 'Tab keeps the case files open');
+      assert.equal(await page.eval('document.getElementById("files-screen").contains(document.activeElement)'), true, 'focus stays inside');
+      await page.key('Escape');
       assert.equal(await page.eval('gamePhase'), 'playing');
 
       // A car: E to enter, W to drive (it moves and turns with A/D), E to step out on free ground.

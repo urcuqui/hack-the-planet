@@ -220,6 +220,12 @@
     .toast, .new-ev { animation: none; }
     * { transition: none !important; }
   }
+  #first-hint { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 12; max-width: 90vw;
+    font-size: 13px; letter-spacing: 1px; color: #F3BC75; background: rgba(18, 22, 41, 0.86); border: 1px solid rgba(243,188,117,0.5); padding: 6px 12px; pointer-events: none; }
+  #first-hint:empty { display: none; }
+  .intel-files { margin: 8px 0; font-size: 12px; }
+  .intel-files summary { cursor: pointer; letter-spacing: 2px; }
+  .intel-files li { margin: 4px 0 0 14px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -257,7 +263,7 @@
 </div>
 
 <!-- HUD -->
-<div id="hud" class="hidden" aria-live="polite">
+<div id="hud" class="hidden">
   <div id="op-panel">
     <div class="op">OPERATION GHOST</div>
     <div class="intel">INTEL COLLECTED <b><span id="intel-count">0</span> / 5</b><span class="pips" id="intel-pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
@@ -269,7 +275,8 @@
   </div>
   <div id="zone-display">MIAMI</div>
   <div id="minimap-wrap"><canvas id="minimap" width="360" height="360" aria-label="Minimap"></canvas><div class="map-label">[M] CITY MAP</div></div>
-  <div id="toasts"></div>
+  <div id="toasts" role="status" aria-live="polite"></div>
+  <div id="first-hint" aria-live="polite"></div>
   <div id="interact-prompt" role="status"></div>
 </div>
 <div id="npc-labels" aria-hidden="true"></div>
@@ -566,7 +573,11 @@ const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'Arro
 document.addEventListener('keydown', e => {
   if (gamePhase === 'menu') return;
   if (gamePhase === 'case') return caseKey(e);
-  if (gamePhase === 'files') { if (e.code === 'Tab' || e.code === 'Escape') { e.preventDefault(); closeFiles(); } return; }
+  if (gamePhase === 'files') {
+    if (e.code === 'Escape') { e.preventDefault(); closeFiles(); return; }
+    if (e.code === 'Tab') trapTab(e, $('files-screen'));          // Tab cycles through the files
+    return;
+  }
   if (gamePhase === 'map') { if (e.code === 'KeyM' || e.code === 'Escape') { e.preventDefault(); closeMap(); } return; }
   if (gamePhase === 'paused') { if (e.code === 'Escape') { e.preventDefault(); if (!$('controls-panel').classList.contains('hidden')) showControls(false); else resumeGame(); } return; }
   if (gamePhase === 'results') return;
@@ -803,7 +814,29 @@ function startGame() {
   setMusic(musicOn);
   updateHUD();
   renderer.domElement.focus();
+  startNearest();
   toast('FIND YOUR FIRST TARGET — [M] CITY MAP SHOWS THE WAY');
+}
+// The first target is the closest one, so the opening minute isn't a long walk.
+function startNearest() {
+  let best = null, bd = Infinity;
+  for (const c of Cases.CASES) {
+    const sp = World.NPC_SPOTS[c.id].spot;
+    const p = World.findPath({ x: walker.x, z: walker.z }, { x: sp[0], z: sp[1] });
+    const d = p ? World.pathLength(p) : Math.hypot(sp[0] - walker.x, sp[1] - walker.z);
+    if (d < bd) { bd = d; best = c.id; }
+  }
+  if (best) op.setActive(best);
+}
+let firstHint = { moved: false, opened: false, drove: false, startX: World.PLAYER_START.x, startZ: World.PLAYER_START.z };
+function firstMinuteHint() {
+  if (!firstHint.moved && Math.hypot(walker.x - firstHint.startX, walker.z - firstHint.startZ) > 3) firstHint.moved = true;
+  if (drivingCar) firstHint.drove = true;
+  if (!firstHint.moved) return '▸ Follow the ▲ arrow · WASD to walk · drag to look around';
+  if (!firstHint.opened) return nearNPC ? '▸ Press E to start the investigation' : '▸ Walk to your target (follow ▲) · press E when you are next to them';
+  const t = activeTarget();
+  if (!firstHint.drove && t && route && World.pathLength(route) > 60) return '▸ Long way? Press E next to a car to drive (F recovers a stuck car)';
+  return '';
 }
 $('start-btn').onclick = startGame;
 
@@ -818,6 +851,11 @@ function restartMission() {
   cars.forEach((c, i) => Object.assign(c.state, Move.createCar(World.CAR_SPOTS[i])));
   NPCS.forEach(n => { n.waved = false; n.wave = 0; n.rig.root.rotation.y = n.baseYaw; });
   route = null; routeTarget = null; nextRouteAt = 0;
+  caseId = null; sel = null; viewTalk = false; fileSel = null; exitAnim = null; action = null; resultsPending = false;
+  $('case-panel').classList.remove('boss');
+  $('toasts').replaceChildren();
+  firstHint = { moved: false, opened: false, drove: false, startX: walker.x, startZ: walker.z };
+  startNearest();
   caseSession++;
   gamePhase = 'playing';
   if (musicOn) playMusicLoop();
@@ -857,6 +895,7 @@ function updateHUD() {
   updatePrompt();
   updateRoute();
   drawMinimap();
+  setText('first-hint', firstMinuteHint());
 }
 
 function updateRoute() {
@@ -1110,6 +1149,7 @@ let caseId = null, caseSession = 0, sel = null, viewTalk = false, lastNewEvidenc
 const STEP_NAMES = ['OBSERVE', 'TALK', 'INSPECT', 'DECIDE', 'LEARN'];
 
 function openCase(id) {
+  firstHint.opened = true;
   caseId = id; sel = null; viewTalk = false;
   caseSession++;
   if (id === 'cipher') {
@@ -1222,7 +1262,7 @@ function renderCase() {
     body.append(el('div', 'kicker', 'TECHNIQUE IDENTIFIED'));
     body.append(el('div', 'tech-reveal', c.technique));
     const dl = el('dl', 'learn');
-    for (const [k, v] of [['WHAT HAPPENED', c.learn.happened], ['THE EVIDENCE', c.learn.evidence], ['THE RISK', c.learn.risk], ['THE CONTROL THAT WORKS', c.learn.control], ['THE AI ANGLE', c.learn.ai]]) dl.append(el('dt', '', k), el('dd', '', v));
+    for (const [k, v] of [['WHAT HAPPENED', c.learn.happened], ['THE EVIDENCE', c.learn.evidence], ['THE RISK', c.learn.risk], ['THE CONTROL THAT WORKS', c.learn.control], ['THE AI ANGLE', c.learn.ai], ['IN REAL LIFE, VERIFY', c.learn.verify]]) dl.append(el('dt', '', k), el('dd', '', v));
     body.append(dl);
     const tries = s.decideTries > 1 ? 'You needed ' + s.decideTries + ' tries to pick the response — each wrong one showed you its consequence.' : 'Right response first time.';
     body.append(el('p', 'muted', tries));
@@ -1312,7 +1352,18 @@ function fileIntel() {
 }
 
 // Keyboard inside a case: Esc closes, Tab opens case files, digits pick options.
+// Keep Tab inside an open dialog.
+function trapTab(e, root) {
+  const f = [...root.querySelectorAll('button, [href], input, summary, [tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && x.offsetParent !== null);
+  if (!f.length) return;
+  const i = f.indexOf(document.activeElement);
+  if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+  else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+}
+let resultsPending = false;     // the final step is solved; the results screen is about to open
 function caseKey(e) {
+  if (resultsPending) { e.preventDefault(); return; }
+  if (e.code === 'Tab') { trapTab(e, $('case-panel')); return; }
   if (e.code === 'Escape') { e.preventDefault(); closeCase(); return; }
   if (e.key === 'Enter' && document.activeElement === document.body) { const p = $('case-actions').querySelector('.primary'); if (p) { e.preventDefault(); p.click(); } return; }
   const n = Number(e.key);
@@ -1343,6 +1394,15 @@ function renderCipher() {
   stepsBar(step ? step.title : 'CONCLUDE', steps.map(s => s.title));
   if (i === 0 && !sel) body.append(el('p', 'scene', Cases.CIPHER.intro));
   body.append(el('p', 'scene', step.prompt));
+  const files = el('details', 'intel-files');
+  files.append(el('summary', '', 'YOUR INTEL FILES (' + op.intelCount() + ')'));
+  const fl = el('ul');
+  for (const c of Cases.CASES) {
+    const f = op.caseFile(c.id);
+    if (f.intel) fl.append(el('li', '', 'FILE ' + f.file + ' · ' + f.npc + ' (' + f.technique + '): ' + f.intel));
+  }
+  files.append(fl);
+  body.append(files);
   sel = sel && sel.step === step.id ? sel : { step: step.id, v: step.type === 'multi' ? [] : step.type === 'single' ? null : {} };
   const rer = () => { const y = body.scrollTop; const f = document.activeElement && document.activeElement.dataset.opt; renderCipher(); body.scrollTop = y; const again = f && body.querySelector('[data-opt="' + f + '"]'); if (again) again.focus(); };
   let n = 0;
@@ -1376,11 +1436,16 @@ function renderCipher() {
       const r = op.cipherAnswer(sel.v);
       if (r.ok) {
         sfx('good'); setFeedback('ok', '✓ CIPHER', r.cipher); sel = null;
-        if (op.complete()) { setTimeout(() => showResults(), reducedMotion ? 0 : 900); actions(); return; }
+        if (op.complete()) {
+          resultsPending = true;
+          const session = caseSession;
+          setTimeout(() => { if (session === caseSession && resultsPending) { resultsPending = false; showResults(); } }, reducedMotion ? 0 : 900);
+          actions(); return;
+        }
         renderCipher(); focusCase();
       } else { sfx('bad'); setFeedback('bad', '✗ THE EVIDENCE DISAGREES', r.feedback); }
     }, { primary: true, id: 'cipher-submit' }),
-    button('OPEN CASE FILES', () => openFiles('case'), { key: 'TAB' }),
+    button('OPEN CASE FILES', () => openFiles('case')),
   );
 }
 
@@ -1439,7 +1504,11 @@ function showResults() {
   add('RESPONSES RIGHT FIRST TIME', sum.firstTryDecisions + ' / ' + sum.required);
   add('FINAL STEPS RIGHT FIRST TIME', sum.finalFirstTry + ' / ' + sum.finalSteps);
   const ul = $('results-tech'); ul.replaceChildren();
-  Cases.CASES.forEach(c => ul.append(el('li', '', c.technique.charAt(0) + c.technique.slice(1).toLowerCase().replace('pro quo', 'Pro Quo'))));
+  Cases.CASES.forEach(c => {
+    const li = el('li');
+    li.append(el('b', '', c.technique.charAt(0) + c.technique.slice(1).toLowerCase().replace('pro quo', 'Pro Quo') + ' — '), document.createTextNode(c.learn.verify));
+    ul.append(li);
+  });
   $('results-note').textContent = 'No hidden score: each line is a plain count. "First time" means no wrong analysis, response or final step for that item. The lesson that ties them together: a convincing communication does not prove its origin — verify through a channel you already trust.';
   $('results-screen').classList.add('open');
   $('next-btn').focus();

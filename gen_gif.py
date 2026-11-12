@@ -7,7 +7,7 @@ Usage:
     python3 gen_gif.py --capture-only DIR         # only record the footage
 
 Pipeline:
-  1. tools/capture-trailer.js plays the four levels in headless Chrome with real
+  1. tools/capture-trailer.js plays the five levels in headless Chrome with real
      keyboard/mouse input and records timestamped 1280x720 frames, plus a little
      game state per frame that is used here to find the action.
   2. This script picks each scene's window, crops and pushes in, adds titles,
@@ -32,8 +32,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 W, H = 640, 360
 FPS = 12
 FRAME_MS = 1000.0 / FPS
-# Storyboard cut points (seconds): opening, four levels, call to action.
-CUTS = [0.0, 0.6, 1.7, 2.8, 3.9, 5.1, 6.5]
+# Storyboard cut points (seconds): opening, five levels, call to action.
+CUTS = [0.0, 0.6, 1.6, 2.6, 3.6, 4.6, 5.8, 7.6]
 
 BG = "#000300"
 GREEN = "#00ff41"
@@ -63,10 +63,11 @@ FONT_CANDIDATES = {
 # name, tagline, mission chip, accent. The footage keeps each level's own
 # palette; only the accent of its title changes.
 LEVELS = {
-    "level1": ("FSYNDICATE", "HUNT ROGUE AGENTS", "MISSION 01 · THE AGENTIC FRONTIER", "#26e8ff"),
-    "level2": ("AI INCIDENT LAB", "INVESTIGATE. PATCH. VERIFY.", "MISSION 02 · VULNERABILITY HUNTER", GREEN),
-    "level3": ("OPERATION GHOST", "TRUST NO SIGNAL", "MISSION 03 · CYBER MIAMI NOIR", "#ff6eb4"),
-    "level4": ("NEON GRAND PRIX", "DRIVE. DEFEND. WIN.", "MISSION 04 · MIAMI SMART CIRCUIT", "#ffe14d"),
+    "level1": ("FSYNDICATE", "CYBER WESTERN COMBAT", "MISSION 01 · THE AGENTIC FRONTIER", "#26e8ff"),
+    "level2": ("AI INCIDENT LAB", "SECURITY INVESTIGATION", "MISSION 02 · VULNERABILITY HUNTER", GREEN),
+    "level3": ("OPERATION GHOST", "CYBER MIAMI ESPIONAGE", "MISSION 03 · TRUST NO SIGNAL", "#ff6eb4"),
+    "level4": ("NEON GRAND PRIX", "HIGH-SPEED RACING", "MISSION 04 · MIAMI SMART CIRCUIT", "#ffe14d"),
+    "level5": ("DIGITAL MAYHEM", "CITY UNDER AI CONTROL", "MISSION 05 · SMART-CITY CRISIS", "#F47F78"),
 }
 
 
@@ -117,6 +118,12 @@ def window_level2(shots, n):
 
 def window_level3(frames, n):
     return sample(frames, 1100, n)                 # camera settled, GHOST mid-stride
+
+
+def window_level5(frames, n):
+    # From the alert in the live city into KUKY opening the incident.
+    opened = next((f for f in frames if f.get("insp")), frames[-1])
+    return sample(frames, max(0, opened["t"] - (n - 4) * FRAME_MS * 1.4), n, 1.4)
 
 
 def window_level4(frames, n, speed=1.2):
@@ -268,12 +275,13 @@ def opening(tmp, ink, n, out):
 
 
 def closing(tmp, ink, stills, n, out):
-    grid = os.path.join(tmp, "grid.png")             # one real frame from each level
-    magick(*[a for s in stills for a in ("(", s, "-resize", f"{W // 2}x{H // 2}!", ")")],
-           "(", "-clone", "0,1", "+append", ")", "(", "-clone", "2,3", "+append", ")", "-delete", "0-3",
+    grid = os.path.join(tmp, "grid.png")             # one real frame from each level: 3 over 2
+    top = [a for s in stills[:3] for a in ("(", s, "-resize", f"{W // 3 + 1}x{H // 2}!", ")")]
+    bottom = [a for s in stills[3:] for a in ("(", s, "-resize", f"{W // 2}x{H // 2}!", ")")]
+    magick("(", *top, "+append", "-crop", f"{W}x{H // 2}+0+0", "+repage", ")", "(", *bottom, "+append", ")",
            "-append", "-blur", "0x1", "-fill", BG, "-colorize", "55%", grid)
     title, tm = ink.text("HACK THE PLANET", "mono", 50, "#eafff0", glow=GREEN, kern=4)
-    sub, _ = ink.text("4 MISSIONS. ONE CYBER WORLD.", "mono", 21, "#ffffff", kern=2)
+    sub, _ = ink.text("PLAY. INVESTIGATE. DEFEND. LEARN.", "mono", 19, "#ffffff", kern=2)
     btn = {True: ink.play_button(True), False: ink.play_button(False)}
     frames = []
     for i in range(n):
@@ -300,15 +308,15 @@ def closing(tmp, ink, stills, n, out):
 
 def compose(frames_dir, output, sheet_path, keep):
     manifest = json.load(open(os.path.join(frames_dir, "manifest.json")))
-    for k in ("level1", "level2", "level3", "level4"):
+    for k in ("level1", "level2", "level3", "level4", "level5"):
         if k not in manifest:
-            sys.exit(f"{frames_dir}/manifest.json has no {k}; capture all four levels.")
+            sys.exit(f"{frames_dir}/manifest.json has no {k}; capture all five levels.")
     fonts = {k: find_font(k) for k in FONT_CANDIDATES}
     tmp = tempfile.mkdtemp(prefix="htp_trailer_")
     out = os.path.join(tmp, "out")
     os.makedirs(out)
     ink = Ink(tmp, fonts)
-    n_open, n1, n2, n3, n4, n_end = scene_lengths()
+    n_open, n1, n2, n3, n4, n5, n_end = scene_lengths()
     src = lambda sub, f: os.path.join(frames_dir, sub, f["file"])
     seq = []                                         # (frame path, scene label)
 
@@ -346,8 +354,13 @@ def compose(frames_dir, output, sheet_path, keep):
     sel4 = window_level4(manifest["level4"], n4)
     shoot("level4", [(src("l4", f), (0, 0, 1280, 720), (32, 18, 1216, 684), p) for f, p in zip(sel4, ramp(sel4))],
           "2x10", anchor="top")
+    # Level 5: the incident lands in the live city, KUKY opens it.
+    sel5 = window_level5(manifest["level5"], n5)
+    shoot("level5", [(src("l5", f), (300, 110, 960, 540), (330, 150, 800, 450), p) for f, p in zip(sel5, ramp(sel5))],
+          "0x8")
 
-    stills = [src("l1", sel1[3]), src("l2walk", walk[-1]), src("l3", sel3[n3 // 2]), src("l4", sel4[n4 // 2])]
+    stills = [src("l1", sel1[3]), src("l2walk", walk[-1]), src("l3", sel3[n3 // 2]), src("l4", sel4[n4 // 2]),
+              src("l5", sel5[n5 // 2])]
     seq += [(p, "CALL TO ACTION") for p in closing(tmp, ink, stills, n_end, out)]
 
     assert len(seq) == round(CUTS[-1] * FPS), len(seq)
@@ -367,9 +380,10 @@ def encode(paths, output):
         args += ["-delay", round(100 * (i + 1) / FPS) - round(100 * i / FPS), p]
     tmp_out = output + ".tmp.gif"
     # The games are flat-shaded, so an undithered 255-colour palette per frame
-    # looks the same as a dithered one and compresses far better.
-    magick(*args, "-loop", "0", "+dither", "-colors", "255",
-           "-fuzz", "2%", "-layers", "OptimizeTransparency", tmp_out)
+    # looks the same as a dithered one and compresses far better; 160 colours
+    # with a little fuzz keeps the five-level loop near 4 MB.
+    magick(*args, "-loop", "0", "+dither", "-colors", "160",
+           "-fuzz", "3%", "-layers", "OptimizeTransparency", tmp_out)
     os.replace(tmp_out, output)
 
 
@@ -390,7 +404,7 @@ def contact_sheet(seq, path, fonts):
            *args, "-tile", "4x", "-geometry", "320x180+6+6", "-colors", "256", "PNG8:" + path)
 
 
-def capture(dest, levels="1234"):
+def capture(dest, levels="12345"):
     subprocess.run(["node", os.path.join(ROOT, "tools", "capture-trailer.js"), dest, levels], check=True)
 
 

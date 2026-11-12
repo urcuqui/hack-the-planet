@@ -13,7 +13,7 @@
   'use strict';
 
   const SEG = Track.SEGMENT_LENGTH;
-  const OBSERVE_LEAD = 200 * SEG;      // anomaly visible ~4 s before the decision point
+  const OBSERVE_LEAD = 380 * SEG;      // anomaly visible ≥6 s before the decision even at top speed (was ~3 s), so it never feels sudden
   const DECIDE_OFFSET = 12 * SEG;      // decision a little way into a long straight
 
   const EVENTS = [
@@ -59,6 +59,9 @@
         },
       ],
       best: 'Separate trusted instructions from external content, never let content grant privileges, and authorize sensitive actions outside the model.',
+      realWorld: 'Any agent that reads web pages, emails, tickets or documents meets text like this. Keep that content as data, and keep the agent\'s privileges low enough that a hijacked instruction cannot do much.',
+      verify: 'Which inputs can reach the agent\'s instructions, whether content can change tools or settings, and logs of actions taken right after reading external content.',
+      why: 'You just drove past this broadcast on the Causeway. Its text reached the route assistant, which now wants to act on it.',
     },
     {
       id: 'sensor-spoofing',
@@ -102,6 +105,9 @@
         },
       ],
       best: 'Treat predictions as estimates: check them against independent sensors and known context, and fail to a safe mode when they disagree.',
+      realWorld: 'Vision, fraud and malware models can all be pushed by crafted inputs. Defences combine independent signals, monitoring and a safe fallback, not just a better model.',
+      verify: 'That critical decisions cross-check an independent source, that disagreements trigger a safe mode, and how the system behaves on inputs crafted to fool it.',
+      why: 'The lane markings you just passed on Bayfront Run are painted to fool the camera. Its perception model is now about to steer on them.',
     },
     {
       id: 'agent-permissions',
@@ -153,6 +159,9 @@
         },
       ],
       best: 'Give agents the least privilege their role needs, define limits per tool, and require human authorization for sensitive or irreversible actions.',
+      realWorld: 'Copilots and automation agents often hold more permissions than their job needs. Scope tools per role and require approval for changes to safety systems.',
+      verify: 'Each agent\'s tool list against its role, which calls need human approval, and the audit trail of approved and blocked tool calls.',
+      why: 'The pit agent has been sending telemetry all race. Now it asks for tools far beyond reading data.',
     },
   ];
 
@@ -281,6 +290,8 @@
           choice: opt ? opt.label : null,
           residual: opt && opt.residual || null,
           best: ev.def.best,
+          realWorld: ev.def.realWorld,
+          verify: ev.def.verify,
         };
       });
     }

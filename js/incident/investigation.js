@@ -128,7 +128,9 @@
           status: STATUS_LABEL[s.status], verified: s.status === 'verified',
           happened: c.observed, evidence: c.diagnose.revealed,
           controls, check: s.lastVerification ? s.lastVerification.steps.join(' · ') : '—',
-          residual: c.residual,
+          residual: c.residual, realWorld: c.realWorld, checkInPractice: c.checkInPractice,
+          // Only cases that were actually worked on reveal their diagnosis.
+          revealed: ['diagnosed', 'mitigation-applied', 'verified', 'needs-review'].includes(s.status),
           diagnoseAttempts: s.diagnoseAttempts, verifyAttempts: s.verifyAttempts,
         };
       });

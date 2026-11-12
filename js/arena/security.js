@@ -21,6 +21,8 @@
     evidence: 'The inspector read the Scout\'s live state, its tool calls and the classification that turned a motion signal into an attack.',
     why: 'You cannot secure what you cannot see: autonomous actions need to be observable and auditable after the fact.',
     best: 'Log every observation, inference, tool request, policy decision and execution, and make the log easy to investigate.',
+    apply: 'Production agents need the same trail: what they observed, what they concluded, which tool they asked for, what the policy decided and what actually ran.',
+    verify: 'That each agent action can be traced from input to execution in the logs, and that the logs are kept and searchable when something goes wrong.',
   };
 
   const TOOL_REVIEW = {
@@ -32,6 +34,8 @@
     evidence: 'The Enforcer holds lock_gate and deploy_barrier for the Data Vault, but asked to lock the town\'s public exit and was dropping barriers across Main Street.',
     why: 'A legitimate tool can still be misused: having a tool is not the same as being authorized to use it on any target.',
     best: 'Scope every tool to the agent\'s role and targets, require authorization for sensitive calls, and log each call with its decision.',
+    apply: 'Any agent with tools (shell, email, cloud APIs) should be limited to the tools and targets its job needs, with sensitive calls approved outside the model.',
+    verify: 'The tool list and target scope per agent, which calls need approval, and whether blocked calls really did not execute.',
     options: [
       {
         label: 'Approve it. lock_gate is in the Enforcer\'s toolkit, so the call is allowed.',
@@ -69,6 +73,8 @@
     evidenceSummary: 'The message claimed to be the controller but carried no valid signature, arrived on a public relay, reused a nonce, and asked for an action the controller is not authorized to give.',
     why: 'Agents that trust each other\'s claimed identity can be steered by anyone who can send a message.',
     best: 'Authenticate every agent message (signatures or mutual TLS), check integrity and freshness, and authorize the sender for the specific action before executing it.',
+    apply: 'Multi-agent systems pass instructions between agents and services. Each hop needs authentication, integrity, freshness and an authorization check.',
+    verify: 'Message signatures and the trust store, replay protection (nonces, timestamps), and that a sender is allowed to request this specific action.',
     options: [
       {
         label: 'Accept it: the sender name is the controller\'s.',
@@ -89,7 +95,7 @@
     ],
   };
 
-  const LABEL = { 'complete': 'COMPLETE', 'needs-improvement': 'NEEDS REVIEW', 'exploited': 'NEEDS REVIEW', 'not-completed': 'NOT COMPLETED' };
+  const LABEL = { 'complete': 'COMPLETE', 'needs-improvement': 'NEEDS REVIEW', 'exploited': 'UNSAFE · EXECUTED', 'not-completed': 'NOT COMPLETED' };
 
   function createSecurity() {
     const s = {
@@ -233,7 +239,7 @@
           happened: c ? 'You chose: ' + c.label + ' ' + c.feedback
             : s[kind].incident ? 'The request was never reviewed. The policy default held it (not executed), but nobody contained it.'
               : 'The duel ended before the incident.',
-          evidence, why: def.why, best: def.best, residual: c ? c.residual || null : null,
+          evidence, why: def.why, best: def.best, residual: c ? c.residual || null : null, apply: def.apply, verify: def.verify,
         };
       };
       return [
@@ -244,6 +250,7 @@
             ? `You scanned it in ${[...sc.scanned].join(' and ')} and read its activity log: observation → inference → request → policy → execution.`
             : `Scanned states: ${sc.scanned.size ? [...sc.scanned].join(', ') : 'none'}; activity log ${sc.logOpened ? 'opened' : 'never opened'}. Its decisions stayed partly invisible.`,
           evidence: OBSERVABILITY.evidence, why: OBSERVABILITY.why, best: OBSERVABILITY.best, residual: null,
+          apply: OBSERVABILITY.apply, verify: OBSERVABILITY.verify,
         },
         entry('enforcer', TOOL_REVIEW.evidence),
         entry('signal', MESSAGE_CHECK.evidenceSummary),

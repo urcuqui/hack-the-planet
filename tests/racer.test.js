@@ -236,3 +236,27 @@ test('the grid starts the player last and the race order is consistent', () => {
   assert.equal(order[0], rivals[3]);
   assert.equal(order[1], player);
 });
+
+// ── Phase 6: decisions are anticipated and explained ──
+test('each AI event is announced well before its decision and explains itself', () => {
+  const sec = Security.createSecurity();
+  for (const ev of sec.events) {
+    const secondsAtSpeed = (ev.decideAt - ev.observeAt) / Physics.MAX_SPEED;
+    assert.ok(secondsAtSpeed >= 6, ev.def.id + ': warning lasts ' + secondsAtSpeed.toFixed(1) + ' s at top speed');
+    const lapStart = (ev.def.lap - 1) * Track.TRACK.length;
+    assert.ok(ev.observeAt > lapStart, 'announced on its own lap');
+    assert.ok(ev.def.why && ev.def.realWorld && ev.def.verify, ev.def.id + ' why / real world / verify');
+  }
+  assert.ok(sec.report().every(r => r.realWorld && r.verify));
+});
+
+test('level 4 page: held keys cannot pick a decision; blur releases keys; pause pauses music', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'level4.html'), 'utf8');
+  assert.match(html, /function chooseOption\(i\) \{\s*if \(decisionView !== 'choose' \|\| !decisionArmed\) return;/);
+  assert.match(html, /if \(e\.repeat \|\| \['Space'/, 'auto-repeat and driving keys are ignored on the card');
+  assert.match(html, /title\.focus\(\);\s*\/\/ not an option/);
+  assert.match(html, /window\.addEventListener\('blur'/);
+  assert.match(html, /function pauseRace\(\) \{[\s\S]{0,80}pauseMusic\(\);/);
+  assert.match(html, /function resumeRace\(\) \{[\s\S]{0,160}resumeMusic\(\);/);
+  assert.match(html, /stopMusicForResults\(\);/);
+});

@@ -68,6 +68,8 @@
       },
       passed: 'The injected instruction no longer triggers an unauthorised action in this replay.',
       residual: 'Injections can be phrased to evade separation and filters. Action-level controls limit what a successful injection can do; together they reduce the risk, they do not guarantee protection.',
+      realWorld: 'Any assistant that reads email, web pages or tickets can meet hidden instructions. Keep retrieved content separate from instructions and limit what the agent may do.',
+      checkInPractice: 'Which external content reaches the model, whether it can trigger tools, and logs of actions taken right after reading it.',
     },
     {
       id: 'poisoner', robot: 'POISONER-X', color: '#ff9933', zone: 'A', severity: 'HIGH',
@@ -127,6 +129,8 @@
       },
       passed: 'The suspicious records no longer reach training without review, and the shift raises an alert.',
       residual: 'A trusted, signed source can still be compromised. Provenance checks and audits reduce exposure; they need ongoing monitoring.',
+      realWorld: 'Training and fine-tuning data comes from many places; one poisoned source can plant a trigger. Track where data comes from and test models for unexpected triggers.',
+      checkInPractice: 'Data provenance and signatures, who can write to training sources, and behaviour on trigger-like inputs before release.',
     },
     {
       id: 'invertor', robot: 'INVERTOR-Z', color: '#cc55ff', zone: 'B', severity: 'HIGH',
@@ -150,7 +154,7 @@
           { id: 'client', label: 'SUSPICIOUS CLIENT', options: [
             { id: 'k-1002', label: 'k-1002 (badge kiosk)', why: 'Many different IDs with fresh photos — ordinary verification traffic.' },
             { id: 'k-2210', label: 'k-2210 (HR app)', why: 'A handful of varied requests — nothing iterative.' },
-            { id: 'k-7731', label: 'k-7731' }], answer: 'k-7731' },
+            { id: 'k-7731', label: 'k-7731 (test integration)' }], answer: 'k-7731' },
           { id: 'exposure', label: 'POTENTIALLY EXPOSED', options: [
             { id: 'face', label: 'A reconstruction of emp-0042\'s face — information about training data' },
             { id: 'code', label: 'The model\'s source code', why: 'The API only returns scores; the risk is what those scores reveal about the data.' },
@@ -183,6 +187,8 @@
       },
       passed: 'The simulated probing is blocked or flagged early instead of completing 3,912 queries.',
       residual: 'Query limits slow attacks but do not remove the risk on their own — a patient attacker can spread queries. Output minimisation and training-time privacy also matter.',
+      realWorld: 'Prediction APIs can leak training data to someone who queries patiently. Limit and monitor queries, return less detail, and consider privacy-preserving training.',
+      checkInPractice: 'Per-client query volumes and patterns, how much detail the API returns (scores vs labels), and alerts for iterative probing.',
     },
     {
       id: 'adversar', robot: 'ADVERSAR-1', color: '#ffcc00', zone: 'B', severity: 'MEDIUM',
@@ -235,6 +241,8 @@
       },
       passed: 'No HAZMAT parcel in the test battery is misrouted as STANDARD.',
       residual: 'Robust on this test battery only. New attack types can still succeed, so keep adding them to tests and monitoring.',
+      realWorld: 'Classifiers in fraud, malware or content filtering face inputs crafted to evade them. Test against adversarial examples and keep independent checks.',
+      checkInPractice: 'Accuracy on adversarial test sets, not just clean data, and a fallback when the model is unsure.',
     },
     {
       id: 'biasbot', robot: 'BIASBOT-7', color: '#33ccff', zone: 'C', severity: 'MEDIUM',
@@ -289,6 +297,8 @@
       },
       passed: 'The South disparity is reduced on this evaluation and is now checked before every release.',
       residual: 'Reducing one disparity on one metric doesn\'t guarantee fairness in every context. Keep measuring across groups and metrics.',
+      realWorld: 'Models that score people (hiring, lending, access) can treat groups differently. Measure outcomes per group and per metric before and after deployment.',
+      checkInPractice: 'Outcome rates per group on several fairness metrics, sample sizes behind each number, and who reviews the results.',
     },
     {
       id: 'hallucin', robot: 'HALLUCIN-8', color: '#33ff99', zone: 'C', severity: 'MEDIUM',
@@ -341,6 +351,8 @@
       },
       passed: 'The corrected answer only states what HR-12 and HR-19 support, and says when the policy is silent.',
       residual: 'RAG and claim checks reduce hallucinations but don\'t prevent them entirely: retrieval can miss passages and models can still misread sources.',
+      realWorld: 'Generated answers can sound sure and still be wrong. Ground them in retrieved sources and check claims against those sources.',
+      checkInPractice: 'That answers cite retrievable sources, a sample of claims checked against them, and how unsupported answers are flagged.',
     },
   ];
 
@@ -357,7 +369,9 @@
       }
       chosen.filter(o => o.note).forEach(o => reasons.push(o.note));
     }
-    return { pass, steps: c.verify(tags), reasons: reasons.filter(Boolean) };
+    // A passing set can still contain a control that did nothing: say so.
+    const ineffective = pass ? chosen.filter(o => o.note).map(o => o.note) : [];
+    return { pass, steps: c.verify(tags), reasons: reasons.filter(Boolean), ineffective };
   }
 
   // Diagnosis check: returns { ok, feedback } without revealing the answer.

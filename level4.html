@@ -51,6 +51,7 @@
   .bar { height: 6px; background: rgba(0,229,255,0.12); }
   .bar span { display: block; height: 100%; background: var(--cyan); }
   .controls { font-size: 12px; letter-spacing: 1px; line-height: 1.9; color: var(--muted); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .controls kbd { color: var(--text); border: 1px solid rgba(255,255,255,0.3); padding: 0 5px; font-family: inherit; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; }
   .btn {
@@ -163,7 +164,8 @@
   @media (max-width: 760px) {
     .cars { grid-template-columns: 1fr 1fr; }
     .result-grid, .context { grid-template-columns: 1fr; }
-    #hud-curve, #telemetry, #map-box { display: none; }
+    #hud-curve, #map-box { display: none; }
+    #telemetry { left: 8px; right: 8px; width: auto; bottom: 8px; }
   }
   @media (prefers-reduced-motion: reduce) {
     #countdown { text-shadow: none; }
@@ -220,7 +222,7 @@
     <canvas id="mini-map" width="300" height="300"></canvas>
   </div>
   <div class="hud-box collapsed" id="telemetry" data-kind="normal">
-    <div class="head"><span class="lbl">AI SECURITY TELEMETRY</span><span class="lbl" id="tm-score">SCORE 0/3</span></div>
+    <div class="head"><span class="lbl">AI SECURITY TELEMETRY</span><span class="lbl" id="tm-score">SECURITY 0/3</span></div>
     <div class="mid" id="tm-status" style="font-size:13px;margin-top:4px">MONITORING</div>
     <dl>
       <dt>SYSTEM</dt><dd id="tm-system"></dd>
@@ -231,6 +233,7 @@
     <div class="note" id="tm-note"></div>
   </div>
   <div id="warning" role="status"></div>
+  <div id="tm-live" class="sr-only" aria-live="polite"></div>
   <div id="countdown">3</div>
 </div>
 
@@ -341,7 +344,7 @@ const keys = {};
 const GAME_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyM') toggleMusic();
-  if (phase === 'decision') return handleDecisionKey(e);
+  if (phase === 'decision') { handleDecisionKey(e); return; }
   if (e.code === 'Escape') {
     if (phase === 'racing' || phase === 'countdown') pauseRace();
     else if (phase === 'paused') resumeRace();
@@ -350,8 +353,18 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true;
   if ((phase === 'racing' || phase === 'countdown') && GAME_KEYS.includes(e.code)) e.preventDefault();
 });
-document.addEventListener('keyup', e => { keys[e.code] = false; });
-document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'racing') pauseRace(); });
+document.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  // A decision only listens once the keys held while driving are released.
+  if (phase === 'decision' && !Object.values(keys).some(Boolean)) decisionArmed = true;
+  if (phase === 'decision' && (e.code === 'Space' || e.code === 'Enter')) e.preventDefault();
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && (phase === 'racing' || phase === 'countdown')) pauseRace(); });
+// Losing window focus must not leave throttle or steering stuck down.
+window.addEventListener('blur', () => {
+  for (const k in keys) keys[k] = false;
+  if (phase === 'racing' || phase === 'countdown') pauseRace();
+});
 const input = () => ({
   throttle: !!(keys.KeyW || keys.ArrowUp),
   brake: !!(keys.KeyS || keys.ArrowDown),
@@ -387,7 +400,9 @@ newRace();
 
 function startRace() {
   initAudio();
-  if (!musicStarted) { musicStarted = true; musicLoop(); }   // once; restarts keep the player's M choice
+  musicPaused = false;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (!musicStarted) { musicStarted = true; clearTimeout(musicTimer); musicLoop(); }   // one loop; restarts keep the player's M choice
   newRace();
   closeScreens();
   $('hud').style.display = 'block';
@@ -407,12 +422,15 @@ function openScreen(id, focus) {
 function pauseRace() {
   pausedFrom = phase;
   phase = 'paused';
+  pauseMusic();
   openScreen('pause-screen', 'resume-btn');
 }
 function resumeRace() {
   closeScreens();
   phase = pausedFrom || 'racing';
   for (const k in keys) keys[k] = false;
+  resumeMusic();
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 }
 
 // ── Simulation ────────────────────────────────────────────
@@ -444,7 +462,8 @@ function frame(t) {
   if (phase === 'countdown') {
     countdownTime += dt;
     const n = 3 - Math.floor(countdownTime);
-    $('countdown').textContent = n > 0 ? String(n) : 'GO';
+    const label = n > 0 ? String(n) : 'GO';
+    if ($('countdown').textContent !== label) { $('countdown').textContent = label; sfx(n > 0 ? 'tick' : 'go'); }
     if (countdownTime >= 3) phase = 'racing';
   } else if (phase === 'racing') {
     if (countdownTime < 3.8) { countdownTime += dt; if (countdownTime >= 3.8) $('countdown').style.display = 'none'; }
@@ -514,8 +533,11 @@ function updateHud() {
   else if (player.offroad) { warning = '⚠ OFF TRACK · STEER BACK TO THE ASPHALT'; danger = true; }
   else if (player.sliding && player.speed > 2000) warning = '⚠ GRIP LIMIT · LIFT OFF OR BRAKE';
   else if (effects.length) warning = '⚠ ' + effects[0].tag;
+  const tmNow = security.telemetry(raceTime);
+  if (!warning && tmNow.kind === 'anomaly') warning = '▲ AI ANOMALY · ' + tmNow.signal + ' · SEE TELEMETRY →';
+  if (phase === 'countdown') warning = 'HOLD W / ↑ TO ACCELERATE · AI ALERTS APPEAR BOTTOM RIGHT';
   setText('warning', warning);
-  $('warning').style.display = warning && phase === 'racing' ? 'block' : 'none';
+  $('warning').style.display = warning && (phase === 'racing' || phase === 'countdown') ? 'block' : 'none';
   $('warning').classList.toggle('danger', danger);
 
   const tm = security.telemetry(raceTime);
@@ -528,7 +550,11 @@ function updateHud() {
   setText('tm-trust', tm.trust);
   setText('tm-action', tm.action);
   setText('tm-note', tm.note);
-  setText('tm-score', 'SCORE ' + security.score() + '/3');
+  setText('tm-score', 'SECURITY ' + security.score() + '/3');
+  if (shown.tmKind !== tm.kind) {
+    shown.tmKind = tm.kind;
+    if (tm.kind !== 'normal') $('tm-live').textContent = 'AI security telemetry: ' + tm.status + '. ' + (tm.note || '');
+  }
 
   if (frames % 3 === 0) drawMiniMap();
 }
@@ -577,9 +603,11 @@ function drawMiniMap() {
 // ── Security decisions ───────────────────────────────────
 let decisionView = null;    // 'choose' | 'feedback'
 
+let decisionArmed = false;
 function openDecision(ev) {
   phase = 'decision';
-  for (const k in keys) keys[k] = false;
+  // Keys still held from driving (Space boost, Enter) must not pick an option.
+  decisionArmed = !Object.values(keys).some(Boolean);
   sfx('decision');
   const d = ev.def;
   const panel = $('decision-panel');
@@ -595,6 +623,7 @@ function openDecision(ev) {
     typeof content === 'string' ? (dd.textContent = content) : dd.append(content);
     ctxList.append(dd);
   };
+  if (d.why) row('src', 'WHY NOW', d.why);
   row('src', 'SOURCE', d.card.source);
   row('obs', 'OBSERVED DATA', d.card.observed);
   if (d.actions) {
@@ -616,14 +645,16 @@ function openDecision(ev) {
     b.onclick = () => chooseOption(i);
     opts.append(b);
   });
-  panel.append(opts, el('div', 'hint', '1–3 or ↑ ↓ + ENTER · no time limit · the race continues whatever you choose'));
+  panel.append(opts, el('div', 'hint', '1–3 or ↑ ↓ + ENTER · no time limit · a wrong call causes a short effect on track that you can recover from'));
   decisionView = 'choose';
   openScreen('decision-screen');
-  opts.firstChild.focus();
+  const title = $('dec-title');
+  title.tabIndex = -1;
+  title.focus();                 // not an option: a held key can't press it
 }
 
 function chooseOption(i) {
-  if (decisionView !== 'choose') return;
+  if (decisionView !== 'choose' || !decisionArmed) return;
   const res = security.choose(i, raceTime);
   if (!res) return;
   decisionView = 'feedback';
@@ -657,23 +688,29 @@ function chooseOption(i) {
   }
   if (option.residual) fb.append(el('p', 'muted', option.residual));
   fb.append(el('p', '', 'Better practice: ' + d.best));
+  if (d.realWorld) fb.append(el('p', '', 'In the real world: ' + d.realWorld));
   const resume = el('button', 'btn', 'RESUME RACE [ENTER]');
   resume.id = 'decision-resume';
   resume.onclick = closeDecision;
   const rowEl = el('div', 'btn-row');
   rowEl.append(resume);
   panel.append(fb, rowEl);
-  resume.focus();
+  decisionArmed = false;                   // the key that chose must be released first
+  setTimeout(() => { if (decisionView === 'feedback') { decisionArmed = true; resume.focus(); } }, 350);
 }
 
 function closeDecision() {
-  if (decisionView !== 'feedback') return;
+  if (decisionView !== 'feedback' || !decisionArmed) return;
   decisionView = null;
   closeScreens();
   phase = 'racing';
+  for (const k in keys) keys[k] = false;
+  if (document.activeElement) document.activeElement.blur();
 }
 
 function handleDecisionKey(e) {
+  if (e.repeat || ['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) { e.preventDefault(); return; }
+  if (!decisionArmed) { e.preventDefault(); return; }
   if (decisionView === 'choose') {
     const n = Number(e.key);
     if (n >= 1 && n <= 3) { e.preventDefault(); chooseOption(n - 1); return; }
@@ -698,6 +735,7 @@ function finishRace() {
   const timeMs = Math.round(raceTime * 1000);
   const securityScore = security.score();
   finishInfo = { place, timeMs, securityScore };
+  stopMusicForResults();
   // Finishing three laps completes the level; P1 and the security score are separate.
   const { state } = HTPProgress.recordCompletion(4, { position: place, timeMs, securityScore });
 
@@ -727,7 +765,10 @@ function finishRace() {
     add2('WHAT HAPPENED', r.happened);
     add2('RESIDUAL RISK', r.residual);
     add2('BEST MEASURE', r.best);
+    add2('IN THE REAL WORLD', r.realWorld);
+    add2('WHAT TO VERIFY', r.verify);
     det.append(sum, dl);
+    det.open = r.outcome !== 'mitigated';      // mistakes are worth reading without a click
     rows.append(det);
     knowledge.append(el('li', '', r.knowledge));
   }
@@ -801,10 +842,12 @@ function noise(when, dur, gain) {
   g.connect(masterGain || audioCtx.destination);
   s.start(when);
 }
+let musicPaused = false, chunkEnd = 0;
 function musicLoop() {
-  if (!audioCtx || !musicOn) return;
+  if (!audioCtx || !musicOn || musicPaused) return;
   const beat = 0.118;
   const t = audioCtx.currentTime + 0.04;
+  chunkEnd = t + beat * 64;
   for (let i = 0; i < 64; i++) {
     const stepT = t + i * beat;
     const b = bass[i % bass.length];
@@ -831,9 +874,39 @@ function musicLoop() {
   }
   musicTimer = setTimeout(musicLoop, beat * 64 * 1000 - 60);
 }
+// Pause freezes the audio clock, so scheduled notes resume exactly where they
+// were; the loop timer is cleared and re-armed for the rest of the chunk.
+function pauseMusic() {
+  musicPaused = true;
+  clearTimeout(musicTimer);
+  if (audioCtx && audioCtx.state === 'running') audioCtx.suspend();
+}
+function resumeMusic() {
+  if (!musicPaused) return;
+  musicPaused = false;
+  if (!audioCtx) return;
+  audioCtx.resume().then(() => {
+    if (musicPaused || !musicOn || !musicStarted) return;
+    clearTimeout(musicTimer);
+    musicTimer = setTimeout(musicLoop, Math.max(0, (chunkEnd - audioCtx.currentTime) * 1000 - 60));
+  });
+}
+// The race is over: fade the loop out instead of letting it run under the report.
+function stopMusicForResults() {
+  clearTimeout(musicTimer);
+  if (masterGain && audioCtx) {
+    masterGain.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.4);
+    const old = masterGain;
+    setTimeout(() => old.disconnect(), 2500);
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.72;
+    masterGain.connect(audioCtx.destination);
+  }
+  musicStarted = false;                    // the next race starts the loop again
+}
 function toggleMusic() {
   musicOn = !musicOn;
-  if (musicOn) musicLoop();
+  if (musicOn && musicStarted && !musicPaused) musicLoop();
   else {
     clearTimeout(musicTimer);
     // Drop the bus carrying the notes already scheduled for this loop (up to
@@ -851,7 +924,7 @@ let sfxBus = null;
 function sfx(kind) {
   if (!audioCtx) return;
   if (!sfxBus) { sfxBus = audioCtx.createGain(); sfxBus.gain.value = 0.5; sfxBus.connect(audioCtx.destination); }
-  const notes = { alert: [880, 660], decision: [523, 784], good: [659, 988], bad: [330, 220] }[kind] || [440];
+  const notes = { alert: [880, 660], decision: [523, 784], good: [659, 988], bad: [330, 220], tick: [660], go: [1320] }[kind] || [440];
   const t = audioCtx.currentTime + 0.01;
   notes.forEach((f, i) => {
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();

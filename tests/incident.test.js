@@ -234,3 +234,46 @@ test('the page uses the real player identity and no auto-starting battles', () =
   assert.match(page, /e\.code === 'KeyE'/);
   assert.doesNotMatch(page, /THREAT LEVEL/);
 });
+
+// ── Phase 6: feedback honesty and learning transfer ──
+test('a passing control set still reports a control that did nothing', () => {
+  const c = Cases.CASES.find(x => x.mitigation.options.some(o => o.note));
+  const placebo = c.mitigation.options.find(o => o.note);
+  // Find a passing set that also includes the placebo, within the max.
+  const ids = c.mitigation.options.map(o => o.id).filter(id => id !== placebo.id);
+  let found = null;
+  const tryAll = (pick, rest) => {
+    if (found || pick.length >= c.mitigation.max) return;
+    for (let i = 0; i < rest.length; i++) {
+      const p = pick.concat(rest[i]);
+      if (Cases.evaluateMitigation(c, p.concat(placebo.id)).pass && p.length + 1 <= c.mitigation.max) { found = p.concat(placebo.id); return; }
+      tryAll(p, rest.slice(i + 1));
+    }
+  };
+  tryAll([], ids);
+  assert.ok(found, 'some passing set includes the placebo');
+  const r = Cases.evaluateMitigation(c, found);
+  assert.equal(r.pass, true);
+  assert.deepEqual(r.ineffective, [placebo.note]);
+});
+
+test('the final report never reveals a diagnosis the player did not reach', () => {
+  const lab = Investigation.createLab();
+  const rep = lab.report();
+  assert.ok(rep.every(r => r.revealed === false), 'untouched incidents stay hidden');
+  assert.ok(rep.every(r => r.realWorld && r.checkInPractice), 'every incident has practical context');
+  const c = Cases.CASES[0];
+  lab.open(c.id);
+  assert.equal(lab.report()[0].revealed, false, 'opening is not diagnosing');
+});
+
+test('no correct diagnosis option stands out by missing a description', () => {
+  for (const c of Cases.CASES) {
+    const groups = c.diagnose.type === 'pair' ? c.diagnose.parts : c.diagnose.type === 'single' ? [c.diagnose] : [];
+    for (const g of groups) {
+      const right = g.options.find(o => o.id === g.answer);
+      const others = g.options.filter(o => o.id !== g.answer);
+      if (others.every(o => /\(/.test(o.label))) assert.match(right.label, /\(/, c.id + ': ' + right.label);
+    }
+  }
+});

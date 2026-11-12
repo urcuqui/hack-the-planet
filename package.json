@@ -2,7 +2,7 @@
   "name": "hack-the-planet",
   "version": "0.3.0",
   "private": true,
-  "description": "HACK THE PLANET - a four-mission cyberpunk browser game campaign.",
+  "description": "HACK THE PLANET - an independent, experimental five-mission browser game about AI security: combat, investigation, espionage, racing and a smart-city crisis.",
   "license": "MIT",
   "scripts": {
     "start": "node tools/serve.js",

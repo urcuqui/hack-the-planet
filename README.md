@@ -2,11 +2,17 @@
 
 > *"Systems don't change the world… people do."* — Urcuqui
 
-![HACK THE PLANET gameplay trailer: FSYNDICATE duel, AI Incident Lab, Operation Ghost, Neon Grand Prix](trailer.gif)
+![HACK THE PLANET gameplay trailer: FSYNDICATE duel, AI Incident Lab, Operation Ghost, Neon Grand Prix, Digital Mayhem](trailer.gif)
 
-<sub>Real gameplay of the first four missions, captured from the current build with `python3 gen_gif.py`.</sub>
+<sub>Real gameplay of all five missions, captured from the current build with `python3 gen_gif.py`.</sub>
 
-A five-mission cyberpunk browser game. You start as KUKY, breaking into the PandeCorp arena, and go on to hunt rogue AIs, work the streets of a neon Miami as GHOST, race the circuit against eight AI rivals, and finally hold a whole smart city together when its AI agents turn on it. All five missions are reached from one **Mission Hub** that tracks your progress.
+**HACK THE PLANET is five short browser games about securing AI systems.** Each mission is a different genre — a cyber-western shooter, a pixel-art investigation, a 3D espionage adventure, an arcade racer and a smart-city crisis simulator — and each one teaches AI security through what you investigate, decide and then *see happen*, not through quizzes. You play KUKY and GHOST against PandeCorp, a fictional corporation whose AI agents keep misbehaving.
+
+**PLAY. INVESTIGATE. DEFEND. LEARN.**
+
+- **Who it's for:** anyone curious about agentic AI security — tool permissions, prompt injection, data poisoning, identity and message verification, cascading failures. No prior security knowledge is needed; experienced players can skip the tutorials.
+- **How long:** about 5–15 minutes per mission. Open `index.html` (or run `npm start`) and pick a mission in the **Mission Hub**, which saves your progress.
+- **What it is not:** an independent, experimental learning project. It is **not affiliated with or endorsed by TryHackMe** or any other company, and nothing in it measures a real system. The agents are transparent simulations (state machines and policies), not AI models.
 
 Everything runs in the browser with plain HTML, CSS and JavaScript. There's no build step, no framework and no backend. All music and sound effects are generated live with the Web Audio API, so the game ships no audio files.
 
@@ -27,6 +33,7 @@ Everything runs in the browser with plain HTML, CSS and JavaScript. There's no b
 - Only Level 1 is available at first. Beating a level's win condition unlocks the next one.
 - Completed levels show **COMPLETED** in the hub and can be replayed. Replaying never re-locks anything.
 - Progress is saved in your browser's `localStorage` (key `htp.progress`) and survives a page refresh. **RESET PROGRESS** in the hub wipes it after you confirm.
+- Level 5 also remembers whether you finished or skipped its guide (`htp.mayhem.guide`) and its audio settings (`htp.mayhem.audio`, including REDUCED ALERTS); neither affects campaign progress.
 - What gets saved: completed levels, the highest unlocked level, first and last completion times, and a few best results (Level 1: best AI security score; Level 2: highest integrity remaining and most diagnoses right first time; Level 3: most responses right first time; Level 4: best finishing position, best time and best AI security score; Level 5: best city stability and most best-practice first responses).
 - Adding Level 5 didn't reset anything: saves from the four-level campaign keep their completions and best results, and anyone who had already beaten Level 4 finds Level 5 unlocked.
 - Just opening a level page never marks it complete. Each game records completion itself, once, when its own win condition is met.
@@ -73,13 +80,17 @@ Open `index.html` in a browser. Everything works from `file://`, including saved
 | **02 AI Incident Lab** | `WASD` / arrows move · `E` inspect system · `Tab` incident log · `1`–`9` pick an option in the analyzer · `Tab` / `Enter` move between and press buttons · `Esc` close panel / pause · `M` music |
 | **03 Operation Ghost** | `WASD` move relative to the camera (A/D strafe) · `↑ ↓` forward/back · `← →` turn the camera · mouse drag look · `E` talk / enter or exit car · driving: `W S` throttle/brake, `A D` steer, `F` recover a stuck car · `Tab` case files · `M` city map · `1–9` choose in a case · `Esc` close / pause (music, controls and camera settings are in the pause menu) |
 | **04 Neon Grand Prix** | `W` / `↑` accelerate · `S` / `↓` brake · `A D` / `← →` steer · `Space` boost · `Esc` pause / resume · `M` music · decisions: `1`–`3` or `↑ ↓` + `Enter` |
-| **05 Digital Mayhem** | Click a place, map label or incident card to investigate · drag / `W A S D` / arrows pan · mouse wheel / `+ −` zoom · `1`–`4` choose a response or recovery step · `G` switch KUKY ⇄ GHOST · `L` activity log · `R` CITYOS radio · `Space` pause / resume the simulation · `Esc` close panel / pause menu (volumes, radio, voice) · `M` music. `Tab` keeps moving keyboard focus, so the log is on `L` |
+| **05 Digital Mayhem** | A **guided first incident** walks you through one real incident (skip it with SKIP GUIDE or untick it on the title screen); the strip under the top bar always shows your objective and next step · click a place, map label or incident card to investigate · drag / `W A S D` / arrows pan · mouse wheel / `+ −` zoom · `1`–`4` choose a response or recovery step · `G` switch KUKY ⇄ GHOST · `L` activity log · `R` CITYOS radio · `Space` pause / resume the simulation · `Esc` close panel / pause menu (volumes, radio, voice) · `M` music. `Tab` keeps moving keyboard focus, so the log is on `L` |
 
 Every level has a **MISSION HUB** link on its start screen and on its end screens (success, and failure where a level can be lost).
+
+**Onboarding.** No level opens with a tutorial page. Each one teaches through the first interaction and then gets out of the way: Level 1 shows one next step at a time (aim → scan → open the log → the terminal with a pending request, with its distance); Level 2 labels the robot you can inspect until your first inspection and shows the analyzer's EVIDENCE ▸ DIAGNOSE ▸ MITIGATE ▸ VERIFY steps; Level 3 starts you on the nearest case with a walk → talk → drive hint; Level 4 announces each AI anomaly on screen well before its decision; Level 5 has the guided first incident and an always-visible objective. Hints disappear once you have done what they describe.
 
 ---
 
 ## Mission notes
+
+**How every mission teaches.** Each security decision follows the same arc: **evidence → decision → observed consequence → explanation**, and every consequence comes from the level's own simulation (nothing is a canned animation). Every end-of-mission report adds two practical lines per concept — **in the real world** (where this shows up outside the game) and **what to verify** (what a practitioner would check) — next to the residual risk, because no single control guarantees security. Mission completion, the operational result (combat, integrity, race, city stability) and the educational score are always reported separately, and each report says how its counts are made. The learning objectives and the Phase 6 usability review are in [`docs/PHASE6-REVIEW.md`](docs/PHASE6-REVIEW.md).
 
 **Level 1: FSYNDICATE — THE AGENTIC FRONTIER.** *Three bounties. Three rogue agents. One digital frontier.* The cinematic intro (11 scenes: matrix rain, the PandeCorp skyline, a surveillance scan, a terminal break-in, a world-map cyberattack and the logo shatter) is offered in full on the first visit; later visits open on the briefing, with **WATCH INTRO** always available. Having seen it is stored separately from campaign progress (`htp.introSeen`) and never completes the level.
 
@@ -154,6 +165,8 @@ Every incident also has a tempting unsafe answer (approve it, retrain on everyth
 
 - **The living city.** Cars stop at real signal phases, queue behind each other and jam where an executed call caused it. Signals blink amber in manual mode and go dark without power. Windows go dark when a block is shed, and the hospital switches to amber backup lighting. Drones fly only for dispatches that actually executed. Network packets travel from each agent to the CITYOS tower for every logged call: green when allowed, amber when held, red when stopped halfway.
 - **SYSTEM PRESSURE (0–5)** is computed from simulation state only: unresolved incidents (by severity), agents that executed unsafe calls in the last 10 s, failed containment, degraded services and an active cascade. Every change pops up with a **CAUSE / IMPACT / NEXT ACTION** note. Opening a panel or reading never raises it.
+- **Guided first incident.** On a first play, INC-01 is walked through step by step: open the incident, read the policy check and the observability trace, respond, recover, verify. Each step is derived from the real simulation state and highlights the real control; the guide never acts for you, can be skipped at any time, and is remembered. Later, one-shot tips introduce GHOST, the dependency map, the log and System Pressure when they first matter.
+- **Agent observability.** The inspector's AGENT OBSERVABILITY table lists every call the incident's agents make — the unsafe ones and their legitimate work — with the policy decision it gets *right now* and its result (executes, refused, held). After a response, a POLICY UPDATED note says what was blocked, what still runs, the impact and the next step. After containment, a RECOVERY plan lists what is blocked, what is still degraded and why, and what to do next.
 - **No reading timer.** The simulation holds while an incident decision, the GHOST task list or a field check is open. `Space` and the pause menu freeze everything.
 - **Failure** happens only on visible thresholds: city stability below 20 %, MERIDIAN GENERAL at 0 %, or 45 s at CITY-WIDE CRISIS. A banner warns before each one.
 - **Two roles.** KUKY runs the Security Control Center. GHOST does short field checks (substation, EOC, Bayfront sensor, tower server room): walk to each hotspot, observe, file the report. The INC-04 fix and its recovery need GHOST's ground truth; the other checks are optional extra evidence.
@@ -212,7 +225,7 @@ hack-the-planet/
 ├── tools/
 │   ├── serve.js             # Hardened local static server
 │   ├── check-scripts.js     # Syntax check for every inline <script>
-│   └── capture-trailer.js   # Records real gameplay of the four levels for the trailer
+│   └── capture-trailer.js   # Records real gameplay of the five levels for the trailer
 ├── tests/
 │   ├── progress.test.js     # Progression, unlock and storage-failure tests
 │   ├── arena.test.js        # Level 1: controls, cover, pulses, agents, tools/permissions, audit, bounties, objectives
@@ -228,7 +241,8 @@ hack-the-planet/
 │       ├── smoke.browser.js     # Headless Chrome campaign run (hooks + navigation)
 │       └── gameplay.browser.js  # Plays the levels with real keyboard/mouse input
 ├── gen_gif.py               # Builds trailer.gif from captured gameplay (needs Chrome + ImageMagick)
-├── trailer.gif              # README trailer (6.5 s, 640×360, 12 fps)
+├── trailer.gif              # README trailer (7.6 s, 640×360, 12 fps)
+├── docs/PHASE6-REVIEW.md    # Learning objectives, usability review findings and open playtest questions
 ├── trailer-contact-sheet.png  # Frames from each scene, for reviewing the trailer
 ├── preview.gif              # Earlier illustrated preview
 ├── package.json             # npm scripts only, no dependencies
@@ -295,7 +309,7 @@ On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffein
 
 ### Trailer GIF
 
-The README trailer is built from real gameplay. `tools/capture-trailer.js` starts the local server, opens each level in headless Chrome and plays it with keyboard and mouse input only, the same way the gameplay test does. It reads game state to steer, never writes it, and the game itself has no trailer or demo mode. `gen_gif.py` then picks each shot from the recorded state (the Scout being contained, the analyzer's verification passing, the fastest stretch of the race), adds the titles and transitions, and encodes the GIF with ImageMagick.
+The README trailer is built from real gameplay. `tools/capture-trailer.js` starts the local server, opens each level in headless Chrome and plays it with keyboard and mouse input only, the same way the gameplay test does. It reads game state to steer, never writes it, and the game itself has no trailer or demo mode. (For Level 5 it only stores the guide preference as already skipped, so the footage shows the plain HUD.) `gen_gif.py` then picks each shot from the recorded state (the Scout being contained, the analyzer's verification passing, the fastest stretch of the race, the first CITYOS incident being opened), adds the titles and transitions, and encodes the GIF with ImageMagick.
 
 ```bash
 python3 gen_gif.py                          # capture + build ./trailer.gif and ./trailer-contact-sheet.png (~1 min)
@@ -308,12 +322,13 @@ Needs Node 22+, Chrome or Chromium (`CHROME_PATH` to override; a GPU keeps the 3
 
 | Time | Scene | Footage |
 |------|-------|---------|
-| 0.0–0.6 s | Opening | Title card |
-| 0.6–1.7 s | FSYNDICATE | Duel with THE SCOUT, through its containment |
-| 1.7–2.8 s | AI Incident Lab | KUKY reaches INJECTOR-9, controls chosen, verification passes |
-| 2.8–3.9 s | Operation Ghost | GHOST walks Central Ave toward the sunset and the Art Deco blocks |
-| 3.9–5.1 s | Neon Grand Prix | The fastest stretch of lap 1 in the pack, played at 1.2× |
-| 5.1–6.5 s | Call to action | Title over one frame from each level, then fades back into the loop |
+| 0.0–0.6 s | Opening | HACK THE PLANET title card |
+| 0.6–1.6 s | FSYNDICATE · *Cyber Western combat* | Duel with THE SCOUT, through its containment |
+| 1.6–2.6 s | AI Incident Lab · *Security investigation* | KUKY reaches INJECTOR-9, controls chosen, verification passes |
+| 2.6–3.6 s | Operation Ghost · *Cyber Miami espionage* | GHOST walks Central Ave toward the sunset and the Art Deco blocks |
+| 3.6–4.6 s | Neon Grand Prix · *High-speed racing* | The fastest stretch of lap 1 in the pack, played at 1.2× |
+| 4.6–5.8 s | Digital Mayhem · *City under AI control* | The first incident hits the live city; KUKY clicks its map label and the inspector opens |
+| 5.8–7.6 s | Call to action | PLAY. INVESTIGATE. DEFEND. LEARN. over one frame from each level, PLAY NOW, then fades back into the loop |
 
 Gameplay timing varies a little between runs, so each capture yields a slightly different (but equivalent) cut. Check `trailer-contact-sheet.png` after rebuilding.
 
@@ -341,6 +356,8 @@ Gameplay timing varies a little between runs, so each capture yields a slightly 
 - The smoke test triggers win conditions programmatically. The gameplay test plays with real input, but its bots read exact positions, so it shows that a level can be beaten, not how hard it feels.
 - Level 3's five cases and CIPHER's analysis are fixed, hand-written scenarios. Pedestrians walk through GHOST rather than around him, traffic only yields (no crashes), and the city is a compact, stylised Miami, not a map of the real one.
 - Level 5's crisis is deterministic: the same five incidents in the same order every run, so the tests can replay it exactly. The district has cars and drones but no pedestrians, and GHOST's field checks are short guided scenes, not free movement. The radio's spoken announcements depend on the browser's speech voices.
+- Accessibility has been improved (keyboard focus in the Level 3 and Level 5 panels, text plus icons for every security state, live regions, reduced motion, reduced alerts in Level 5) but **not tested with assistive technology**. Levels 1–2 dialogs still lack focus traps, and aiming (Level 1), walking (Levels 2–3) and driving (Level 4) have no non-pointer/keyboard-free alternative. Full accessibility compliance is not claimed.
+- The learning objectives in `docs/PHASE6-REVIEW.md` describe what each mission asks players to do; no learner study has been run, so learning effects are not claimed.
 - Level 2's incidents are fixed, hand-written cases, and the same every run. The evidence is simplified for teaching, and SECURITY STATUS is a simple weighting rule for this lab, not a real risk model.
 
 ---
