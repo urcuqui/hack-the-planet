@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HACK THE PLANET - Level 5: Digital Mayhem</title>
+<meta name="description" content="Level 05 — DIGITAL MAYHEM: contain a city-wide AI agent crisis in a living smart city.">
+<style>
+  :root {
+    --navy: #101827; --asphalt: #303747; --coral: #F47F78; --pink: #F08ABD; --cyan: #58D8E8; --sand: #D6A77A;
+    --stable: #42C99A; --warning: #F2BE5C; --critical: #EF646A; --selected: #72DCEB;
+    --panel: rgba(12, 18, 32, 0.9); --line: rgba(88, 216, 232, 0.28); --text: #eef4ff; --muted: rgba(226, 236, 255, 0.66);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--navy); }
+  body { font-family: "Courier New", monospace; color: var(--text); }
+  button, input { font-family: inherit; }
+  :focus-visible { outline: 2px solid var(--selected); outline-offset: 2px; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #scene:focus-visible { outline: none; }
+  .hidden { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  kbd { border: 1px solid rgba(255,255,255,0.35); padding: 0 5px; font-family: inherit; color: var(--text); }
+
+  .btn {
+    font-size: 12px; letter-spacing: 3px; font-weight: bold; cursor: pointer;
+    color: var(--navy); background: var(--cyan); border: 1px solid var(--cyan); padding: 11px 18px;
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn.alt { background: var(--coral); border-color: var(--coral); }
+  .btn.ghost { background: transparent; color: var(--text); border-color: rgba(255,255,255,0.35); }
+  .btn.small { padding: 6px 10px; font-size: 11px; letter-spacing: 2px; }
+  .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
+  /* ── Full-screen screens ───────────────────────────── */
+  .screen { position: fixed; inset: 0; z-index: 40; display: none; overflow-y: auto; padding: 24px 16px; background: rgba(8, 10, 22, 0.78); }
+  .screen.open { display: flex; flex-direction: column; align-items: center; }
+  .screen > .panel { margin: auto 0; }
+  .panel { width: min(860px, 100%); border: 1px solid var(--line); background: var(--panel); padding: 24px; }
+  .panel.narrow { width: min(620px, 100%); }
+  .badge { font-size: 11px; letter-spacing: 5px; color: var(--cyan); margin-bottom: 10px; }
+  h1.title { font-size: clamp(38px, 8vw, 76px); letter-spacing: clamp(4px, 1.4vw, 12px); color: var(--pink);
+    text-shadow: 0 0 24px rgba(240,138,189,0.55), 3px 3px 0 rgba(88,216,232,0.35); line-height: 1; }
+  .subtitle { font-size: 13px; letter-spacing: 5px; color: var(--cyan); margin: 10px 0 4px; }
+  .tagline { font-size: 15px; letter-spacing: 3px; color: var(--sand); margin: 14px 0 18px; line-height: 1.6; }
+  .brief { border-left: 2px solid var(--coral); padding: 4px 0 4px 14px; font-size: 13px; line-height: 1.7; color: var(--muted); }
+  .brief b { color: var(--text); font-weight: normal; }
+  .hub-link { display: inline-block; margin-top: 14px; font-size: 11px; letter-spacing: 3px; color: var(--muted); text-decoration: none; }
+  .hub-link:hover { color: var(--cyan); }
+  #pre-intro { background: radial-gradient(circle at 50% 30%, rgba(244,127,120,0.18), transparent 50%), rgba(8,10,22,0.92); }
+  #title-screen { background: linear-gradient(180deg, rgba(16,24,39,0.15), rgba(16,24,39,0.82) 55%); }
+  .controls-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .controls-table td { padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .controls-table td:first-child { width: 44%; color: var(--muted); }
+
+  /* ── Intro overlay ─────────────────────────────────── */
+  #intro { position: fixed; inset: 0; z-index: 35; pointer-events: none; display: none; }
+  #intro.open { display: block; }
+  #intro-caption { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); text-align: center; max-width: min(900px, 92%);
+    font-size: clamp(13px, 2vw, 20px); letter-spacing: 4px; color: var(--text); text-shadow: 0 2px 12px #000; transition: opacity 0.4s;
+    background: rgba(10, 14, 26, 0.78); padding: 10px 18px; border: 1px solid rgba(88,216,232,0.3); }
+  #intro-caption:empty { display: none; }
+  #intro-caption.alert { color: #ffd0d2; border-color: var(--critical); background: rgba(60, 10, 16, 0.85); }
+  #intro-title { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.6s;
+    background: radial-gradient(ellipse at center, rgba(10,14,26,0.82) 0%, rgba(10,14,26,0.55) 40%, transparent 72%); }
+  #intro-title.show { opacity: 1; }
+  #skip-intro-btn { position: absolute; right: 18px; bottom: 18px; pointer-events: auto; }
+  .letterbox { position: absolute; left: 0; right: 0; height: 8vh; background: #000; }
+
+  /* ── HUD ───────────────────────────────────────────── */
+  #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: none; }
+  #hud.open { display: block; }
+  #hud > * { pointer-events: auto; }
+  #hud { --top: 64px; }
+  #topbar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap;
+    padding: 8px 14px; background: rgba(10, 14, 26, 0.88); border-bottom: 1px solid var(--line); }
+  .brand { font-size: 13px; letter-spacing: 4px; color: var(--pink); white-space: nowrap; }
+  .brand b { color: var(--cyan); font-weight: normal; }
+  .stat { display: flex; flex-direction: column; gap: 3px; }
+  .stat .k { font-size: 9px; letter-spacing: 3px; color: var(--muted); }
+  .stat .v { font-size: 14px; letter-spacing: 2px; }
+  .meter { position: relative; height: 6px; background: rgba(255,255,255,0.1); width: 130px; }
+  .meter > span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--stable); transition: width 0.3s, background 0.3s; }
+  .meter > i { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--critical); }
+  .pips { display: flex; gap: 3px; }
+  .pips span { width: 16px; height: 8px; background: rgba(255,255,255,0.12); }
+  .pips span.on { background: var(--warning); }
+  .pips[data-level="4"] span.on, .pips[data-level="5"] span.on { background: var(--critical); }
+  .pips[data-level="1"] span.on { background: var(--stable); }
+  .spacer { flex: 1; }
+  .top-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  #sim-state { font-size: 11px; letter-spacing: 2px; }
+  #sim-state.held { color: var(--warning); }
+  #sim-state.paused { color: var(--critical); }
+  #role-btn[data-role="ghost"] { background: var(--pink); border-color: var(--pink); }
+
+  #side { position: absolute; top: calc(var(--top) + 8px); left: 12px; width: 290px; max-height: calc(100% - var(--top) - 56px); overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--line); padding: 12px; }
+  .sec-title { font-size: 10px; letter-spacing: 3px; color: var(--cyan); margin: 4px 0 8px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
+  .sec-title > span:last-child { color: var(--muted); letter-spacing: 2px; }
+  #incident-list { list-style: none; display: grid; gap: 6px; margin-bottom: 14px; }
+  .inc-card { width: 100%; text-align: left; cursor: pointer; background: rgba(255,255,255,0.04); color: var(--text);
+    border: 1px solid rgba(255,255,255,0.16); border-left: 4px solid var(--critical); padding: 8px 10px; font-size: 12px; line-height: 1.45; }
+  .inc-card:hover { border-color: var(--selected); }
+  .inc-card[data-status="contained"], .inc-card[data-status="recovering"] { border-left-color: var(--warning); }
+  .inc-card[data-status="verified"] { border-left-color: var(--stable); opacity: 0.75; }
+  .inc-card[aria-current="true"] { background: rgba(114,220,235,0.12); border-color: var(--selected); }
+  .inc-card .id { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+  .inc-card .st { display: block; font-size: 10px; letter-spacing: 2px; margin-top: 2px; }
+  .empty { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .svc { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 11px; margin-bottom: 9px; }
+  .svc .bar { grid-column: 1 / -1; height: 5px; background: rgba(255,255,255,0.1); position: relative; }
+  .svc .bar span { position: absolute; left: 0; top: 0; bottom: 0; transition: width 0.3s; }
+  .svc .bar i { position: absolute; top: -2px; bottom: -2px; width: 1px; background: rgba(255,255,255,0.5); left: 70%; }
+  .svc .why { grid-column: 1 / -1; font-size: 10px; color: var(--muted); }
+  .chip { font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
+  .s-STABLE { color: var(--stable); } .s-DEGRADED { color: var(--warning); } .s-CRITICAL, .s-OFFLINE { color: var(--critical); }
+  .s-STABLE::before { content: "● "; } .s-DEGRADED::before { content: "▲ "; } .s-CRITICAL::before { content: "■ "; } .s-OFFLINE::before { content: "✕ "; }
+
+  #inspector { position: absolute; top: calc(var(--top) + 8px); right: 12px; width: 430px; max-height: calc(100% - var(--top) - 56px); overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; display: none; }
+  #inspector.open { display: block; }
+  #inspector h2 { font-size: 17px; letter-spacing: 3px; color: var(--pink); margin: 2px 0 6px; }
+  #inspector h3 { font-size: 10px; letter-spacing: 4px; color: var(--cyan); margin: 14px 0 6px; }
+  .insp-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+  .held-note { font-size: 10px; letter-spacing: 2px; color: var(--warning); margin-bottom: 6px; }
+  .kv { display: grid; grid-template-columns: 96px 1fr; gap: 4px 10px; font-size: 12px; line-height: 1.45; }
+  .kv dt { font-size: 10px; letter-spacing: 2px; color: var(--muted); padding-top: 2px; }
+  .kv dd.bad { color: var(--critical); } .kv dd.warn { color: var(--warning); } .kv dd.ok { color: var(--stable); }
+  .perm { display: inline-block; font-size: 10px; border: 1px solid rgba(255,255,255,0.25); padding: 1px 5px; margin: 1px 3px 2px 0; }
+  .perm.critical { border-color: var(--critical); color: var(--critical); }
+  .perm.revoked { text-decoration: line-through; opacity: 0.5; }
+  .perm.review { border-style: dashed; border-color: var(--warning); color: var(--warning); }
+  .evidence { list-style: none; display: grid; gap: 6px; font-size: 12px; line-height: 1.5; }
+  .evidence li { border-left: 2px solid rgba(255,255,255,0.25); padding-left: 8px; }
+  .evidence li b { font-weight: normal; font-size: 10px; letter-spacing: 2px; color: var(--muted); display: block; }
+  .evidence li.policy { border-color: var(--warning); } .evidence li.log { border-color: var(--cyan); } .evidence li.field { border-color: var(--pink); }
+  .risk { font-size: 12px; line-height: 1.5; color: var(--sand); }
+  .actions { display: grid; gap: 7px; }
+  .action { display: grid; grid-template-columns: 30px 1fr; gap: 8px; text-align: left; cursor: pointer; padding: 9px 10px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.22); color: var(--text); font-size: 12px; line-height: 1.45; }
+  .action:hover, .action:focus-visible { border-color: var(--selected); background: rgba(114,220,235,0.1); }
+  .action .k { color: var(--warning); }
+  .action b { display: block; letter-spacing: 2px; font-size: 12px; }
+  .action span.d { color: var(--muted); }
+  .hint { font-size: 11px; color: var(--warning); line-height: 1.5; margin-top: 8px; }
+  .outcome { font-size: 15px; letter-spacing: 2px; margin: 6px 0; }
+  .g-best { color: var(--stable); } .g-safe { color: var(--warning); } .g-unsafe, .g-failed { color: var(--critical); }
+  .changes { list-style: none; font-size: 11px; display: grid; gap: 4px; margin-top: 6px; }
+  .changes li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 46%); gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 3px; overflow-wrap: anywhere; }
+  .changes .st-chain { white-space: normal; text-align: right; }
+  .checks { list-style: none; font-size: 12px; display: grid; gap: 4px; }
+  .checks li.ok::before { content: "✓ "; color: var(--stable); }
+  .checks li.no::before { content: "✕ "; color: var(--critical); }
+  .checks small { display: block; color: var(--muted); margin-left: 16px; }
+  .learn p { font-size: 12px; line-height: 1.6; margin: 4px 0; }
+  .learn b { color: var(--cyan); font-weight: normal; letter-spacing: 2px; font-size: 10px; }
+  .st-chain { font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
+  .st-COMPLETED { color: var(--stable); } .st-BLOCKED { color: var(--critical); } .st-HELD { color: var(--warning); }
+  .st-FAILED { color: var(--critical); } .st-PROPOSED { color: var(--muted); } .st-APPROVED, .st-EXECUTING { color: var(--cyan); }
+
+  /* dependency map */
+  #depmap { position: relative; height: 230px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); margin-top: 4px; }
+  #depmap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .node { position: absolute; transform: translate(-50%, -50%); font-size: 9px; letter-spacing: 1px; padding: 5px 6px; cursor: pointer;
+    background: #17213a; color: var(--text); border: 1px solid rgba(255,255,255,0.3); max-width: 120px; line-height: 1.3; text-align: center; }
+  .node.hot { border-color: var(--critical); box-shadow: 0 0 10px rgba(239,100,106,0.5); }
+  .node.isolated { opacity: 0.45; border-style: dashed; }
+  .node[aria-pressed="true"] { border-color: var(--selected); background: #1d3550; outline: 2px solid var(--selected); }
+  .node-info { font-size: 11px; line-height: 1.5; margin-top: 6px; color: var(--muted); }
+  .node-info b { color: var(--text); font-weight: normal; }
+
+  /* labels over the city */
+  #labels { position: fixed; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
+  .lbl { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; white-space: nowrap;
+    font-size: 10px; letter-spacing: 1px; color: var(--text); background: rgba(12,18,32,0.82); border: 1px solid rgba(255,255,255,0.22);
+    padding: 3px 6px; transform: translate(-50%, -100%); }
+  .lbl:hover, .lbl[aria-pressed="true"] { border-color: var(--selected); }
+  .lbl .ic { color: var(--cyan); margin-right: 4px; }
+  .lbl .alert { color: var(--critical); margin-left: 5px; }
+  .lbl.minor { font-size: 9px; opacity: 0.8; }
+  .lbl[data-state="open"] { border-color: var(--critical); }
+  .lbl[data-state="contained"], .lbl[data-state="recovering"] { border-color: var(--warning); }
+
+  /* toasts, log, radio, hints */
+  #toasts { position: absolute; top: calc(var(--top) + 8px); left: 50%; transform: translateX(-50%); width: min(420px, 90vw); display: grid; gap: 6px; pointer-events: none; }
+  .toast + .toast + .toast { opacity: 0.75; }
+  .toast { background: rgba(12,18,32,0.94); border: 1px solid var(--line); border-left: 4px solid var(--cyan); padding: 8px 12px; font-size: 12px; line-height: 1.5; }
+  .toast.bad { border-left-color: var(--critical); } .toast.warn { border-left-color: var(--warning); } .toast.good { border-left-color: var(--stable); }
+  .toast .tt { letter-spacing: 3px; font-size: 11px; display: block; margin-bottom: 2px; }
+  .toast .tl { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+  #log-drawer { position: absolute; left: 12px; right: 12px; bottom: 40px; max-height: 38vh; overflow-y: auto; display: none;
+    background: rgba(10,14,26,0.95); border: 1px solid var(--line); padding: 10px 12px; }
+  #log-drawer.open { display: block; }
+  #log-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  #log-table th { text-align: left; font-weight: normal; font-size: 9px; letter-spacing: 3px; color: var(--muted); padding: 3px 6px; position: sticky; top: -10px; background: rgba(10,14,26,0.98); }
+  #log-table td { padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: top; }
+  #log-table tr.unsafe td:nth-child(3) { color: var(--coral); }
+  .log-filters { display: flex; gap: 6px; align-items: center; }
+  .log-filters button[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); }
+  #radio-panel { position: absolute; right: 12px; bottom: 40px; width: 330px; display: none; background: rgba(10,14,26,0.95); border: 1px solid var(--pink); padding: 10px 12px; }
+  #radio-panel.open { display: block; }
+  #radio-list { list-style: none; font-size: 11px; line-height: 1.5; display: grid; gap: 4px; max-height: 160px; overflow-y: auto; margin: 6px 0; }
+  .toggle-row { display: flex; gap: 14px; font-size: 11px; flex-wrap: wrap; align-items: center; }
+  #radio-line { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); font-size: 12px; letter-spacing: 2px; color: var(--pink);
+    background: rgba(10,14,26,0.85); padding: 5px 12px; border: 1px solid rgba(240,138,189,0.4); display: none; max-width: 90vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #hints { position: absolute; left: 12px; bottom: 8px; right: 12px; font-size: 10px; letter-spacing: 1px; color: var(--muted); pointer-events: none; }
+  #crisis { position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%); display: none; font-size: 12px; letter-spacing: 3px;
+    background: rgba(60, 10, 16, 0.92); border: 1px solid var(--critical); color: #ffd6d8; padding: 6px 14px; white-space: nowrap; }
+
+  /* field mode */
+  .obs-done { color: var(--stable); }
+  .finding { font-size: 12px; line-height: 1.5; border-left: 2px solid var(--pink); padding-left: 8px; margin: 4px 0 8px; }
+
+  /* settings */
+  .settings { display: grid; grid-template-columns: 110px 1fr 42px; gap: 8px 10px; align-items: center; font-size: 11px; letter-spacing: 2px; margin-top: 10px; }
+  .settings input[type="range"] { width: 100%; accent-color: var(--cyan); }
+  .checks-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; letter-spacing: 1px; margin-top: 10px; }
+  .checks-row input { accent-color: var(--pink); margin-right: 5px; }
+
+  /* results */
+  .res-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 24px; }
+  .res-title { font-size: clamp(26px, 5vw, 44px); letter-spacing: 5px; color: var(--stable); margin-bottom: 4px; }
+  .res-title.lost { color: var(--critical); }
+  .report details { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 7px 0; }
+  .report summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
+  .report dl { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 11px; line-height: 1.55; margin-top: 6px; }
+  .report dt { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+  .disclaimer { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  #webgl-error .panel { border-color: var(--critical); }
+  #webgl-error code { color: var(--warning); }
+
+  @media (max-width: 980px) {
+    #side { width: 230px; }
+    #inspector { width: min(430px, calc(100% - 24px)); }
+    .res-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    #side { top: auto; bottom: 34px; left: 8px; right: 8px; width: auto; max-height: 30vh; }
+    #inspector { left: 8px; right: 8px; width: auto; }
+    .meter { width: 90px; }
+    #hints { display: none; }
+    /* One panel at a time on small screens: the inspector replaces the queue,
+       and toasts move to the bottom, one at a time. */
+    #hud:has(#inspector.open) #side { display: none; }
+    #toasts { top: auto; bottom: 40px; }
+    .toast + .toast { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .meter > span, .svc .bar span, #intro-caption, #intro-title { transition: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" tabindex="0" aria-label="Isometric map of the Coral District smart city. Space pauses, WASD pans, G switches role, L opens the log."></canvas>
+<div id="labels" aria-label="City locations"></div>
+
+<!-- WebGL unavailable -->
+<div id="webgl-error" class="screen" role="alertdialog" aria-labelledby="webgl-title">
+  <div class="panel narrow">
+    <div class="badge">HACK THE PLANET · LEVEL 05</div>
+    <h2 id="webgl-title" style="letter-spacing:4px;color:var(--critical);margin-bottom:12px">3D CITY UNAVAILABLE</h2>
+    <p class="brief">Your browser could not create a WebGL context, which DIGITAL MAYHEM needs to draw the city.
+      On machines without a GPU (virtual machines, remote desktops) browsers often disable WebGL.
+      In Firefox, set <code>webgl.force-enabled</code> to <code>true</code> in <code>about:config</code>; in Chrome, enable
+      <i>Use graphics acceleration when available</i>. Then reload this page.</p>
+    <a class="btn" href="index.html" style="display:inline-block;margin-top:18px;text-decoration:none">MISSION HUB</a>
+  </div>
+</div>
+
+<!-- First screen: a click here unlocks audio for the intro -->
+<div id="pre-intro" class="screen open" role="dialog" aria-modal="true" aria-labelledby="pre-title">
+  <div class="panel narrow" style="text-align:center">
+    <div class="badge">HACK THE PLANET · LEVEL 05</div>
+    <h1 class="title" id="pre-title" style="font-size:clamp(30px,6vw,52px)">DIGITAL MAYHEM</h1>
+    <div class="subtitle">CITY UNDER AI CONTROL</div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn" id="play-intro-btn" type="button">▶ PLAY INTRO · 10 s</button>
+      <button class="btn ghost" id="skip-to-title-btn" type="button">SKIP INTRO</button>
+    </div>
+    <p class="hint" style="color:var(--muted)">Sound starts after you choose. You can mute it at any time with <kbd>M</kbd>.</p>
+    <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
+  </div>
+</div>
+
+<div id="intro" aria-live="polite">
+  <div class="letterbox" style="top:0"></div>
+  <div class="letterbox" style="bottom:0"></div>
+  <div id="intro-caption"></div>
+  <div id="intro-title">
+    <div class="badge">HACK THE PLANET · LEVEL 05</div>
+    <h1 class="title">DIGITAL MAYHEM</h1>
+    <div class="tagline">THE CITY IS SMART. THE SYSTEM IS BROKEN.</div>
+  </div>
+  <button class="btn ghost" id="skip-intro-btn" type="button">SKIP INTRO ▸▸</button>
+</div>
+
+<div id="title-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="title-h">
+  <div class="panel">
+    <div class="badge">HACK THE PLANET · LEVEL 05</div>
+    <h1 class="title" id="title-h">DIGITAL MAYHEM</h1>
+    <div class="subtitle">05 — CITY UNDER AI CONTROL</div>
+    <div class="tagline">THE CITY IS SMART.<br>THE SYSTEM IS BROKEN.</div>
+    <div class="brief">
+      PandeCorp's <b>CITYOS</b> runs the Coral District with six autonomous agents: traffic, power, drone dispatch, prediction,
+      hospital logistics and the orchestrator that tasks them. A compromised update just reached production.
+      As <b>KUKY</b> in the CITYOS Security Control Center you inspect every agent's tool calls, permissions and evidence,
+      then decide what the policy lets through. As <b>GHOST</b> you check the ground truth in the field.
+      <br><b>OBJECTIVE</b> contain five incidents, restore every service and verify the recovery — before a critical service fails.
+      <br><b>NO TIMER WHILE YOU READ:</b> the city holds while an incident decision or field check is open.
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="start-btn" type="button">START MISSION</button>
+      <button class="btn ghost" id="controls-btn" type="button">CONTROLS</button>
+      <button class="btn ghost" id="replay-intro-btn" type="button">REPLAY INTRO</button>
+    </div>
+    <a class="hub-link" href="index.html">&lt; MISSION HUB</a>
+  </div>
+</div>
+
+<div id="controls-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="controls-h">
+  <div class="panel narrow">
+    <div class="badge">DIGITAL MAYHEM</div>
+    <h2 id="controls-h" style="letter-spacing:4px;color:var(--pink)">CONTROLS</h2>
+    <table class="controls-table">
+      <tr><td>Click a place, label or incident card</td><td>Select / investigate</td></tr>
+      <tr><td>Drag · mouse wheel</td><td>Pan · zoom the camera</td></tr>
+      <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows · <kbd>+</kbd><kbd>−</kbd></td><td>Move · zoom the camera</td></tr>
+      <tr><td><kbd>1</kbd>–<kbd>4</kbd></td><td>Choose a response / recovery step in the open panel</td></tr>
+      <tr><td><kbd>G</kbd></td><td>Switch role: KUKY (control center) ⇄ GHOST (field)</td></tr>
+      <tr><td><kbd>L</kbd></td><td>Activity log (Tab keeps moving keyboard focus)</td></tr>
+      <tr><td><kbd>Space</kbd></td><td>Pause / resume the simulation</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Close panel · pause menu</td></tr>
+      <tr><td><kbd>M</kbd> · <kbd>R</kbd></td><td>Music on/off · CITYOS radio panel</td></tr>
+    </table>
+    <div class="btn-row"><button class="btn" id="controls-close" type="button">BACK</button></div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <header id="topbar">
+    <div class="brand">CITYOS <b>//</b> DIGITAL MAYHEM</div>
+    <div class="stat">
+      <span class="k">CITY STABILITY · FAILS BELOW 20 %</span>
+      <span class="v" id="stab-val">100 %</span>
+      <div class="meter" role="meter" aria-label="City stability" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" id="stab-meter"><span style="width:100%"></span><i style="left:20%"></i></div>
+    </div>
+    <div class="stat">
+      <span class="k">SYSTEM PRESSURE</span>
+      <span class="v" id="press-val">0/5 · STABLE</span>
+      <div class="pips" id="press-pips" data-level="0" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div class="stat" style="min-width:90px">
+      <span class="k">ACTIVE INCIDENTS</span>
+      <span class="v" id="inc-val">0</span>
+    </div>
+    <div class="stat" style="min-width:110px">
+      <span class="k">SIMULATION</span>
+      <span class="v" id="sim-state">T+00:00 LIVE</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="top-actions">
+      <button class="btn small" id="role-btn" type="button" data-role="kuky" aria-label="Switch role (G)">ROLE: KUKY [G]</button>
+      <button class="btn small ghost" id="log-btn" type="button" aria-expanded="false">LOG [L]</button>
+      <button class="btn small ghost" id="radio-btn" type="button" aria-expanded="false">RADIO [R]</button>
+      <button class="btn small ghost" id="music-btn" type="button" aria-pressed="true">MUSIC [M]</button>
+      <button class="btn small ghost" id="menu-btn" type="button">MENU [ESC]</button>
+    </div>
+  </header>
+  <div id="crisis" role="alert"></div>
+
+  <aside id="side" aria-label="Incidents and services">
+    <div class="sec-title"><span>INCIDENTS</span><span id="role-name">KUKY · CONTROL</span></div>
+    <ul id="incident-list"></ul>
+    <div class="sec-title"><span>SERVICES</span><span>STABLE ≥ 70 %</span></div>
+    <div id="services"></div>
+  </aside>
+
+  <section id="inspector" aria-label="Inspector" aria-live="off"></section>
+  <div id="toasts" role="status" aria-live="polite"></div>
+
+  <section id="log-drawer" aria-label="Activity log">
+    <div class="sec-title">
+      <span>ACTIVITY LOG · EVERY AGENT ACTION AND POLICY DECISION</span>
+      <span class="log-filters">
+        <button class="btn small ghost" data-filter="all" aria-pressed="true" type="button">ALL</button>
+        <button class="btn small ghost" data-filter="incidents" aria-pressed="false" type="button">INCIDENTS</button>
+        <button class="btn small ghost" data-filter="stopped" aria-pressed="false" type="button">BLOCKED · HELD</button>
+      </span>
+    </div>
+    <table id="log-table">
+      <thead><tr><th>TIME</th><th>AGENT</th><th>ACTION</th><th>STATES</th><th>POLICY / RESULT</th><th>AFFECTS</th></tr></thead>
+      <tbody id="log-body"></tbody>
+    </table>
+  </section>
+
+  <section id="radio-panel" aria-label="CITYOS radio">
+    <div class="sec-title"><span style="color:var(--pink)">FRONTIER FM — CITYOS RADIO</span><span>FICTIONAL</span></div>
+    <ul id="radio-list"></ul>
+    <div class="toggle-row">
+      <label><input type="checkbox" id="radio-on"> RADIO SOUND</label>
+      <label><input type="checkbox" id="voice-on"> SPOKEN ANNOUNCEMENTS</label>
+    </div>
+  </section>
+  <div id="radio-line" aria-hidden="true"></div>
+  <div id="hints">Click places or incident cards · drag/WASD pan · wheel zoom · 1–4 respond · G role · L log · Space pause · M music · R radio · Esc menu</div>
+</div>
+
+<div id="pause-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="pause-h">
+  <div class="panel narrow">
+    <div class="badge">DIGITAL MAYHEM</div>
+    <h2 id="pause-h" style="letter-spacing:6px;font-size:34px;color:var(--pink)">PAUSED</h2>
+    <p class="brief" style="margin-top:10px">The city is frozen. Nothing escalates while this menu is open.</p>
+    <div class="settings" role="group" aria-label="Audio">
+      <label for="vol-master">MASTER</label><input type="range" id="vol-master" min="0" max="100"><output id="vol-master-o"></output>
+      <label for="vol-music">MUSIC</label><input type="range" id="vol-music" min="0" max="100"><output id="vol-music-o"></output>
+      <label for="vol-sfx">EFFECTS</label><input type="range" id="vol-sfx" min="0" max="100"><output id="vol-sfx-o"></output>
+    </div>
+    <div class="checks-row">
+      <label><input type="checkbox" id="opt-music"> MUSIC ON</label>
+      <label><input type="checkbox" id="opt-radio"> RADIO SOUND</label>
+      <label><input type="checkbox" id="opt-voice"> SPOKEN RADIO</label>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="resume-btn" type="button">RESUME [ESC]</button>
+      <button class="btn ghost" id="restart-btn" type="button">RESTART MISSION</button>
+      <button class="btn ghost" id="pause-controls-btn" type="button">CONTROLS</button>
+      <a class="btn ghost" href="index.html" style="text-decoration:none">MISSION HUB</a>
+    </div>
+  </div>
+</div>
+
+<div id="results-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="results-title">
+  <div class="panel">
+    <div class="res-grid">
+      <section>
+        <div class="badge">DIGITAL MAYHEM</div>
+        <div class="res-title" id="results-title">CITY RESTORED</div>
+        <p class="brief" id="results-sub" style="margin:8px 0 14px"></p>
+        <dl class="kv" id="results-kv" style="grid-template-columns: 170px 1fr"></dl>
+        <div class="hint" id="results-campaign" style="color:var(--cyan)"></div>
+      </section>
+      <section class="report">
+        <div class="badge">SECURITY REPORT</div>
+        <div id="results-report"></div>
+        <div class="kv" style="margin-top:10px"><dt>BEST FIRST</dt><dd id="results-score"></dd></div>
+        <p class="disclaimer">The security report scores your first response to each incident; the simulation outcome above is separate.
+          The CITYOS agents are transparent state machines and policies, not language models. Nothing here measures a real system.</p>
+      </section>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="review-btn" type="button">REVIEW INCIDENTS</button>
+      <button class="btn ghost" id="replay-btn" type="button">REPLAY MISSION</button>
+      <a class="btn alt" id="hub-btn" href="index.html" style="text-decoration:none">MISSION HUB</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="js/progress.js"></script>
+<script src="js/social/character.js"></script>
+<script src="js/mayhem/policy.js"></script>
+<script src="js/mayhem/incidents.js"></script>
+<script src="js/mayhem/simulation.js"></script>
+<script src="js/mayhem/audio.js"></script>
+<script src="js/mayhem/city.js"></script>
+<script>
+'use strict';
+const { Policy, Incidents, Simulation: Sim, City } = HTPMayhem;
+const Char = HTPSocial.Character;
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+};
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fmtT = t => 'T+' + String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+const storeGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const storeSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* not persistent */ } };
+
+// ── Audio ─────────────────────────────────────────────────
+const audio = HTPMayhem.Audio.createAudio();
+let lastHoverSfx = 0;
+function sfx(name) { audio.sfx(name); }
+document.addEventListener('pointerover', e => {
+  const b = e.target.closest && e.target.closest('button, .lbl, a.btn');
+  if (b && performance.now() - lastHoverSfx > 90) { lastHoverSfx = performance.now(); sfx('hover'); }
+});
+
+// ── Renderer ──────────────────────────────────────────────
+let renderer = null, scene, camera, city, ghost = null, softwareGL = false;
+try {
+  if (typeof THREE === 'undefined') throw new Error('three.js did not load');
+  renderer = new THREE.WebGLRenderer({ canvas: $('scene'), antialias: true, powerPreference: 'high-performance' });
+  const gl = renderer.getContext();
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  const name = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : '';
+  softwareGL = /swiftshader|llvmpipe|software|softpipe/i.test(name);
+} catch (e) {
+  renderer = null;
+}
+if (!renderer) {
+  for (const s of document.querySelectorAll('.screen')) s.classList.remove('open');
+  $('webgl-error').classList.add('open');
+}
+
+const cam = { x: 6, z: 6, dist: 175, yaw: -Math.PI / 4, pitch: 0.93, follow: null, fly: null };
+const CAM_LIMITS = { min: 22, max: 240 };
+if (renderer) {
+  renderer.setPixelRatio(softwareGL ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.shadowMap.enabled = !softwareGL;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 1, 1400);
+  city = City.build(THREE, scene, { shadows: !softwareGL, reducedMotion });
+  ghost = Char.buildGhost(city.kit);
+  ghost.root.visible = false;
+  scene.add(ghost.root);
+}
+function resize() {
+  const tb = $('topbar');
+  if (tb && tb.offsetHeight) $('hud').style.setProperty('--top', tb.offsetHeight + 'px');
+  if (!renderer) return;
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+
+function placeCamera() {
+  const cp = Math.cos(cam.pitch);
+  camera.position.set(cam.x + Math.sin(cam.yaw) * cp * cam.dist, Math.sin(cam.pitch) * cam.dist, cam.z + Math.cos(cam.yaw) * cp * cam.dist);
+  camera.lookAt(cam.x, 0, cam.z);
+}
+// Smooth camera move (instant for reduced motion).
+function flyTo(target, secs = 1.2) {
+  const to = Object.assign({ x: cam.x, z: cam.z, dist: cam.dist, pitch: cam.pitch, yaw: cam.yaw }, target);
+  if (reducedMotion || secs <= 0) { Object.assign(cam, to); cam.fly = null; return; }
+  cam.fly = { from: { x: cam.x, z: cam.z, dist: cam.dist, pitch: cam.pitch, yaw: cam.yaw }, to, t: 0, secs };
+}
+function stepCamera(dt) {
+  if (cam.fly) {
+    const f = cam.fly;
+    f.t = Math.min(1, f.t + dt / f.secs);
+    const k = f.t < 0.5 ? 2 * f.t * f.t : 1 - Math.pow(-2 * f.t + 2, 2) / 2;
+    for (const key of ['x', 'z', 'dist', 'pitch', 'yaw']) cam[key] = f.from[key] + (f.to[key] - f.from[key]) * k;
+    if (f.t >= 1) cam.fly = null;
+  } else if (cam.follow) {
+    cam.x += (cam.follow.x - cam.x) * Math.min(1, dt * 3);
+    cam.z += (cam.follow.z - cam.z) * Math.min(1, dt * 3);
+  }
+  cam.x = Math.max(-80, Math.min(110, cam.x));
+  cam.z = Math.max(-80, Math.min(80, cam.z));
+  cam.dist = Math.max(CAM_LIMITS.min, Math.min(CAM_LIMITS.max, cam.dist));
+  placeCamera();
+}
+
+// ── Game state ────────────────────────────────────────────
+let sim = null;
+let phase = 'pre';          // pre · intro · title · play · paused · results
+let pausedFrom = null;
+let role = 'kuky';
+let userHeld = false;       // Space
+let selected = null;        // facility id
+let insp = null;            // { kind: 'incident'|'facility'|'tasks'|'field', id, result, field }
+let field = null;           // active GHOST scene
+let lastVerifiedAt = -100;
+let cityClock = 0;
+let logFilter = 'all';
+let radioLog = [];
+let completionRecorded = false;
+
+function newMission() {
+  sim = Sim.create();
+  role = 'kuky'; userHeld = false; selected = null; insp = null; field = null; lastVerifiedAt = -100;
+  radioLog = []; completionRecorded = false; lastRadio = {}; logRendered = -1;
+  if (city) city.reset();
+  if (ghost) ghost.root.visible = false;
+  cam.follow = null;
+  flyTo({ x: 6, z: 6, dist: 175, pitch: 0.93, yaw: -Math.PI / 4 }, 0);
+  $('toasts').replaceChildren();
+  $('radio-list').replaceChildren();
+  $('log-body').replaceChildren();
+  closeInspector(true);
+  updateRoleButton();
+  renderSide();
+  updateTopbar();
+}
+
+// Is the simulation advancing right now?
+function decisionOpen() {
+  if (field) return true;
+  if (!insp || insp.kind !== 'incident') return insp && insp.kind === 'tasks';
+  const i = sim.incident(insp.id);
+  return i.status === 'detected' || i.status === 'investigating';
+}
+function simLive() { return phase === 'play' && !userHeld && !decisionOpen() && !sim.state.outcome; }
+
+// ── Screens ───────────────────────────────────────────────
+function closeScreens() { for (const s of document.querySelectorAll('.screen')) s.classList.remove('open'); }
+function openScreen(id, focusId) {
+  closeScreens();
+  $(id).classList.add('open');
+  const f = focusId ? $(focusId) : $(id).querySelector('button, a');
+  if (f) f.focus();
+}
+
+// ── Intro (≈10 s, skippable) ──────────────────────────────
+let intro = null;
+const INTRO = [
+  { at: 0, caption: 'CORAL DISTRICT · MIAMI · 19:42', cam: { x: 30, z: 10, dist: 230, pitch: 0.42, yaw: -0.4 } },
+  { at: 2, caption: 'TRAFFIC · POWER · DRONES · EMERGENCY DISPATCH', cam: { x: 10, z: 0, dist: 120, pitch: 0.62, yaw: -0.75 } },
+  { at: 4, caption: 'ONE PLATFORM CONNECTS THEM ALL: PANDECORP CITYOS', cam: { x: 0, z: -20, dist: 150, pitch: 0.8, yaw: -0.9 } },
+  { at: 6, caption: '⚠ UNAUTHORIZED TOOL REQUEST · override_signal(INT-04)', alert: true, cam: { x: 18, z: 18, dist: 70, pitch: 0.75, yaw: -0.7 } },
+  { at: 7.5, caption: 'SYSTEMS FAILING · CASCADE DETECTED', alert: true, cam: { x: 6, z: 6, dist: 190, pitch: 0.95, yaw: -Math.PI / 4 } },
+  { at: 9, caption: '', title: true },
+];
+function startIntro() {
+  audio.unlock();
+  audio.restart();
+  audio.setMusicState('pulse');
+  storeSet('htp.mayhem.introSeen', '1');
+  closeScreens();
+  phase = 'intro';
+  intro = { t: 0, idx: -1, vis: null };
+  $('intro').classList.add('open');
+  $('intro-title').classList.remove('show');
+  $('skip-intro-btn').focus();
+  if (city) city.reset();
+  newMission();
+}
+function introVisual(t) {
+  // The intro is a cinematic, separate from the mission: it shows what CITYOS
+  // is about to suffer, using the same city.
+  const fail = t >= 7.5;
+  return { gridlock: t >= 6, manualTraffic: false, signalsDark: t >= 8.2, blockCDark: fail, hospitalBackup: t >= 8.6, bayfrontJam: false,
+    roadClosed: false, routePlanBad: false, fleet: 'home', trafficFlow: fail ? 0.4 : 1, isolated: [], s12Quarantined: false };
+}
+function stepIntro(dt) {
+  intro.t += dt;
+  const t = intro.t;
+  while (intro.idx + 1 < INTRO.length && t >= INTRO[intro.idx + 1].at) {
+    intro.idx++;
+    const sc = INTRO[intro.idx];
+    const cap = $('intro-caption');
+    cap.textContent = sc.caption;
+    cap.classList.toggle('alert', !!sc.alert);
+    if (sc.cam) flyTo(sc.cam, reducedMotion ? 0 : (intro.idx === 0 ? 0 : 1.8));
+    if (intro.idx === 1 && city) { city.droneTask('drone-routine'); city.droneTask('drone-hospital'); }
+    if (intro.idx === 2 && city) for (const id of City.LINKS) city.packet('tower', id, 'ALLOW');
+    if (intro.idx === 3) { if (city) { city.packet('int-01', 'tower', 'ALLOW'); city.setMarker('int-04', 'open'); city.setLink('int-04', 'alert'); } sfx('incident'); audio.setMusicState('alert'); }
+    if (intro.idx === 4) { audio.setMusicState('mayhem'); if (city) for (const id of ['substation', 'hospital', 'dronehub']) city.setLink(id, 'alert'); }
+    if (sc.title) { $('intro-title').classList.add('show'); audio.titleSting(); }
+  }
+  if (!reducedMotion && t >= 7.5 && t < 9) { cam.x += (Math.random() - 0.5) * 0.6; cam.z += (Math.random() - 0.5) * 0.6; }
+  if (!reducedMotion && intro.idx === 0) cam.yaw -= dt * 0.04;
+  if (t >= 12) endIntro();
+}
+function endIntro() {
+  if (phase !== 'intro') return;
+  intro = null;
+  $('intro').classList.remove('open');
+  if (city) city.reset();
+  audio.setMusicState('pulse');
+  flyTo({ x: 6, z: 6, dist: 175, pitch: 0.93, yaw: -Math.PI / 4 }, 0.8);
+  showTitle();
+}
+function showTitle() {
+  phase = 'title';
+  $('hud').classList.remove('open');
+  openScreen('title-screen', 'start-btn');
+}
+
+$('play-intro-btn').onclick = () => { sfx('confirm'); startIntro(); };
+$('skip-to-title-btn').onclick = () => { audio.unlock(); sfx('confirm'); storeSet('htp.mayhem.introSeen', '1'); newMission(); showTitle(); };
+$('skip-intro-btn').onclick = () => { sfx('select'); endIntro(); };
+$('replay-intro-btn').onclick = () => { sfx('confirm'); startIntro(); };
+$('controls-btn').onclick = () => { sfx('open'); controlsReturn = 'title-screen'; openScreen('controls-screen', 'controls-close'); };
+$('pause-controls-btn').onclick = () => { sfx('open'); controlsReturn = 'pause-screen'; openScreen('controls-screen', 'controls-close'); };
+let controlsReturn = 'title-screen';
+$('controls-close').onclick = () => { sfx('close'); openScreen(controlsReturn); };
+if (storeGet('htp.mayhem.introSeen') === '1') {
+  $('play-intro-btn').textContent = '▶ WATCH INTRO · 10 s';
+  $('skip-to-title-btn').textContent = 'SKIP TO BRIEFING';
+  $('skip-to-title-btn').focus();
+} else $('play-intro-btn').focus();
+
+function startMission() {
+  audio.unlock();
+  audio.restart();
+  sfx('confirm');
+  newMission();
+  closeScreens();
+  phase = 'play';
+  $('hud').classList.add('open');
+  resize();
+  toast('CITYOS ONLINE', 'Six agents running. Watch the incident queue — and the city.', 'good');
+  radio('CITYOS radio online. All districts nominal.');
+  $('scene').focus();                // shortcuts work at once; Tab reaches the HUD
+}
+$('start-btn').onclick = startMission;
+
+// ── Pause ─────────────────────────────────────────────────
+function pauseGame() {
+  if (phase !== 'play') return;
+  pausedFrom = 'play';
+  phase = 'paused';
+  audio.pause();
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  syncSettingsUI();
+  openScreen('pause-screen', 'resume-btn');
+  sfx('open');
+}
+function resumeGame() {
+  if (phase !== 'paused') return;
+  closeScreens();
+  phase = 'play';
+  audio.resume();
+  sfx('close');
+}
+$('menu-btn').onclick = pauseGame;
+$('resume-btn').onclick = resumeGame;
+$('restart-btn').onclick = () => { closeScreens(); startMission(); };
+
+// ── Settings UI (persisted by the audio module) ──────────
+function syncSettingsUI() {
+  const s = audio.settings;
+  for (const k of ['master', 'music', 'sfx']) { $('vol-' + k).value = Math.round(s[k] * 100); $('vol-' + k + '-o').textContent = Math.round(s[k] * 100); }
+  $('opt-music').checked = s.musicOn; $('opt-radio').checked = s.radioOn; $('opt-voice').checked = s.voice;
+  $('radio-on').checked = s.radioOn; $('voice-on').checked = s.voice;
+  $('music-btn').setAttribute('aria-pressed', String(s.musicOn));
+  $('music-btn').textContent = s.musicOn ? 'MUSIC [M]' : 'MUSIC OFF [M]';
+}
+for (const k of ['master', 'music', 'sfx']) {
+  $('vol-' + k).oninput = e => { audio.setVolume(k, e.target.value / 100); $('vol-' + k + '-o').textContent = e.target.value; };
+}
+$('opt-music').onchange = e => { audio.setMusicOn(e.target.checked); syncSettingsUI(); };
+$('opt-radio').onchange = $('radio-on').onchange = e => { audio.setRadio(e.target.checked); syncSettingsUI(); };
+$('opt-voice').onchange = $('voice-on').onchange = e => { audio.setVoice(e.target.checked && 'speechSynthesis' in window); syncSettingsUI(); };
+if (!('speechSynthesis' in window)) { $('opt-voice').disabled = true; $('voice-on').disabled = true; }
+function toggleMusic() { const on = audio.toggleMusic(); syncSettingsUI(); toast(on ? 'MUSIC ON' : 'MUSIC OFF', '', 'info', 1800); }
+$('music-btn').onclick = toggleMusic;
+syncSettingsUI();
+
+// ── Toasts and radio ──────────────────────────────────────
+function toast(title, body, kind = 'info', ms = 6000, extra) {
+  const t = el('div', 'toast ' + kind);
+  t.append(el('span', 'tt', title));
+  if (body) t.append(document.createTextNode(body));
+  if (extra) for (const line of extra) t.append(el('div', 'tl', line));
+  const box = $('toasts');
+  box.prepend(t);
+  while (box.children.length > 3) box.lastChild.remove();
+  setTimeout(() => t.remove(), ms);
+}
+let lastRadio = {};
+let radioTimer = null;
+function radio(text) {
+  const now = sim ? sim.state.t : 0;
+  if (lastRadio[text] != null && now - lastRadio[text] < 40) return;      // never loop the same line
+  lastRadio[text] = now;
+  radioLog.unshift({ t: now, text });
+  const li = el('li');
+  li.append(el('span', 'tl', fmtT(now) + ' '), document.createTextNode(text));
+  $('radio-list').prepend(li);
+  while ($('radio-list').children.length > 12) $('radio-list').lastChild.remove();
+  if (!audio.settings.radioOn) return;
+  audio.radio();
+  const line = $('radio-line');
+  line.textContent = '📻 CITYOS RADIO · ' + text;
+  line.style.display = 'block';
+  clearTimeout(radioTimer);
+  radioTimer = setTimeout(() => { line.style.display = 'none'; }, 5000);
+  if (audio.settings.voice && window.speechSynthesis && phase === 'play') {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.05; u.volume = Math.min(1, audio.settings.sfx * audio.settings.master);
+      speechSynthesis.speak(u);
+    } catch (e) { /* text only */ }
+  }
+}
+const RADIO_DETECTED = {
+  'INC-01': 'Traffic incident reported downtown, Intersection 04.',
+  'INC-02': 'Power anomaly at Substation SOL-2. Block C reporting outages.',
+  'INC-03': 'Emergency dispatch authorization pending at the drone hub.',
+  'INC-04': 'Heavy congestion reported on the Bayfront corridor.',
+  'INC-05': 'Multiple districts reporting coordinated failures.',
+};
+const RADIO_RESTORED = { power: 'Power restoration underway.', traffic: 'Signals returning to adaptive timing.', dispatch: 'Drone fleet returning to service.', hospital: 'Meridian General reports normal operations.' };
+
+// ── Side panel: incidents and services ───────────────────
+const STATUS_TEXT = { detected: '■ DETECTED · NEEDS A DECISION', investigating: '■ INVESTIGATING', contained: '▲ CONTAINED · RECOVER IT', recovering: '▲ RECOVERING · VERIFY', verified: '✓ VERIFIED' };
+function renderSide() {
+  if (!sim) return;
+  const list = $('incident-list');
+  list.replaceChildren();
+  const shown = sim.state.incidents.filter(i => i.status !== 'pending');
+  if (!shown.length) list.append(el('li', 'empty', 'No incidents. CITYOS reports all agents within policy… for now.'));
+  for (const i of shown) {
+    const li = el('li');
+    const b = el('button', 'inc-card');
+    b.type = 'button';
+    b.dataset.status = i.status;
+    b.dataset.id = i.id;
+    b.setAttribute('aria-current', String(!!(insp && insp.kind === 'incident' && insp.id === i.id)));
+    b.append(el('span', 'id', i.id + ' · ' + City.FACILITIES[i.def.facility].name), el('br'), document.createTextNode(i.def.title));
+    const st = el('span', 'st', STATUS_TEXT[i.status] + (i.escalated && i.status === 'investigating' ? ' · ESCALATED' : ''));
+    st.style.color = i.status === 'verified' ? 'var(--stable)' : i.status === 'contained' || i.status === 'recovering' ? 'var(--warning)' : 'var(--critical)';
+    b.append(st);
+    b.onclick = () => { sfx('select'); openIncident(i.id, true); };
+    li.append(b);
+    list.append(li);
+  }
+  renderServices();
+}
+function renderServices() {
+  const box = $('services');
+  if (box.children.length !== Sim.SERVICES.length) {
+    box.replaceChildren();
+    for (const k of Sim.SERVICES) {
+      const row = el('div', 'svc');
+      row.dataset.svc = k;
+      row.append(el('span', 'name', Sim.SERVICE_INFO[k].label), el('span', 'chip'));
+      const bar = el('div', 'bar');
+      bar.append(el('span'), el('i'));
+      row.append(bar, el('span', 'why'));
+      box.append(row);
+    }
+  }
+  for (const row of box.children) {
+    const sv = sim.state.services[row.dataset.svc];
+    const h = Math.round(sv.health);
+    const chip = row.children[1];
+    chip.className = 'chip s-' + sv.status;
+    chip.textContent = sv.status + ' ' + h + '%';
+    const fill = row.children[2].firstChild;
+    fill.style.width = h + '%';
+    fill.style.background = sv.status === 'STABLE' ? 'var(--stable)' : sv.status === 'DEGRADED' ? 'var(--warning)' : 'var(--critical)';
+    const top = sv.drains.slice().sort((a, b) => b.rate - a.rate)[0];
+    row.children[3].textContent = top ? '↓ ' + top.label : sv.cap < 100 ? 'MANUAL MODE · capped at ' + sv.cap + ' %' : sv.restored ? '↑ restoring' : '';
+  }
+}
+
+// ── Top bar ───────────────────────────────────────────────
+const shownText = {};
+function setText(id, v) { if (shownText[id] !== v) { shownText[id] = v; $(id).textContent = v; } }
+function updateTopbar() {
+  if (!sim) return;
+  const stab = Math.round(sim.stability());
+  setText('stab-val', stab + ' %');
+  const m = $('stab-meter');
+  m.setAttribute('aria-valuenow', String(stab));
+  m.firstChild.style.width = stab + '%';
+  m.firstChild.style.background = stab >= 70 ? 'var(--stable)' : stab >= 40 ? 'var(--warning)' : 'var(--critical)';
+  const p = sim.state.pressure;
+  setText('press-val', p.level + '/5 · ' + p.label);
+  const pips = $('press-pips');
+  pips.dataset.level = p.level;
+  [...pips.children].forEach((s, k) => s.classList.toggle('on', k < p.level));
+  setText('inc-val', String(sim.openCount()) + (sim.activeIncidents().length > sim.openCount() ? ' · ' + (sim.activeIncidents().length - sim.openCount()) + ' RECOVERING' : ''));
+  const st = $('sim-state');
+  const state = phase === 'paused' || userHeld ? 'PAUSED' : decisionOpen() ? 'HELD' : 'LIVE';
+  st.className = 'v' + (state === 'PAUSED' ? ' paused' : state === 'HELD' ? ' held' : '');
+  setText('sim-state', fmtT(sim.state.t) + ' ' + (state === 'HELD' ? 'HELD · READING' : state));
+  // Visible thresholds before they become irreversible.
+  let crisis = '';
+  const hosp = sim.state.services.hospital.health;
+  if (sim.state.crisisTimer > 0) crisis = '⚠ CITY-WIDE CRISIS · COLLAPSE IN ' + Math.ceil(Sim.LOSS.crisisSeconds - sim.state.crisisTimer) + ' s UNLESS PRESSURE DROPS';
+  else if (hosp < 25) crisis = '⚠ MERIDIAN GENERAL AT ' + Math.round(hosp) + ' % · MISSION FAILS AT 0 %';
+  else if (stab < 35) crisis = '⚠ CITY STABILITY ' + stab + ' % · MISSION FAILS BELOW 20 %';
+  const cb = $('crisis');
+  if (shownText.crisis !== crisis) { shownText.crisis = crisis; cb.textContent = crisis; cb.style.display = crisis ? 'block' : 'none'; }
+}
+
+// ── Labels over the city ──────────────────────────────────
+const labels = {};
+const MINOR = ['int-01', 'int-02', 'int-03', 'shops', 'residences', 'coraline', 'pier'];
+function buildLabels() {
+  const host = $('labels');
+  for (const [id, f] of Object.entries(City.FACILITIES)) {
+    const b = el('button', 'lbl' + (MINOR.includes(id) ? ' minor' : ''));
+    b.type = 'button';
+    b.dataset.facility = id;
+    b.append(el('span', 'ic', f.icon), document.createTextNode(f.name), el('span', 'alert'));
+    b.setAttribute('aria-pressed', 'false');
+    b.onclick = () => { sfx('select'); selectFacility(id); };
+    host.append(b);
+    labels[id] = { el: b, pos: new THREE.Vector3(...f.label), x: -1, y: -1, vis: true };
+  }
+}
+if (renderer) buildLabels();
+const projV = renderer ? new THREE.Vector3() : null;
+function updateLabels() {
+  const show = phase === 'play' || phase === 'paused';
+  $('labels').style.display = show ? 'block' : 'none';
+  if (!show) return;
+  const states = {};
+  for (const i of sim.state.incidents) if (i.status !== 'pending' && i.status !== 'verified') states[i.def.facility] = { i };
+  for (const [id, L] of Object.entries(labels)) {
+    projV.copy(L.pos).project(camera);
+    const vis = projV.z < 1 && Math.abs(projV.x) < 1.1 && Math.abs(projV.y) < 1.1;
+    if (vis !== L.vis) { L.vis = vis; L.el.style.display = vis ? '' : 'none'; }
+    if (vis) {
+      const x = Math.round((projV.x + 1) / 2 * innerWidth), y = Math.round((1 - projV.y) / 2 * innerHeight);
+      if (x !== L.x || y !== L.y) { L.x = x; L.y = y; L.el.style.transform = 'translate(' + x + 'px,' + y + 'px) translate(-50%,-100%)'; }
+    }
+    const s = states[id];
+    const state = s ? (s.i.status === 'detected' || s.i.status === 'investigating' ? 'open' : s.i.status) : '';
+    const svc = City.FACILITIES[id].service;
+    const text = s ? '⚠ ' + s.i.id : svc && sim.state.services[svc].status !== 'STABLE' && !MINOR.includes(id) ? '▲ ' + sim.state.services[svc].status : '';
+    if (L.el.dataset.state !== state) L.el.dataset.state = state;
+    const alertEl = L.el.lastChild;
+    if (alertEl.textContent !== text) alertEl.textContent = text;
+    L.el.setAttribute('aria-pressed', String(selected === id));
+  }
+}
+
+// ── Selection and inspector ───────────────────────────────
+function incidentAt(facility) {
+  return sim.state.incidents.find(i => i.def.facility === facility && i.status !== 'pending' && i.status !== 'verified')
+    || sim.state.incidents.slice().reverse().find(i => i.def.facility === facility && i.status === 'verified');
+}
+function selectFacility(id) {
+  if (phase !== 'play') return;
+  if (field) { sfx('invalid'); toast('GHOST IS IN THE FIELD', 'Finish the field check or press Esc to return to KUKY.', 'warn', 3000); return; }
+  if (role === 'ghost') setRole('kuky');
+  selected = id;
+  if (city) city.setSelected(id);
+  const inc = incidentAt(id);
+  if (inc) openIncident(inc.id, false);
+  else { insp = { kind: 'facility', id }; renderInspector(); openInspectorPanel(); }
+}
+function openIncident(id, fly) {
+  if (phase !== 'play') return;
+  if (field) { sfx('invalid'); toast('GHOST IS IN THE FIELD', 'Finish the field check or press Esc to return to KUKY.', 'warn', 3000); return; }
+  if (role === 'ghost') setRole('kuky');
+  const i = sim.incident(id);
+  sim.open(id);
+  insp = { kind: 'incident', id, result: null };
+  selected = i.def.facility;
+  if (city) city.setSelected(selected);
+  if (fly) { const f = City.FACILITIES[i.def.facility]; flyTo({ x: f.label[0], z: f.label[2], dist: Math.max(95, Math.min(cam.dist, 140)), pitch: 0.93 }, 0.9); }
+  renderInspector();
+  openInspectorPanel();
+  renderSide();
+}
+function openInspectorPanel() {
+  const p = $('inspector');
+  if (!p.classList.contains('open')) sfx('open');
+  p.classList.add('open');
+}
+function closeInspector(silent) {
+  const p = $('inspector');
+  if (p.classList.contains('open') && !silent) sfx('close');
+  p.classList.remove('open');
+  insp = null;
+  selected = null;
+  if (city) city.setSelected(null);
+  if (sim) renderSide();
+}
+
+function dl(rows) {
+  const d = el('dl', 'kv');
+  for (const [k, v, cls] of rows) {
+    d.append(el('dt', '', k));
+    const dd = el('dd', cls || '');
+    if (typeof v === 'string') dd.textContent = v; else dd.append(v);
+    d.append(dd);
+  }
+  return d;
+}
+function permissions(agentId) {
+  const a = sim.state.policy.agents[agentId];
+  const wrap = el('div');
+  for (const t of a.tools) {
+    const tool = Policy.TOOLS[t];
+    const cls = 'perm' + (tool.risk === 'critical' ? ' critical' : '') + (a.revoked.includes(t) ? ' revoked' : '') + (a.approval.includes(t) ? ' review' : '');
+    const s = el('span', cls, t + (tool.risk === 'critical' ? ' · CRITICAL' : ''));
+    s.title = tool.label + (a.revoked.includes(t) ? ' (revoked)' : a.approval.includes(t) ? ' (human approval)' : '');
+    wrap.append(s);
+  }
+  return wrap;
+}
+function chain(entry) {
+  const span = el('span', 'st-chain');
+  entry.states.forEach((s, k) => { if (k) span.append(document.createTextNode(' → ')); span.append(el('span', 'st-' + s, s)); });
+  return span;
+}
+function actionButton(n, label, detail, onclick, kind) {
+  const b = el('button', 'action');
+  b.type = 'button';
+  b.dataset.n = n;
+  if (kind) b.dataset.kind = kind;
+  const body = el('span');
+  body.append(el('b', '', label), el('span', 'd', detail || ''));
+  b.append(el('span', 'k', '[' + n + ']'), body);
+  b.onclick = onclick;
+  return b;
+}
+const GRADE_TEXT = {
+  best: '✓ CONTAINED · TARGETED CONTROL',
+  safe: '◐ CONTAINED · AT A COST',
+  unsafe: '✕ UNSAFE ACTION EXECUTED',
+  failed: '✕ CONTAINMENT FAILED',
+};
+
+function renderInspector() {
+  const p = $('inspector');
+  const focusKey = document.activeElement && p.contains(document.activeElement) ? document.activeElement.dataset.n || document.activeElement.id : null;
+  p.replaceChildren();
+  if (!insp) return;
+  const head = el('div', 'insp-head');
+  const close = el('button', 'btn small ghost', 'CLOSE [ESC]');
+  close.type = 'button';
+  close.id = 'insp-close';
+  close.onclick = insp.kind === 'field' ? () => endField(false) : insp.kind === 'tasks' ? () => setRole('kuky') : () => closeInspector();
+  if (insp.kind === 'incident') renderIncident(p, head, close);
+  else if (insp.kind === 'facility') renderFacility(p, head, close);
+  else if (insp.kind === 'tasks') renderTasks(p, head, close);
+  else if (insp.kind === 'field') renderField(p, head, close);
+  if (focusKey) {
+    const again = p.querySelector('[data-n="' + focusKey + '"]') || (focusKey && document.getElementById(focusKey));
+    if (again) again.focus();
+  }
+}
+
+function renderFacility(p, head, close) {
+  const f = City.FACILITIES[insp.id];
+  const t = el('div');
+  t.append(el('div', 'badge', 'LOCATION'), el('h2', '', f.icon + ' ' + f.name));
+  head.append(t, close);
+  p.append(head);
+  const rows = [];
+  if (f.service) {
+    const sv = sim.state.services[f.service];
+    rows.push(['SERVICE', Sim.SERVICE_INFO[f.service].label]);
+    rows.push(['STATUS', sv.status + ' · ' + Math.round(sv.health) + ' %', sv.status === 'STABLE' ? 'ok' : sv.status === 'DEGRADED' ? 'warn' : 'bad']);
+  }
+  const agents = Object.entries(City.AGENT_FACILITY).filter(([, fac]) => fac === insp.id).map(([a]) => a);
+  for (const a of agents) rows.push(['AGENT', a + ' · ' + sim.state.policy.agents[a].role + (sim.state.policy.agents[a].isolated ? ' · ISOLATED' : '')]);
+  if (!rows.length) rows.push(['STATUS', 'No CITYOS agent runs here.']);
+  p.append(dl(rows));
+  p.append(el('h3', '', 'RECENT AGENT ACTIVITY'));
+  const ul = el('ul', 'changes');
+  const recent = sim.state.log.filter(e => e.kind === 'call' && agents.includes(e.agent)).slice(-5).reverse();
+  if (!recent.length) ul.append(el('li', 'empty', 'No calls from agents at this location yet.'));
+  for (const e of recent) { const li = el('li'); li.append(el('span', '', fmtT(e.t) + ' ' + e.tool + '(' + e.target + ')'), chain(e)); ul.append(li); }
+  p.append(ul, el('p', 'empty', 'No active incident here. Incidents show up in the queue on the left and as ⚠ markers on the map.'));
+}
+
+function renderIncident(p, head, close) {
+  const i = sim.incident(insp.id);
+  const d = i.def;
+  const t = el('div');
+  t.append(el('div', 'badge', d.id + ' · SEVERITY ' + (d.severity > 1 ? 'HIGH' : 'MEDIUM') + ' · ' + d.concept.toUpperCase()));
+  t.append(el('h2', '', d.title));
+  head.append(t, close);
+  p.append(head);
+  if (decisionOpen() && !field) p.append(el('div', 'held-note', '⏸ SIMULATION HELD WHILE YOU INVESTIGATE — NOTHING ESCALATES'));
+  const agent = sim.state.policy.agents[d.agent];
+  const open = i.status === 'detected' || i.status === 'investigating';
+  const probe = { id: 'probe', agent: d.calls[0].agent, tool: d.calls[0].tool, target: d.calls[0].target, feed: d.calls[0].feed, delegatedBy: d.calls[0].delegatedBy, message: d.calls[0].message };
+  const auth = Policy.authorize(sim.state.policy, probe);
+  p.append(el('h3', '', 'INCIDENT REPORT'));
+  p.append(dl([
+    ['AGENT', d.agent],
+    ['ROLE', agent.role + (agent.isolated ? ' · ISOLATED' : '') + ' · mode ' + agent.mode.toUpperCase(), agent.mode === 'monitor' ? 'warn' : ''],
+    ['STATUS', STATUS_TEXT[i.status], open ? 'bad' : i.status === 'verified' ? 'ok' : 'warn'],
+    ['TOOL', d.request.tool],
+    ['TARGET', d.request.target],
+    ['REQUEST', d.request.operation],
+    ['POLICY CHECK', d.calls[0].tool + '(' + d.calls[0].target + ') · ' + (auth.findings.length ? auth.findings.join(' · ') : 'NO FINDINGS') + ' → ' + auth.verdict + (auth.reasons.length ? ' (' + auth.reasons[0] + ')' : ''), auth.verdict === 'ALLOW' && auth.findings.length ? 'bad' : auth.verdict === 'ALLOW' ? '' : 'ok'],
+    ['PERMISSIONS', permissions(d.agent)],
+  ]));
+  p.append(el('h3', '', 'EVIDENCE'));
+  const ev = el('ul', 'evidence');
+  for (const e of d.evidence) { const li = el('li', e.kind); li.append(el('b', '', e.label), document.createTextNode(e.text)); ev.append(li); }
+  if (d.field && i.fieldDone) {
+    const li = el('li', 'field');
+    li.append(el('b', '', 'FIELD-VERIFIED BY GHOST'), document.createTextNode(d.field.summary));
+    ev.append(li);
+    for (const o of d.field.observations) { const l2 = el('li', 'field'); l2.append(el('b', '', 'GHOST · ' + o.label.toUpperCase()), document.createTextNode(o.finding)); ev.append(l2); }
+  }
+  p.append(ev);
+  if (d.map) renderDepMap(p, i);
+  // Result of the last response
+  if (insp.result) {
+    const r = insp.result;
+    p.append(el('h3', '', 'WHAT YOUR RESPONSE CHANGED'));
+    p.append(el('div', 'outcome g-' + r.grade, GRADE_TEXT[r.grade]));
+    p.append(el('p', 'risk', r.explain));
+    const ch = el('ul', 'changes');
+    for (const e of r.entries) {
+      const li = el('li');
+      li.append(el('span', '', e.kind === 'operator' ? e.text : e.agent + ' ' + e.tool + '(' + e.target + ')'), e.kind === 'operator' ? el('span', 'st-chain st-' + e.final, e.final) : chain(e));
+      ch.append(li);
+    }
+    p.append(ch);
+  }
+
+  // Actions valid for the current state
+  const acts = sim.availableActions(d.id);
+  const hints = sim.blockedHints(d.id);
+  if (open) p.append(el('h3', '', 'AVAILABLE RESPONSES'));
+  else if (i.status === 'contained' || i.status === 'recovering') p.append(el('h3', '', 'RECOVERY'));
+  const box = el('div', 'actions');
+  acts.forEach((a, k) => {
+    box.append(actionButton(k + 1, a.label, a.detail, () => doAction(d.id, a), a.kind));
+  });
+  if (acts.length) p.append(box);
+  if (d.field && !i.fieldDone && (open || d.recovery.some(r => r.requiresField))) {
+    const fb = el('button', 'btn small alt', '◉ SEND GHOST TO ' + City.SITES[d.field.site].name + (d.field.required ? ' · REQUIRED' : ' · OPTIONAL'));
+    fb.type = 'button';
+    fb.id = 'send-ghost-btn';
+    fb.style.marginTop = '10px';
+    fb.onclick = () => startField(d.id);
+    p.append(fb);
+  }
+  for (const h of hints) p.append(el('div', 'hint', 'ⓘ ' + h));
+  if (i.status === 'recovering' || i.status === 'contained') {
+    p.append(el('h3', '', 'VERIFICATION CRITERIA'));
+    const live = el('ul', 'checks');
+    live.id = 'verify-live';
+    p.append(live);
+    updateVerifyLive();
+  }
+  p.append(el('h3', '', 'RISK'), el('p', 'risk', d.risk));
+  // Recent calls for this incident (observability)
+  p.append(el('h3', '', 'AGENT ACTIVITY · THIS INCIDENT'));
+  const ul = el('ul', 'changes');
+  const recent = sim.state.log.filter(e => e.incident === d.id && e.kind === 'call').slice(-5).reverse();
+  for (const e of recent) {
+    const li = el('li');
+    li.append(el('span', '', fmtT(e.t) + ' ' + e.agent.split('-')[0] + ' ' + e.tool + '(' + e.target + ')' + (e.delegatedBy ? ' ← ' + e.delegatedBy : '')), chain(e));
+    ul.append(li);
+  }
+  if (!recent.length) ul.append(el('li', 'empty', 'No calls logged yet.'));
+  p.append(ul);
+
+  if (i.status === 'verified') {
+    p.append(el('h3', '', 'LEARN · ' + d.concept.toUpperCase()));
+    const l = el('div', 'learn');
+    const add = (k, v) => { const pp = el('p'); pp.append(el('b', '', k + ' '), document.createTextNode(v)); l.append(pp); };
+    add('WHAT HAPPENED', d.learn.what);
+    add('BETTER PRACTICE', d.learn.best);
+    add('RESIDUAL RISK', d.learn.residual);
+    p.append(l);
+  }
+}
+
+function updateVerifyLive() {
+  const ul = $('verify-live');
+  if (!ul || !insp || insp.kind !== 'incident') return;
+  const checks = sim.verifyChecks(insp.id);
+  const sig = JSON.stringify(checks);
+  if (ul.dataset.sig === sig) return;
+  ul.dataset.sig = sig;
+  ul.replaceChildren();
+  for (const c of checks) {
+    const li = el('li', c.ok ? 'ok' : 'no', c.label);
+    if (c.detail) li.append(el('small', '', c.detail));
+    ul.append(li);
+  }
+}
+
+function renderDepMap(p, i) {
+  p.append(el('h3', '', 'DEPENDENCY MAP · SELECT AN AGENT'));
+  const wrap = el('div');
+  wrap.id = 'depmap';
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  const nodes = i.def.map.nodes;
+  const origin = nodes[0];
+  const hot = new Set(sim.state.log.filter(e => e.kind === 'call' && e.incident === i.id && e.final === 'COMPLETED' && e.t > sim.state.t - 12).map(e => e.agent));
+  for (const n of nodes.slice(1)) {
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', origin.x); line.setAttribute('y1', origin.y); line.setAttribute('x2', n.x); line.setAttribute('y2', n.y);
+    line.setAttribute('stroke', hot.has(n.id) ? '#EF646A' : 'rgba(88,216,232,0.45)');
+    line.setAttribute('stroke-width', hot.has(n.id) ? '0.9' : '0.5');
+    line.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.append(line);
+  }
+  wrap.append(svg);
+  for (const n of nodes) {
+    const b = el('button', 'node' + (hot.has(n.id) ? ' hot' : '') + (sim.state.policy.agents[n.id].isolated ? ' isolated' : ''));
+    b.type = 'button';
+    b.style.left = n.x + '%';
+    b.style.top = n.y + '%';
+    b.dataset.node = n.id;
+    b.setAttribute('aria-pressed', String(i.selected === n.id));
+    b.append(document.createTextNode(n.id), el('br'), el('span', '', n.version.split(' · ')[0]));
+    b.onclick = () => { sfx('select'); sim.select(i.id, n.id); renderInspector(); const again = document.querySelector('[data-node="' + n.id + '"]'); if (again) again.focus(); };
+    wrap.append(b);
+  }
+  p.append(wrap);
+  if (i.selected) {
+    const n = nodes.find(x => x.id === i.selected);
+    const info = el('div', 'node-info');
+    const add = (k, v) => { info.append(el('b', '', k + ': '), document.createTextNode(v), el('br')); };
+    add('AGENT', n.id + ' · ' + sim.state.policy.agents[n.id].role);
+    add('SOFTWARE', n.version);
+    add('TASKED BY', n.receivesFrom);
+    add('DOING NOW', n.tasks);
+    p.append(info);
+  } else p.append(el('div', 'node-info', 'Red links: agents that executed delegated tasks in the last 12 s. Inspect each node: software version, who tasks it, what it is doing.'));
+}
+
+function doAction(id, a) {
+  if (phase !== 'play') return;
+  if (a.kind === 'respond') {
+    const res = sim.respond(id, a.id);
+    if (!res) { sfx('invalid'); return; }
+    insp.result = res;
+    const isolates = res.option.controls.some(c => c[0] === 'isolate');
+    sfx(res.grade === 'best' ? 'approved' : res.grade === 'safe' ? (isolates ? 'isolated' : 'blocked') : 'failed');
+    if (res.blocked.length || res.held.length) setTimeout(() => sfx('blocked'), 180);
+    if (res.contained) toast(id + ' CONTAINED', res.grade === 'best' ? 'Targeted control applied. Now recover and verify.' : 'Contained, at a cost. Recovery will restore service safely.', res.grade === 'best' ? 'good' : 'warn');
+    else toast(id + (res.grade === 'failed' ? ' CONTAINMENT FAILED' : ' ESCALATED'), 'Unsafe requests are still executing. Choose another response.', 'bad');
+  } else if (a.kind === 'recover') {
+    const res = sim.recover(id, a.id);
+    if (!res) { sfx('invalid'); return; }
+    if (!res.ok) { sfx('failed'); toast('RESTORE FAILED', res.why, 'bad'); insp.result = null; }
+    else { sfx('restored'); insp.result = null; }
+  } else if (a.kind === 'verify') {
+    const res = sim.verify(id);
+    if (!res) { sfx('invalid'); return; }
+    if (res.ok) { sfx('verified'); lastVerifiedAt = sim.state.t; }
+    else { sfx('failed'); toast('VERIFICATION NOT MET', res.checks.filter(c => !c.ok).map(c => c.label + (c.detail ? ' — ' + c.detail : '')).join(' · '), 'warn', 7000); }
+  }
+  renderInspector();
+  renderSide();
+  const first = $('inspector').querySelector('.action');
+  if (first) first.focus(); else $('insp-close') && $('insp-close').focus();
+}
+
+// ── Roles: KUKY ⇄ GHOST ───────────────────────────────────
+function updateRoleButton() {
+  const b = $('role-btn');
+  b.dataset.role = role;
+  b.textContent = 'ROLE: ' + (role === 'kuky' ? 'KUKY' : 'GHOST') + ' [G]';
+  $('role-name').textContent = role === 'kuky' ? 'KUKY · CONTROL' : 'GHOST · FIELD';
+}
+function setRole(r) {
+  if (r === role) return;
+  role = r;
+  updateRoleButton();
+  sfx('select');
+  if (role === 'ghost') {
+    insp = { kind: 'tasks' };
+    selected = null;
+    if (city) city.setSelected(null);
+    renderInspector();
+    openInspectorPanel();
+  } else {
+    if (field) endField(false);
+    if (insp && (insp.kind === 'tasks' || insp.kind === 'field')) closeInspector(true);
+    if (ghost) ghost.root.visible = false;
+    cam.follow = null;
+    flyTo({ dist: Math.max(cam.dist, 150), pitch: 0.93 }, 0.9);
+  }
+}
+$('role-btn').onclick = () => { if (phase === 'play') setRole(role === 'kuky' ? 'ghost' : 'kuky'); };
+
+function renderTasks(p, head, close) {
+  const t = el('div');
+  t.append(el('div', 'badge', 'GHOST · FIELD INTELLIGENCE'), el('h2', '', 'FIELD TASKS'));
+  head.append(t, close);
+  p.append(head);
+  p.append(el('p', 'risk', 'GHOST checks what the systems claim against what is really happening on the street.'));
+  const tasks = sim.fieldTasks();
+  const box = el('div', 'actions');
+  tasks.forEach((task, k) => {
+    box.append(actionButton(k + 1, City.SITES[task.site].name + ' · ' + task.id + (task.required ? ' · REQUIRED' : ' · OPTIONAL'), task.briefing, () => startField(task.id), 'field'));
+  });
+  if (tasks.length) p.append(box);
+  else p.append(el('p', 'empty', 'No field tasks right now. Field checks open when an incident needs ground truth. Switch back to KUKY with G.'));
+  const back = el('button', 'btn small ghost', '◀ BACK TO KUKY [G]');
+  back.type = 'button'; back.style.marginTop = '12px';
+  back.onclick = () => setRole('kuky');
+  p.append(back);
+}
+
+function startField(id) {
+  const i = sim.incident(id);
+  if (!i.def.field || i.fieldDone) return;
+  if (role !== 'ghost') { role = 'ghost'; updateRoleButton(); }
+  const site = City.SITES[i.def.field.site];
+  field = { id, site, walking: null, current: null, revealed: [], posing: 0, mode: 'idle', phase: 0 };
+  insp = { kind: 'field', id };
+  selected = site.facility;
+  if (city) city.setSelected(site.facility);
+  if (ghost) {
+    ghost.root.visible = true;
+    ghost.root.position.set(site.entry[0], 0, site.entry[1]);
+    ghost.root.rotation.y = Math.PI;
+    field.pos = { x: site.entry[0], z: site.entry[1] };
+    field.look = fieldCamTarget(site.entry[0], site.entry[1]);
+  }
+  $('toasts').replaceChildren();
+  cam.follow = null;
+  const ahead = fieldCamTarget(site.entry[0], site.entry[1]);
+  flyTo({ x: ahead.x, z: ahead.z, dist: 34, pitch: 0.6, yaw: -Math.PI / 4 }, 1.4);
+  setTimeout(() => { if (field && field.id === id) cam.follow = field.look; }, reducedMotion ? 0 : 1450);
+  sfx('field');
+  radio('GHOST on site: ' + site.name.toLowerCase() + '.');
+  renderInspector();
+  openInspectorPanel();
+}
+// Look a little "up-screen" of GHOST so the character sits below the toasts.
+function fieldCamTarget(x, z) {
+  return { x: x - Math.sin(cam.yaw) * 7, z: z - Math.cos(cam.yaw) * 7 };
+}
+function renderField(p, head, close) {
+  const i = sim.incident(field.id);
+  const f = i.def.field;
+  const t = el('div');
+  t.append(el('div', 'badge', 'GHOST · FIELD CHECK · ' + i.id), el('h2', '', field.site.name));
+  head.append(t, close);
+  p.append(head, el('div', 'held-note', '⏸ SIMULATION HELD DURING THE FIELD CHECK'), el('p', 'risk', f.briefing));
+  p.append(el('h3', '', 'OBSERVATIONS'));
+  const box = el('div', 'actions');
+  f.observations.forEach((o, k) => {
+    const done = i.fieldSeen.includes(o.id) && field.revealed.includes(o.id);
+    const b = actionButton(k + 1, (done ? '✓ ' : '') + o.label, done ? '' : 'GHOST walks over and checks.', () => observe(o), 'observe');
+    if (done) b.classList.add('obs-done');
+    box.append(b);
+    if (done) box.append(el('div', 'finding', o.finding));
+  });
+  p.append(box);
+  if (field.walking) p.append(el('div', 'hint', 'GHOST is on the way…'));
+  if (f.observations.every(o => field.revealed.includes(o.id))) {
+    const b = el('button', 'btn', 'SEND FIELD REPORT TO KUKY [ENTER]');
+    b.type = 'button'; b.id = 'field-report-btn'; b.style.marginTop = '12px';
+    b.onclick = fileReport;
+    p.append(el('h3', '', 'CONCLUSION'), el('p', 'risk', f.summary), b);
+  }
+}
+function observe(o) {
+  if (!field || field.walking) return;
+  if (field.revealed.includes(o.id)) return;
+  field.walking = { to: { x: o.at[0], z: o.at[1] }, obs: o };
+  field.current = o;
+  sfx('select');
+  renderInspector();
+}
+function stepField(dt) {
+  if (!field || !ghost) return;
+  const w = field.walking;
+  let mode = 'idle', speed = 0;
+  if (w) {
+    const dx = w.to.x - field.pos.x, dz = w.to.z - field.pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 0.15) {
+      const v = Math.min(dist, 4.2 * dt);
+      field.pos.x += dx / dist * v; field.pos.z += dz / dist * v;
+      ghost.root.rotation.y = Math.atan2(dx, dz);
+      mode = 'walk'; speed = 4.2;
+    } else if (field.posing < 1.3) {
+      field.posing += dt;
+      mode = w.obs.pose;
+    } else {
+      field.revealed.push(w.obs.id);
+      sim.observe(field.id, w.obs.id);
+      field.walking = null; field.posing = 0;
+      sfx('field');
+      renderInspector();
+      const btns = $('inspector').querySelectorAll('.action:not(.obs-done)');
+      if (btns[0]) btns[0].focus(); else if ($('field-report-btn')) $('field-report-btn').focus();
+    }
+  }
+  field.phase += dt * (mode === 'walk' ? 7 : 0);
+  ghost.root.position.set(field.pos.x, 0, field.pos.z);
+  const look = fieldCamTarget(field.pos.x, field.pos.z);
+  field.look.x = look.x; field.look.z = look.z;
+  const target = Char.pose(mode, cityClock, field.phase, { speed });
+  Char.blendPose(ghost.pose, target, Math.min(1, dt * 10));
+  Char.applyPose(ghost, ghost.pose);
+}
+function fileReport() {
+  if (!field) return;
+  const id = field.id;
+  if (!sim.fieldReport(id)) return;
+  sfx('confirm');
+  toast('FIELD REPORT FILED', sim.incident(id).def.field.summary, 'good', 7000);
+  radio('GHOST: field report filed for ' + id + '.');
+  endField(true);
+}
+function endField(openIncidentAfter) {
+  const id = field && field.id;
+  field = null;
+  if (ghost) ghost.root.visible = false;
+  cam.follow = null;
+  role = 'kuky';
+  updateRoleButton();
+  if (openIncidentAfter && id) openIncident(id, true);
+  else { closeInspector(true); flyTo({ dist: 150, pitch: 0.93 }, 0.9); }
+}
+
+// ── Activity log ──────────────────────────────────────────
+let logRendered = -1;
+function toggleLog(force) {
+  const d = $('log-drawer');
+  const open = force != null ? force : !d.classList.contains('open');
+  d.classList.toggle('open', open);
+  $('log-btn').setAttribute('aria-expanded', String(open));
+  sfx(open ? 'open' : 'close');
+  if (open) { $('radio-panel').classList.remove('open'); renderLog(true); }
+}
+function renderLog(force) {
+  if (!$('log-drawer').classList.contains('open')) return;
+  if (!force && logRendered === sim.state.seq) return;
+  logRendered = sim.state.seq;
+  const body = $('log-body');
+  body.replaceChildren();
+  const rows = sim.state.log.filter(e => logFilter === 'all' || (logFilter === 'incidents' ? !!e.incident : ['BLOCKED', 'HELD', 'FAILED'].includes(e.final))).slice(-80).reverse();
+  for (const e of rows) {
+    const tr = el('tr');
+    if (e.unsafe) tr.className = 'unsafe';
+    const action = e.kind === 'call' ? e.tool + '(' + e.target + (e.args ? ', ' + e.args : '') + ')' + (e.delegatedBy ? ' ← delegated by ' + e.delegatedBy : '') + (e.message ? ' · msg from ' + e.message.from + (e.message.signature ? ' (signed)' : ' (UNSIGNED)') : '') : e.text;
+    const states = el('td'); states.append(chain(e));
+    const reason = e.kind === 'call' ? ((e.findings && e.findings.length ? e.findings.join(', ') + ' · ' : '') + (e.reasons || []).join(', ')) : (e.incident || '');
+    tr.append(el('td', '', fmtT(e.t)), el('td', '', e.agent), el('td', '', action), states, el('td', '', reason), el('td', '', e.affected ? e.affected.toUpperCase() : ''));
+    body.append(tr);
+  }
+}
+$('log-btn').onclick = () => toggleLog();
+for (const b of document.querySelectorAll('.log-filters button')) {
+  b.onclick = () => {
+    logFilter = b.dataset.filter;
+    for (const o of document.querySelectorAll('.log-filters button')) o.setAttribute('aria-pressed', String(o === b));
+    sfx('select');
+    renderLog(true);
+  };
+}
+function toggleRadio() {
+  const d = $('radio-panel');
+  const open = !d.classList.contains('open');
+  d.classList.toggle('open', open);
+  $('radio-btn').setAttribute('aria-expanded', String(open));
+  if (open) $('log-drawer').classList.remove('open');
+  sfx(open ? 'open' : 'close');
+}
+$('radio-btn').onclick = toggleRadio;
+
+// ── Simulation events → city, UI, audio ──────────────────
+let lastRequestSfx = 0;
+function handleEvents() {
+  for (const ev of sim.takeEvents()) {
+    switch (ev.type) {
+      case 'call': {
+        const e = ev.entry;
+        if (!e.verdict || !city) break;
+        const fac = City.AGENT_FACILITY[e.agent];
+        if (e.delegatedBy) city.packet('tower', fac, e.verdict); else city.packet(fac, 'tower', e.verdict);
+        if (e.unsafe && e.final === 'COMPLETED' && performance.now() - lastRequestSfx > 1500) { lastRequestSfx = performance.now(); sfx('request'); }
+        break;
+      }
+      case 'detected': {
+        sfx('incident');
+        toast('⚠ INCIDENT ' + ev.id + ' DETECTED', ev.title + ' · ' + City.FACILITIES[ev.facility].name, 'bad', 7000, ['Open it from the queue or click the ⚠ marker.']);
+        radio(RADIO_DETECTED[ev.id]);
+        renderSide();
+        break;
+      }
+      case 'damage': toast('⚠ ' + ev.label, ev.agent + ' executed ' + ev.tool + '.', 'bad', 5000); break;
+      case 'world':
+        if (city) city.droneTask(ev.event);
+        if (ev.event === 'drones-pier') radio('Drones sighted over Pier 9.');
+        if (ev.event === 'drone-hospital') { radio('Blood units delivered to Meridian General.'); toast('✈ HOSPITAL DELIVERY', 'Signed request executed: a drone is flying blood units to Meridian General.', 'good'); }
+        if (ev.event === 'drones-grounded') radio('Drone fleet grounded across the district.');
+        if (ev.event !== 'drone-routine') sfx('drone');
+        break;
+      case 'cascade':
+        toast('⛓ DEPENDENCY: ' + Sim.SERVICE_INFO[ev.from].short + ' → ' + Sim.SERVICE_INFO[ev.to].short, ev.why + '. Escalated because ' + Sim.SERVICE_INFO[ev.from].label + ' fell below threshold.', 'bad', 7000);
+        sfx('notify');
+        break;
+      case 'pressure': {
+        const up = ev.delta > 0;
+        toast('SYSTEM PRESSURE ' + (up ? '+' : '') + ev.delta + ' → ' + ev.to + '/5 · ' + ev.label, '', up ? (ev.to >= 4 ? 'bad' : 'warn') : 'good', 7000,
+          ['CAUSE: ' + ev.cause, ev.impact ? 'IMPACT: ' + ev.impact : '', ev.next ? 'NEXT ACTION: ' + ev.next : ''].filter(Boolean));
+        sfx(up ? 'pressureUp' : 'pressureDown');
+        break;
+      }
+      case 'contained': case 'escalated': renderSide(); break;
+      case 'restored': for (const s of ev.services) radio(RADIO_RESTORED[s]); renderSide(); break;
+      case 'verified': radio('CITYOS confirms ' + ev.id + ' resolved.'); toast('✓ ' + ev.id + ' VERIFIED', 'Recovery confirmed against the criteria.', 'good'); renderSide(); break;
+      case 'service':
+        if (ev.to === 'OFFLINE') radio(Sim.SERVICE_INFO[ev.service].label + ' is offline.');
+        break;
+      case 'outcome': setTimeout(() => showResults(), 900); break;
+    }
+  }
+}
+
+// Markers and network links follow incident state.
+function syncWorld() {
+  if (!city) return;
+  const states = {};
+  for (const i of sim.state.incidents) {
+    if (i.status === 'pending') continue;
+    const s = i.status === 'verified' ? 'none' : i.status === 'detected' || i.status === 'investigating' ? 'open' : i.status;
+    states[i.def.facility] = s;
+  }
+  for (const id of Object.keys(City.FACILITIES)) city.setMarker(id, states[id] || 'none');
+  const isolated = sim.visual().isolated.map(a => City.AGENT_FACILITY[a]);
+  for (const id of City.LINKS) {
+    const s = states[id];
+    city.setLink(id, s === 'open' ? 'alert' : selected === id ? 'selected' : isolated.includes(id) ? 'isolated' : 'normal');
+  }
+}
+
+function musicFor() {
+  const lv = sim.state.pressure.level;
+  if (lv >= 4) return 'mayhem';
+  if (lv >= 2) return 'alert';
+  if (sim.state.t - lastVerifiedAt < 20) return 'recovery';
+  return 'pulse';
+}
+
+// ── Results ───────────────────────────────────────────────
+function showResults() {
+  if (phase === 'results') return;
+  const r = sim.report();
+  const won = r.outcome === 'won';
+  phase = 'results';
+  if (field) endField(false);
+  $('hud').classList.remove('open');
+  if (won) audio.victory(); else audio.defeat();
+  if (won && !completionRecorded) {
+    completionRecorded = true;
+    // Completing the incident chain completes the level; the security score is reported separately.
+    const { state } = HTPProgress.recordCompletion(5, { stability: r.stability, securityScore: r.securityScore });
+    $('results-campaign').textContent = HTPProgress.isCampaignComplete(state)
+      ? '★ CAMPAIGN COMPLETE · ALL ' + HTPProgress.LEVELS.length + ' MISSIONS CLEARED. THE PLANET IS HACKED.'
+      : 'Level 05 recorded in campaign progress.';
+  } else $('results-campaign').textContent = won ? '' : 'Progress is only recorded when the city is restored.';
+  const title = $('results-title');
+  title.textContent = won ? 'CITY RESTORED' : 'CITY-WIDE CRISIS';
+  title.className = 'res-title' + (won ? '' : ' lost');
+  $('results-sub').textContent = won
+    ? 'All five incidents contained, recovered and verified. CITYOS enforcement is back on, and the compromised orchestrator is isolated.'
+    : r.lossReason + ' Restart and contain the origin sooner — every mistake before this point was recoverable.';
+  const kv = $('results-kv');
+  kv.replaceChildren();
+  const add = (k, v) => kv.append(el('dt', '', k), el('dd', '', v));
+  add('CITY STABILITY', r.stability + ' %');
+  add('INCIDENTS RESOLVED', r.incidentsResolved + '/' + r.incidentsTotal);
+  add('AGENT ACTIONS BLOCKED', String(r.blocked) + (r.held ? ' · ' + r.held + ' held for review' : ''));
+  add('UNSAFE EXECUTED', String(r.unsafeExecuted));
+  add('SERVICES RECOVERED', r.servicesRecovered + '/4');
+  add('CRITICAL FAILURES', String(r.criticalFailures));
+  add('PEAK PRESSURE', r.maxPressure + '/5');
+  add('SIMULATION TIME', fmtT(r.timeSeconds).slice(2));
+  const rep = $('results-report');
+  rep.replaceChildren();
+  const GL = { best: '✓ BEST PRACTICE', safe: '◐ SAFE, COSTLY', unsafe: '✕ UNSAFE', failed: '✕ FAILED CONTAINMENT' };
+  for (const x of r.incidents) {
+    const det = el('details');
+    const sum = el('summary');
+    sum.append(el('span', '', x.concept + ' · ' + x.id), el('span', 'g-' + (x.firstGrade || 'failed'), x.firstGrade ? GL[x.firstGrade] : 'NOT REACHED'));
+    const d = el('dl');
+    const a2 = (k, v) => { if (v) d.append(el('dt', '', k), el('dd', '', v)); };
+    a2('YOUR RESPONSES', x.choices.map(c => c.label + ' (' + GL[c.grade] + ')').join(' → '));
+    a2('FIELD CHECK', x.field);
+    a2('WHAT HAPPENED', x.what);
+    a2('WHY', x.explain);
+    a2('BETTER PRACTICE', x.best);
+    a2('RESIDUAL RISK', x.residual);
+    a2('KNOWLEDGE', x.knowledge);
+    det.append(sum, d);
+    rep.append(det);
+  }
+  $('results-score').textContent = r.securityScore + ' / 5 first responses were the targeted, best-practice control';
+  openScreen('results-screen', won ? 'review-btn' : 'replay-btn');
+}
+$('review-btn').onclick = () => {
+  const all = document.querySelectorAll('#results-report details');
+  const open = ![...all].every(d => d.open);
+  all.forEach(d => { d.open = open; });
+  sfx('open');
+  if (all[0]) all[0].querySelector('summary').focus();
+};
+$('replay-btn').onclick = () => { closeScreens(); startMission(); };
+
+// ── Input ─────────────────────────────────────────────────
+const keys = {};
+const inPanel = () => document.activeElement && document.activeElement.closest &&
+  document.activeElement.closest('#inspector, .screen, #log-drawer, #radio-panel, #side, #topbar') && document.activeElement !== document.body;
+document.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT' && e.code !== 'Escape') return;
+  if (e.code === 'KeyM') { toggleMusic(); return; }
+  if (phase === 'intro' && (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); endIntro(); return; }
+  if (phase === 'paused') { if (e.code === 'Escape') { e.preventDefault(); resumeGame(); } return; }
+  if (phase === 'results' || phase === 'title' || phase === 'pre') {
+    if (e.code === 'Escape' && $('controls-screen').classList.contains('open')) { e.preventDefault(); $('controls-close').click(); }
+    return;
+  }
+  if (phase !== 'play') return;
+  if (e.code === 'Escape') {
+    e.preventDefault();
+    if ($('log-drawer').classList.contains('open')) toggleLog(false);
+    else if ($('radio-panel').classList.contains('open')) toggleRadio();
+    else if (field) endField(false);
+    else if (insp) closeInspector();
+    else pauseGame();
+    return;
+  }
+  if (e.code === 'KeyL') { toggleLog(); return; }
+  if (e.code === 'KeyR') { toggleRadio(); return; }
+  if (e.code === 'KeyG') { setRole(role === 'kuky' ? 'ghost' : 'kuky'); return; }
+  if (e.code === 'Space' && !(inPanel() && document.activeElement.tagName === 'BUTTON' && !document.activeElement.classList.contains('lbl'))) {
+    e.preventDefault();
+    userHeld = !userHeld;
+    sfx(userHeld ? 'close' : 'open');
+    toast(userHeld ? 'SIMULATION PAUSED' : 'SIMULATION RESUMED', userHeld ? 'Press Space to resume.' : '', 'info', 1800);
+    if (userHeld) audio.pause(); else audio.resume();
+    return;
+  }
+  const n = Number(e.key);
+  if (n >= 1 && n <= 9 && insp) {
+    const b = $('inspector').querySelector('.action[data-n="' + n + '"]');
+    if (b) { e.preventDefault(); b.click(); } else sfx('invalid');
+    return;
+  }
+  if (e.code === 'Enter' && field && $('field-report-btn') && document.activeElement === document.body) { $('field-report-btn').click(); return; }
+  const cameraKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'];
+  if (cameraKeys.includes(e.code)) {
+    if (e.code.startsWith('Arrow') && inPanel()) return;
+    keys[e.code] = true;
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'play') pauseGame(); });
+function stepKeys(dt) {
+  if (cam.fly) return;
+  const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);           // screen-up direction on the ground
+  const rx = -fz, rz = fx;
+  const v = cam.dist * 0.6 * dt;
+  let mx = 0, mz = 0;
+  if (keys.KeyW || keys.ArrowUp) { mx += fx; mz += fz; }
+  if (keys.KeyS || keys.ArrowDown) { mx -= fx; mz -= fz; }
+  if (keys.KeyD || keys.ArrowRight) { mx += rx; mz += rz; }
+  if (keys.KeyA || keys.ArrowLeft) { mx -= rx; mz -= rz; }
+  if (mx || mz) { cam.follow = null; cam.x += mx * v; cam.z += mz * v; }
+  if (keys.Equal || keys.NumpadAdd) cam.dist *= 1 - dt * 1.2;
+  if (keys.Minus || keys.NumpadSubtract) cam.dist *= 1 + dt * 1.2;
+}
+
+// Pointer: drag pans, click selects.
+const canvas = $('scene');
+let drag = null;
+canvas.addEventListener('pointerdown', e => { if (phase !== 'play') return; drag = { x: e.clientX, y: e.clientY, moved: false, cx: cam.x, cz: cam.z }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true;
+  if (!drag.moved) return;
+  cam.follow = null;
+  const scale = cam.dist / innerHeight * 0.9;
+  const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);
+  // The ground under the cursor follows the cursor: right = (−fz, fx).
+  cam.x = drag.cx + fz * dx * scale + fx * dy * scale;
+  cam.z = drag.cz - fx * dx * scale + fz * dy * scale;
+});
+const raycaster = renderer ? new THREE.Raycaster() : null;
+canvas.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const wasDrag = drag.moved;
+  drag = null;
+  if (wasDrag || phase !== 'play' || !raycaster) return;
+  const ndc = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObjects(city.picks, false)[0];
+  if (hit) { sfx('select'); selectFacility(hit.object.userData.facility); }
+  else if (insp && insp.kind === 'facility') closeInspector();
+});
+canvas.addEventListener('wheel', e => {
+  if (phase !== 'play') return;
+  e.preventDefault();
+  cam.dist *= Math.pow(1.0015, e.deltaY);
+}, { passive: false });
+
+// ── Main loop ─────────────────────────────────────────────
+let lastT = performance.now(), slowTick = 0, wasHeld = false, inspTick = 0, inspSeq = -1;
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000 || 0);
+  lastT = now;
+  const frozen = phase === 'paused' || (phase === 'play' && userHeld);
+  if (phase === 'intro') stepIntro(dt);
+  if (phase === 'play') {
+    if (simLive()) sim.advance(dt);
+    handleEvents();
+    stepKeys(dt);
+    stepField(dt);
+    const held = decisionOpen();
+    if (held !== wasHeld) { wasHeld = held; if (insp) renderInspector(); }
+    slowTick += dt;
+    inspTick += dt;
+    // Keep an open (live) incident panel current without stealing focus.
+    if (inspTick > 1.5 && insp && insp.kind === 'incident' && !held && sim.state.seq !== inspSeq) { inspTick = 0; inspSeq = sim.state.seq; renderInspector(); }
+    if (slowTick > 0.25) {
+      slowTick = 0;
+      updateTopbar();
+      renderServices();
+      renderLog(false);
+      updateVerifyLive();
+      syncWorld();
+      audio.setMusicState(musicFor());
+      const vis = sim.visual();
+      audio.setAmbience({
+        traffic: vis.trafficFlow,
+        hum: vis.hospitalBackup || vis.blockCDark ? 1 : 0.35,
+        drones: city ? city.dronesFlying() / 6 : 0,
+        pressure: sim.state.pressure.level,
+      });
+    }
+  }
+  if (renderer) {
+    if (!frozen) {
+      cityClock += dt;
+      const vis = phase === 'intro' && intro ? introVisual(intro.t) : sim ? sim.visual() : introVisual(0);
+      city.update(dt, vis, cityClock);
+    }
+    stepCamera(dt);
+    if (sim) updateLabels();
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+}
+newMission();
+if (renderer) placeCamera();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

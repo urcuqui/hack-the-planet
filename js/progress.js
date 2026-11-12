@@ -25,6 +25,7 @@
     { id: 2, url: 'level2.html', code: 'LEVEL 02', name: 'VULNERABILITY HUNTER' },
     { id: 3, url: 'level3.html', code: 'LEVEL 03', name: 'OPERATION GHOST' },
     { id: 4, url: 'level4.html', code: 'LEVEL 04', name: 'NEON GRAND PRIX' },
+    { id: 5, url: 'level5.html', code: 'LEVEL 05', name: 'DIGITAL MAYHEM' },
   ];
 
   // Per-level "best" fields and whether a higher or lower value is better.
@@ -33,6 +34,7 @@
     2: { integrity: 'max', firstTryDiagnoses: 'max' },
     3: { firstTryDecisions: 'max' },
     4: { position: 'min', timeMs: 'min', securityScore: 'max' },
+    5: { stability: 'max', securityScore: 'max' },
   };
 
   function getLevel(id) {

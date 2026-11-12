@@ -1,5 +1,5 @@
 // Browser smoke test: drives headless Chrome over the DevTools Protocol (no npm
-// dependencies) through the hub and all four levels against the local server.
+// dependencies) through the hub and all five levels against the local server.
 //
 //   npm run test:browser
 //
@@ -26,7 +26,7 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       await page.goto(base + '/');
       await page.eval('localStorage.clear()');
       await page.goto(base + '/');
-      assert.deepEqual(await statuses(page), ['available', 'locked', 'locked', 'locked']);
+      assert.deepEqual(await statuses(page), ['available', 'locked', 'locked', 'locked', 'locked']);
       assert.equal(await page.eval('document.querySelectorAll(".mission-action")[0].getAttribute("href")'), 'level1.html');
       assert.equal(await page.eval('document.querySelectorAll(".mission-action")[1].tagName'), 'BUTTON');
       page.assertNoErrors('hub');
@@ -208,39 +208,94 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       assert.ok(p.levels[4].best.position >= 1 && p.levels[4].best.position <= 9);
       assert.ok(p.levels[4].best.timeMs < 4000, 'race time excludes the countdown');
       assert.ok(Number.isFinite(p.levels[4].best.securityScore));
-      assert.match(await page.eval('document.getElementById("bonus-line").textContent'), /ALL FOUR MISSIONS COMPLETE/);
+      assert.doesNotMatch(await page.eval('document.getElementById("bonus-line").textContent'), /ALL MISSIONS COMPLETE/, 'level 5 is still ahead');
+      assert.equal(p.highestUnlocked, 5);
+      assert.equal(await page.eval('document.getElementById("next-btn").getAttribute("href")'), 'level5.html');
       assert.equal(await page.eval('document.querySelectorAll("#report-rows details").length'), 3);
       page.assertNoErrors('level4');
     });
 
+    await t.test('level 5: digital mayhem — audio after a gesture, held decisions, five verified incidents', async () => {
+      await page.goto(base + '/level5.html');
+      assert.equal(await page.eval('typeof THREE'), 'object');
+      assert.equal(await page.eval('typeof HTPMayhem.Simulation.create'), 'function', 'mayhem modules loaded');
+      assert.equal(await page.eval('!!renderer'), true, 'WebGL renderer created');
+      assert.equal(await page.eval('audio.info().started'), false, 'no audio before a gesture');
+      assert.equal(await page.eval('getComputedStyle(document.getElementById("pre-intro")).display'), 'flex');
+      await page.click('#skip-to-title-btn');
+      await page.waitFor('phase === "title"');
+      await page.click('#start-btn');
+      await page.waitFor('phase === "play"');
+      assert.equal(await page.eval('audio.info().ctxState'), 'running', 'audio starts after the click');
+      await page.waitFor('sim.incident("INC-01").status === "detected"', 15000);
+      assert.equal(await progress(page).then(x => x.levels[5]), undefined, 'playing alone does not complete the level');
+
+      // An open decision holds the simulation.
+      await page.click('.inc-card[data-id="INC-01"]');
+      const t0 = await page.eval('sim.state.t');
+      await sleep(1200);
+      assert.equal(await page.eval('sim.state.t'), t0, 'held while the decision is open');
+      assert.match(await page.eval('document.getElementById("sim-state").textContent'), /HELD/);
+
+      // Resolve the chain through the simulation API, then let the page finish.
+      await page.eval(`(() => {
+        const best = { 'INC-01': 'restrict', 'INC-02': 'restrict', 'INC-03': 'verify', 'INC-04': 'quarantine', 'INC-05': 'isolate-selected' };
+        for (const inc of HTPMayhem.Incidents.INCIDENTS) {
+          for (let n = 0; n < 4000 && sim.incident(inc.id).status === 'pending'; n++) sim.step();
+          if (inc.field) { inc.field.observations.forEach(o => sim.observe(inc.id, o.id)); sim.fieldReport(inc.id); }
+          if (inc.map) sim.select(inc.id, inc.origin);
+          sim.respond(inc.id, best[inc.id]);
+          inc.recovery.forEach(r => sim.recover(inc.id, r.id));
+          for (let n = 0; n < 4000 && !sim.verifyChecks(inc.id).every(c => c.ok); n++) sim.step();
+          sim.verify(inc.id);
+        }
+        closeInspector(true);
+      })()`);
+      await page.waitFor('phase === "results"', 8000);
+      assert.equal(await page.eval('document.getElementById("results-title").textContent'), 'CITY RESTORED');
+      assert.equal(await page.eval('document.querySelectorAll("#results-report details").length'), 5);
+      const p = await progress(page);
+      assert.equal(p.levels[5].completed, true);
+      assert.equal(p.levels[5].best.securityScore, 5);
+      assert.ok(p.levels[5].best.stability >= 70);
+      assert.match(await page.eval('document.getElementById("results-campaign").textContent'), /CAMPAIGN COMPLETE/);
+      assert.equal(await page.eval('audio.info().ended'), true, 'victory sting ends the soundtrack');
+
+      await page.click('#replay-btn');
+      await page.waitFor('phase === "play"');
+      assert.equal(await page.eval('sim.state.incidents.every(i => i.status === "pending") && sim.state.t < 2'), true, 'replay starts clean');
+      assert.equal(await page.eval('audio.info().schedulerActive && !audio.info().ended'), true, 'music restarts');
+      page.assertNoErrors('level5');
+    });
+
     await t.test('hub: progress survives reload, replay keeps it, reset wipes it', async () => {
       await page.goto(base + '/');
-      assert.deepEqual(await statuses(page), ['completed', 'completed', 'completed', 'completed']);
+      assert.deepEqual(await statuses(page), ['completed', 'completed', 'completed', 'completed', 'completed']);
       assert.match(await page.eval('document.getElementById("next-objective").textContent'), /CAMPAIGN COMPLETE/);
       assert.equal(await page.eval('document.querySelectorAll(".mission-action")[0].textContent'), 'REPLAY >');
 
       await page.goto(base + '/level1.html');    // replaying a level does not touch progress
       await page.goto(base + '/');
-      assert.deepEqual(await statuses(page), ['completed', 'completed', 'completed', 'completed']);
+      assert.deepEqual(await statuses(page), ['completed', 'completed', 'completed', 'completed', 'completed']);
 
       await page.click('#reset-btn');
       await page.waitFor('document.getElementById("reset-dialog").open');
       await page.click('#reset-dialog button[value="cancel"]');
       await page.waitFor('!document.getElementById("reset-dialog").open');
-      assert.deepEqual(await statuses(page), ['completed', 'completed', 'completed', 'completed']);
+      assert.deepEqual(await statuses(page), ['completed', 'completed', 'completed', 'completed', 'completed']);
 
       await page.click('#reset-btn');
       await page.waitFor('document.getElementById("reset-dialog").open');
       await page.click('#reset-dialog button[value="confirm"]');
       await page.waitFor('document.querySelectorAll(".mission")[1].dataset.status === "locked"');
-      assert.deepEqual(await statuses(page), ['available', 'locked', 'locked', 'locked']);
+      assert.deepEqual(await statuses(page), ['available', 'locked', 'locked', 'locked', 'locked']);
       page.assertNoErrors('hub after campaign');
     });
 
     await t.test('hub: corrupt storage renders a fresh campaign without errors', async () => {
       await page.eval('localStorage.setItem("htp.progress", "{corrupt")');
       await page.goto(base + '/');
-      assert.deepEqual(await statuses(page), ['available', 'locked', 'locked', 'locked']);
+      assert.deepEqual(await statuses(page), ['available', 'locked', 'locked', 'locked', 'locked']);
       page.assertNoErrors('hub with corrupt storage');
     });
   } finally {

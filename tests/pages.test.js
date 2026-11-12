@@ -10,8 +10,8 @@ const ROOT = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const LEVEL_PAGES = PAGES.filter(p => p !== 'index.html');
 
-test('inline scripts in the hub and all four levels parse, plus every module', () => {
-  const modules = ['js', 'js/racer', 'js/arena', 'js/incident', 'js/social'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.js')));
+test('inline scripts in the hub and all five levels parse, plus every module', () => {
+  const modules = ['js', 'js/racer', 'js/arena', 'js/incident', 'js/social', 'js/mayhem'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.js')));
   assert.equal(checkAll().length, PAGES.length + modules.length);
   assert.ok(modules.length >= 6, 'progress + racer modules');
 });
@@ -46,7 +46,7 @@ test('each level loads the progress module and links back to the hub', () => {
 });
 
 test('each level records its own completion, from game logic only', () => {
-  const expected = { 'level1.html': 1, 'level2.html': 2, 'level3.html': 3, 'level4.html': 4 };
+  const expected = { 'level1.html': 1, 'level2.html': 2, 'level3.html': 3, 'level4.html': 4, 'level5.html': 5 };
   for (const [page, id] of Object.entries(expected)) {
     const calls = [...read(page).matchAll(/HTPProgress\.recordCompletion\((\d)/g)].map(m => Number(m[1]));
     assert.deepEqual(calls, [id], `${page} should call recordCompletion(${id}) exactly once in source`);
@@ -76,4 +76,20 @@ test('hub lists every level in campaign order', () => {
   assert.match(hub, /HTPProgress\.LEVELS\.forEach/);
   for (const level of P.LEVELS) assert.ok(fs.existsSync(path.join(ROOT, level.url)), level.url);
   assert.match(hub, /prefers-reduced-motion/);
+});
+
+test('level 5 is wired into the campaign: hub copy, level 4 hand-off, intro and audio gating', () => {
+  const hub = read('index.html');
+  assert.match(hub, /5: \{[\s\S]*CITY UNDER AI CONTROL/, 'hub has a level 5 card');
+  assert.match(hub, /FIVE OPERATIONS/);
+  assert.match(read('level4.html'), /href="level5\.html"/, 'level 4 links on to level 5');
+  const html = read('level5.html');
+  for (const marker of ['id="pre-intro"', 'id="skip-intro-btn"', 'id="replay-intro-btn"', 'id="start-btn"', 'id="controls-btn"',
+    'id="role-btn"', 'id="log-drawer"', 'id="radio-panel"', 'id="results-screen"', 'prefers-reduced-motion', 'webgl-error']) {
+    assert.ok(html.includes(marker), marker);
+  }
+  // The AudioContext is only created by audio.unlock(), from click handlers.
+  assert.doesNotMatch(html, /new\s+(window\.)?(webkit)?AudioContext/);
+  assert.match(html, /\$\('start-btn'\)\.onclick = startMission/);
+  assert.match(html, /function startMission\(\) \{\s*audio\.unlock\(\);/);
 });

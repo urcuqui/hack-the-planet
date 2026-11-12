@@ -4,9 +4,9 @@
 
 ![HACK THE PLANET gameplay trailer: FSYNDICATE duel, AI Incident Lab, Operation Ghost, Neon Grand Prix](trailer.gif)
 
-<sub>Real gameplay of all four missions, captured from the current build with `python3 gen_gif.py`.</sub>
+<sub>Real gameplay of the first four missions, captured from the current build with `python3 gen_gif.py`.</sub>
 
-A four-mission cyberpunk browser game. You start as KUKY, breaking into the PandeCorp arena, and go on to hunt rogue AIs, work the streets of a neon Miami as GHOST, and race the circuit against eight AI rivals. All four missions are reached from one **Mission Hub** that tracks your progress.
+A five-mission cyberpunk browser game. You start as KUKY, breaking into the PandeCorp arena, and go on to hunt rogue AIs, work the streets of a neon Miami as GHOST, race the circuit against eight AI rivals, and finally hold a whole smart city together when its AI agents turn on it. All five missions are reached from one **Mission Hub** that tracks your progress.
 
 Everything runs in the browser with plain HTML, CSS and JavaScript. There's no build step, no framework and no backend. All music and sound effects are generated live with the Web Audio API, so the game ships no audio files.
 
@@ -20,13 +20,15 @@ Everything runs in the browser with plain HTML, CSS and JavaScript. There's no b
 | 02 | **Vulnerability Hunter — AI Incident Lab** (`level2.html`) | 2D top-down canvas lab: inspect, read evidence, diagnose, mitigate, verify | Verify all 6 AI incidents before your integrity reaches 0% |
 | 03 | **Operation Ghost — Trust No Signal** (`level3.html`) | Three.js Cyber Miami Noir city: walk, drive, investigate five social-engineering plays | Close five cases (OBSERVE → TALK → INSPECT → DECIDE → LEARN), **then** prove to CIPHER they are one network |
 | 04 | **Neon Grand Prix** (`level4.html`) | Canvas pseudo-3D racer, 8 AI rivals, one AI security decision per lap | Finish all 3 laps. *Bonus:* take P1. *Separate report:* AI security score 0–3 |
+| 05 | **Digital Mayhem — City Under AI Control** (`level5.html`) | Three.js isometric smart-city crisis: real-time incident response across a living district, two roles (KUKY / GHOST), adaptive synthwave soundtrack | Contain, recover and verify all 5 incidents before a critical service fails. *Separate report:* best-practice first responses 0–5 |
 
 ### Campaign progression
 
 - Only Level 1 is available at first. Beating a level's win condition unlocks the next one.
 - Completed levels show **COMPLETED** in the hub and can be replayed. Replaying never re-locks anything.
 - Progress is saved in your browser's `localStorage` (key `htp.progress`) and survives a page refresh. **RESET PROGRESS** in the hub wipes it after you confirm.
-- What gets saved: completed levels, the highest unlocked level, first and last completion times, and a few best results (Level 1: best AI security score; Level 2: highest integrity remaining and most diagnoses right first time; Level 3: most responses right first time; Level 4: best finishing position, best time and best AI security score).
+- What gets saved: completed levels, the highest unlocked level, first and last completion times, and a few best results (Level 1: best AI security score; Level 2: highest integrity remaining and most diagnoses right first time; Level 3: most responses right first time; Level 4: best finishing position, best time and best AI security score; Level 5: best city stability and most best-practice first responses).
+- Adding Level 5 didn't reset anything: saves from the four-level campaign keep their completions and best results, and anyone who had already beaten Level 4 finds Level 5 unlocked.
 - Just opening a level page never marks it complete. Each game records completion itself, once, when its own win condition is met.
 - Every level can still be opened directly by its URL, locked or not. Progress is a convenience, not access control.
 
@@ -54,8 +56,9 @@ Open `index.html` in a browser. Everything works from `file://`, including saved
 
 ### Browser requirements
 
-- A current Chrome, Edge, Firefox or Safari with WebGL (Levels 1 and 3) and the Web Audio API.
-- An internet connection on first load: Levels 1 and 3 load **three.js r128** from cdnjs (pinned version, Subresource Integrity checked).
+- A current Chrome, Edge, Firefox or Safari with WebGL (Levels 1, 3 and 5) and the Web Audio API.
+- An internet connection on first load: Levels 1, 3 and 5 load **three.js r128** from cdnjs (pinned version, Subresource Integrity checked).
+- On machines without a GPU (virtual machines, remote desktops) browsers may turn WebGL off. Level 5 then shows a page explaining how to turn it back on (in Firefox: `webgl.force-enabled` = `true` in `about:config`).
 - Audio only starts after you click or press a key, as browser autoplay rules require.
 - Built for desktop with a keyboard and mouse. The hub is responsive, but the games themselves aren't designed for touch.
 
@@ -70,6 +73,7 @@ Open `index.html` in a browser. Everything works from `file://`, including saved
 | **02 AI Incident Lab** | `WASD` / arrows move · `E` inspect system · `Tab` incident log · `1`–`9` pick an option in the analyzer · `Tab` / `Enter` move between and press buttons · `Esc` close panel / pause · `M` music |
 | **03 Operation Ghost** | `WASD` move relative to the camera (A/D strafe) · `↑ ↓` forward/back · `← →` turn the camera · mouse drag look · `E` talk / enter or exit car · driving: `W S` throttle/brake, `A D` steer, `F` recover a stuck car · `Tab` case files · `M` city map · `1–9` choose in a case · `Esc` close / pause (music, controls and camera settings are in the pause menu) |
 | **04 Neon Grand Prix** | `W` / `↑` accelerate · `S` / `↓` brake · `A D` / `← →` steer · `Space` boost · `Esc` pause / resume · `M` music · decisions: `1`–`3` or `↑ ↓` + `Enter` |
+| **05 Digital Mayhem** | Click a place, map label or incident card to investigate · drag / `W A S D` / arrows pan · mouse wheel / `+ −` zoom · `1`–`4` choose a response or recovery step · `G` switch KUKY ⇄ GHOST · `L` activity log · `R` CITYOS radio · `Space` pause / resume the simulation · `Esc` close panel / pause menu (volumes, radio, voice) · `M` music. `Tab` keeps moving keyboard focus, so the log is on `L` |
 
 Every level has a **MISSION HUB** link on its start screen and on its end screens (success, and failure where a level can be lost).
 
@@ -134,6 +138,31 @@ Wrong analyses and responses explain what would happen and let you try again; no
 
 Wrong choices have visible, recoverable consequences on the track (hijacked throttle, a spoofed-lane drift, reduced grip). Every choice lets you finish: the race result and the AI security report are scored separately, and the report explains what happened, the residual risk and the better practice for each event. Race time counts from **GO** and excludes pauses and decisions.
 
+**Level 5: DIGITAL MAYHEM — THE CITY IS SMART. THE SYSTEM IS BROKEN.** PandeCorp's **CITYOS** runs the Coral District with six autonomous agents (traffic signals, grid optimisation, drone dispatch, traffic prediction, hospital logistics, and the orchestrator that tasks them). A compromised update, v4.2.1, has switched their policy enforcement to *monitor mode*: the policy engine still flags bad tool calls, but lets them run. Every call goes through a real policy check (`js/mayhem/policy.js`). Your responses only change the policy, and what then happens in the city is whatever that policy actually lets execute. An incident counts as contained only when the policy would refuse every one of its unsafe calls.
+
+The loop is **DETECT → INVESTIGATE → DECIDE → CONTAIN → RECOVER**. The inspector shows the agent, its role and enforcement mode, the tool call, target, permissions (critical, revoked and review-only tools are marked), the policy check, the evidence and the risk. Only responses that are valid right now are offered. Containment is not the end: you still restore the service and **VERIFY** it against explicit criteria. A correct decision does not guarantee recovery, and a failed verification explains what is missing at no cost.
+
+| # | Incident | Concept | What happens | Targeted response |
+|---|----------|---------|--------------|-------------------|
+| 01 | Traffic control failure | Tool misuse | A District 1 signal agent forces green on all approaches at INTERSECTION 04 (District 2) | Revoke `override_signal`, enforce scope; its in-scope timing keeps running |
+| 02 | Power grid anomaly | Least privilege | An energy *optimiser* holding critical switching tools opens the hospital feeder and sheds Block C "to avoid peak tariff" | Revoke the critical tools, keep battery dispatch |
+| 03 | Spoofed dispatch command | Agent authentication | An unsigned "EOC priority override" on a public relay wants the whole drone fleet at Pier 9; a signed hospital request waits behind it | Require verified senders: the hospital drone flies, the fake order is held |
+| 04 | Poisoned city data | Data integrity | An unreviewed feed (S-12) reports an empty corridor; the model learns it and jams Bayfront | GHOST confirms the ground truth, then quarantine S-12 and roll the model back |
+| 05 | Cascading agent failure | Cascading failures | Validly signed delegated tasks from the orchestrator hit traffic, dispatch, prediction and the hospital at once | Use the dependency map to find the origin, isolate it and revoke its delegation tokens, then restore in dependency order (power → traffic → dispatch → hospital) |
+
+Every incident also has a tempting unsafe answer (approve it, retrain on everything, trust the signed coordinator) and a safe but costly one (human review of calls that should simply be denied, isolating a whole agent, holding all dispatch, disabling prediction, shutting down all automation). The costly ones contain the threat but push services to manual capacity or leave the hospital waiting. Unsafe answers execute in the city and leave the incident open, so you can still recover. Earlier choices carry forward: the privileges you remove in INC-02 block one branch of the cascade in INC-05.
+
+- **The living city.** Cars stop at real signal phases, queue behind each other and jam where an executed call caused it. Signals blink amber in manual mode and go dark without power. Windows go dark when a block is shed, and the hospital switches to amber backup lighting. Drones fly only for dispatches that actually executed. Network packets travel from each agent to the CITYOS tower for every logged call: green when allowed, amber when held, red when stopped halfway.
+- **SYSTEM PRESSURE (0–5)** is computed from simulation state only: unresolved incidents (by severity), agents that executed unsafe calls in the last 10 s, failed containment, degraded services and an active cascade. Every change pops up with a **CAUSE / IMPACT / NEXT ACTION** note. Opening a panel or reading never raises it.
+- **No reading timer.** The simulation holds while an incident decision, the GHOST task list or a field check is open. `Space` and the pause menu freeze everything.
+- **Failure** happens only on visible thresholds: city stability below 20 %, MERIDIAN GENERAL at 0 %, or 45 s at CITY-WIDE CRISIS. A banner warns before each one.
+- **Two roles.** KUKY runs the Security Control Center. GHOST does short field checks (substation, EOC, Bayfront sensor, tower server room): walk to each hotspot, observe, file the report. The INC-04 fix and its recovery need GHOST's ground truth; the other checks are optional extra evidence.
+- **Activity log (`L`).** Every proposed, approved, blocked, held, executing, completed and failed call, with policy findings, delegation and message provenance, filterable to incidents or to blocked/held calls.
+- **Audio.** An adaptive, original synthwave score in four looping states: CITY PULSE, SYSTEM ALERT, DIGITAL MAYHEM and RECOVERY. Tempo and arrangement follow System Pressure. A single look-ahead scheduler makes changes on the bar line, and there is a ~5 s MISSION COMPLETE sting (and a defeat sting). UI, security and drone effects, plus ambience driven by the simulation (traffic, transformer hum, drone rotors, sirens and alert pings that grow with pressure). Master, music and effects volumes, music on/off and radio on/off are saved locally. **FRONTIER FM — CITYOS RADIO** posts short fictional bulletins (never repeated within 40 s), with optional browser speech that is off by default.
+- **Intro.** A ~10 s skippable cinematic in the same city, with a title sting; replay it from the title screen. With *reduce motion* on, there is no camera movement, shake or pulsing.
+
+The CITYOS agents are transparent state machines and policies, not language models. The results screen keeps the simulation outcome (stability, incidents, blocked actions, services, critical failures) separate from the educational score.
+
 The educational text is deliberately simplified. Where a mitigation reduces a risk rather than removing it (input filtering against prompt injection, RAG against hallucination, adversarial training against evasion), the game says so.
 
 ---
@@ -147,6 +176,7 @@ hack-the-planet/
 ├── level2.html              # 02 AI Incident Lab: canvas lab, HUD, analyzer, report (logic in js/incident/)
 ├── level3.html              # 03 Operation Ghost: page, HUD, case panel, case files, map, CIPHER, results (logic in js/social/)
 ├── level4.html              # 04 Neon Grand Prix: page, HUD, decisions, report (logic in js/racer/)
+├── level5.html              # 05 Digital Mayhem: intro, HUD, inspector, dependency map, field checks, log, radio, results (logic in js/mayhem/)
 ├── js/
 │   ├── progress.js          # Shared campaign state: level list, unlocks, localStorage
 │   ├── arena/               # Level 1 modules (classic scripts, also loadable in Node)
@@ -167,6 +197,12 @@ hack-the-planet/
 │   │   ├── intelligence.js  #   case state machine, case files, CIPHER unlock, report counts
 │   │   ├── character.js     #   jointed low-poly rig, poses (feet stay on the ground), GHOST + NPC outfits
 │   │   └── city.js          #   three.js scene builder: districts, facades, props, lights, cars
+│   ├── mayhem/              # Level 5 modules (classic scripts, also loadable in Node)
+│   │   ├── policy.js        #   CITYOS policy engine: tools, agents, grants, ALLOW / DENY / REVIEW, operator controls
+│   │   ├── incidents.js     #   the five declarative incidents: calls, evidence, responses, field checks, recovery, verification
+│   │   ├── simulation.js    #   deterministic crisis sim: services, dependencies, pressure, containment, recovery, win/loss
+│   │   ├── audio.js         #   adaptive procedural soundtrack, SFX, ambience, radio bus, persisted settings
+│   │   └── city.js          #   layout data (validated in Node) + three.js district: buildings, traffic, signals, drones, network
 │   └── racer/               # Level 4 modules (classic scripts, also loadable in Node)
 │       ├── track.js         #   the circuit: single source of truth for road geometry + minimap
 │       ├── physics.js       #   fixed-step car physics (frame-rate independent)
@@ -183,6 +219,8 @@ hack-the-planet/
 │   ├── incident.test.js     # Level 2: spawns, zones, diagnosis styles, mitigations, verification, status
 │   ├── social.test.js       # Level 3: layout, collisions, routes, walking, driving, camera, cases, CIPHER, rig
 │   ├── racer.test.js        # Level 4: circuit, physics, rivals, security events, report
+│   ├── mayhem.test.js       # Level 5: policy, simulation, pressure, cascade, recovery order, incidents, city layout
+│   ├── mayhem-audio.test.js # Level 5: audio gating, transitions, mute, volumes, pause, restart, stings (fake AudioContext)
 │   ├── serve.test.js        # Static server: valid, missing, malformed, traversal
 │   ├── pages.test.js        # Links, completion hooks, SRI, intro still present
 │   └── browser/
@@ -197,7 +235,7 @@ hack-the-planet/
 └── LICENSE
 ```
 
-Each level is still a self-contained HTML file with its own engine, rendering and audio. The only shared code is `js/progress.js`, which exposes `window.HTPProgress`:
+Each level is still a self-contained HTML file with its own engine, rendering and audio. Level 5 reuses Level 3's jointed GHOST rig (`js/social/character.js`) for its field checks; otherwise the only shared code is `js/progress.js`, which exposes `window.HTPProgress`:
 
 | Function | Purpose |
 |----------|---------|
@@ -214,20 +252,22 @@ Each level is still a self-contained HTML file with its own engine, rendering an
 ```bash
 npm test               # unit + static tests (Node built-in test runner, no browser)
 npm run test:browser   # headless Chrome smoke test of the whole campaign (~30 s)
-npm run test:gameplay  # headless Chrome, real keyboard/mouse input only (~6 min)
+npm run test:gameplay  # headless Chrome, real keyboard/mouse input only (~8 min)
 npm run check          # syntax check of all inline scripts only
 ```
 
 On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffeinate -dimsu npm run test:gameplay`) when the machine may be idle: App Nap / idle sleep can suspend the test process for many minutes. `HTP_ONLY="level 4"` runs only matching gameplay subtests, and `HTP_DEBUG=1` logs progress.
 
 - `npm test` covers progression and unlock logic, corrupt and throwing `localStorage`, the static server (valid files, 404s, malformed URLs, `..` and encoded traversal, sibling-prefix paths, dotfiles, symlink escape) and page wiring. `tests/racer.test.js` checks that the circuit closes and is identical every lap, that the minimap turns where the road turns, that road edges and penalties share one boundary, that physics match at 30/60/144 fps, that rivals stay on the asphalt, that each security event fires once on its lap, and that every combination of choices finishes with a distinct score and report. `tests/arena.test.js` covers WASD and classic movement, frame-rate independence, the pitch limit and aim direction, solid buildings and cover, pulses stopping at structures/ground/sky and hitting each agent's own body, temporary barriers, the Scout's state sequence and audit chain, agents never seeing or firing through cover and routing around it, every Enforcer tool decision (allowed/blocked/held, with reasons), held requests resolving after review, the Signal's message checks and their consequences, the bounty board's order, the inspector reading real log entries, and an honest report. `tests/incident.test.js` checks that every robot spawns on a walkable, reachable, non-overlapping tile, collisions, the six distinct diagnosis styles, that no case names its vulnerability before diagnosis, the poisoning keyword trap and the bias small-sample distractor, that different mitigations give different verification results, that a failed verification means NEEDS REVIEW and −10%, that nothing counts twice, that security status only goes down, and that all six incidents can be completed. `tests/social.test.js` checks that the city layout validates (talk spots and cars free and reachable, nothing overlapping), that every visible building and obstacle is solid, that routes never cut through buildings, frame-rate-independent walking and driving, normalised diagonals, smooth acceleration and turning, sliding along walls, speed-dependent steering, stuck-car recovery and safe exits, traffic that yields, a camera that stays out of walls and frames conversations, that no case names its technique before LEARN, that wrong answers explain without revealing, that the five cases complete in any order with no duplicate files, that CIPHER is locked until five and needs every step, and that the rig keeps feet on the ground in every animation.
-- `npm run test:browser` starts the local server and drives Chrome over the DevTools Protocol. It walks the hub and all four levels in order and checks that:
+- `tests/mayhem.test.js` checks the Level 5 policy engine (identity, grants, scope, privilege tiers, monitor vs enforce, human review, one-time approval, sender verification, quarantined feeds, revoked delegation). It also checks that the simulation is deterministic, that incidents trigger on time or on progress, and that only valid state transitions are accepted. It verifies that pressure comes from state (opening a panel changes nothing) and that every change is explained. Further checks: blocked calls never execute while legitimate work continues, every call is logged with its states, approval escalates, review holds, verified senders launch the hospital drone and hold the spoof, and the field-gated poisoning fix works. In the cascade, the wrong agent fails, the origin contains it, and recovery is ordered. Finally, dependencies are announced, failed verification has no penalty, best and costly strategies both win (scored separately), ignoring the crisis loses on a visible threshold, a new mission starts clean, the incident data is consistent, and the city layout is valid (routes on asphalt, right-hand lanes, no overlaps, field paths clear of buildings). `tests/mayhem-audio.test.js` runs the audio engine against a fake `AudioContext`: nothing before a gesture, one scheduler, bar-line transitions, mute, clamped and persisted volumes, pause ducking, restart without lingering nodes, 4–6 s stings, routing for every effect, and no crash without Web Audio.
+- `npm run test:browser` starts the local server and drives Chrome over the DevTools Protocol. It walks the hub and all five levels in order and checks that:
   - audio only starts after a real click
   - skipping the intro can't reopen the menu mid-match
   - Level 2 shows KUKY, starts CRITICAL · 6 OPEN, opens nothing by proximity alone, and records integrity and first-try diagnoses; defeat and restart work
   - Level 3's CIPHER is locked with fewer than five files, a case resumes where it was left, five files alone do not complete the level, and the final investigation records it once
   - Escape is safe during the boss
-  - Level 4 records position, time and security score
+  - Level 4 records position, time and security score, and hands over to Level 5
+  - Level 5 has no audio before a click, holds the simulation while a decision is open, records stability and score only on a win, and replays from a clean state
   - progress survives a reload and a confirmed reset clears it
   - no page logs a console error
 
@@ -238,6 +278,7 @@ On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffein
   - Level 2 walked with WASD to each robot, `E` inspect, evidence, diagnosis, mitigation and verification for all six incidents (including a wrong diagnosis and a failed verification), defeat and restart, pause, the `Tab` log and the music toggle
   - Level 3 walked and driven with WASD to all five targets (keys and clicks through every analysis, one wrong analysis and one wrong response), pause with music off and controls, the city map, case files, a car, the locked and then unlocked CIPHER, the final investigation and on to Level 4
   - Level 4 driven **from the screen alone**: steering from the rendered asphalt pixels, speed from the HUD, decisions from the on-screen text; plus pause/resume, the music toggle and the report
+  - Level 5 played with clicks and keys: the full intro, controls, drag/wheel/WASD camera, `Space` hold, `M` (no new notes while muted), the `Esc` pause menu, a map-label click, an approved unsafe request, GHOST field checks via `G` and digits, the wrong agent then the origin in the dependency map, an out-of-order restore, an early verification, results, review and a clean replay
   - that each music toggle actually silences the scheduled music (an audio-graph probe, not listening)
 
   It uses the real GPU when headless Chrome can and falls back to software WebGL, which is much slower.
@@ -248,8 +289,9 @@ On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffein
 2. Listen to the music in each level, and check that `M` (Levels 2 and 4), the pause menu's **MUSIC** (Level 3) and `♪ BGM` (Level 1) toggle it right away.
 3. Play Level 3 by hand: does walking feel responsive, is driving comfortable at different speeds, is the camera predictable around buildings and during conversations, are the districts and the five characters recognisable, and do the cases feel like investigations rather than quizzes? Try the map, case files and pause menu with the keyboard only.
 4. Race Level 4 by hand: is the road readable at speed, do curves feel anticipatable, and is P1 a fair challenge? The automated driver finishes around P3 reading only the screen, but feel needs a human.
-5. In the hub, turn on *reduce motion* in the OS. The matrix rain and title glitch should stop.
-6. Resize the hub to phone width: cards stack in one column, with no horizontal scroll.
+5. Play Level 5 by hand, without help: can you tell from the city alone which system is failing, are the evidence and the dependency map enough to choose well, does the pace feel tense but fair (a first run should take about 8–12 minutes), and does the music clearly rise and settle with System Pressure? Try **SPOKEN RADIO** in the pause menu on a browser with speech synthesis.
+6. In the hub and Level 5, turn on *reduce motion* in the OS. The matrix rain and title glitch should stop.
+7. Resize the hub to phone width: cards stack in one column, with no horizontal scroll.
 
 ### Trailer GIF
 
@@ -284,19 +326,21 @@ Gameplay timing varies a little between runs, so each capture yields a slightly 
 - **Local server.** Serves only known asset types from the repo root and refuses dotfiles, `tools/` and `tests/`. Paths are checked with `path.relative` after URL decoding and again after resolving symlinks. Binds to localhost by default and is meant for development only.
 - **Progress storage.** Kept in `localStorage`, so players can edit it. It's a convenience, not a trust boundary.
 - **Audio.** All music and SFX are synthesised in code; no audio files ship. Some tracks are written as *homages* (code comments mention a Mega Man X–style theme, a motif "inspired by" Linkin Park's *In The End*, and a "Vice City" feel). These are original note sequences, but anyone distributing the game commercially should confirm none of them reproduces a copyrighted melody closely.
+- **Level 5 audio and art.** The soundtrack, stings, effects and city are original and procedural, written for this game. Its progressions and patterns are generic synthwave building blocks, not recreations of any existing track, and the hospital uses a green "H" rather than the protected red-cross emblem. All companies, agents and places in CITYOS are fictional.
 - **Names.** Level 3's convention sign now reads *HACKER CONVENTION* (it used to show a real conference name), and Level 4 no longer mentions *Top Gear*. Level 3's people, companies, phone numbers (555) and domains (`.example`) are fictional; the district names are real Miami place names used as setting.
 
 ---
 
 ## Known limitations
 
-- three.js is fetched from a CDN, so Levels 1 and 3 need a network connection the first time.
+- three.js is fetched from a CDN, so Levels 1, 3 and 5 need a network connection the first time.
 - Built for desktop and keyboard; the levels don't have touch controls.
-- Levels 1 and 3 need WebGL. Very old GPUs or blocked WebGL will show a blank scene.
+- Levels 1, 3 and 5 need WebGL. Very old GPUs or blocked WebGL show a blank scene in Levels 1 and 3; Level 5 explains how to enable WebGL instead. Software WebGL (no GPU) works, but more slowly; Level 5 then turns off shadows.
 - Progress is stored per browser and per origin, so `file://` and `http://127.0.0.1:8080` keep separate progress.
 - Level 1's agents are scripted simulations of agent behaviour, not AI models; the security score reflects in-game decisions only.
 - The smoke test triggers win conditions programmatically. The gameplay test plays with real input, but its bots read exact positions, so it shows that a level can be beaten, not how hard it feels.
 - Level 3's five cases and CIPHER's analysis are fixed, hand-written scenarios. Pedestrians walk through GHOST rather than around him, traffic only yields (no crashes), and the city is a compact, stylised Miami, not a map of the real one.
+- Level 5's crisis is deterministic: the same five incidents in the same order every run, so the tests can replay it exactly. The district has cars and drones but no pedestrians, and GHOST's field checks are short guided scenes, not free movement. The radio's spoken announcements depend on the browser's speech voices.
 - Level 2's incidents are fixed, hand-written cases, and the same every run. The evidence is simplified for teaching, and SECURITY STATUS is a simple weighting rule for this lab, not a real risk model.
 
 ---

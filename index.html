@@ -69,6 +69,8 @@
     box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 12%, transparent);
   }
   .mission[data-status="locked"] { --accent: #3d4a3f; filter: saturate(0.4); }
+  /* The finale spans the full row when it lands alone. */
+  .mission:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .mission .code { font-size: 11px; letter-spacing: 4px; color: var(--accent); opacity: 0.85; }
   .mission h2 {
     font-size: 21px; letter-spacing: 3px; margin: 6px 0 4px;
@@ -146,7 +148,7 @@
   <header>
     <div class="pre">&gt; FSYNDICATE // MISSION CONTROL</div>
     <h1>HACK THE PLANET</h1>
-    <div class="tagline">FOUR OPERATIONS. ONE CORPORATION. PANDECORP IS WATCHING.</div>
+    <div class="tagline">FIVE OPERATIONS. ONE CORPORATION. PANDECORP IS WATCHING.</div>
   </header>
 
   <section id="campaign" aria-labelledby="campaign-label">
@@ -154,8 +156,8 @@
       <div class="label" id="campaign-label">CAMPAIGN PROGRESS</div>
       <div id="next-objective"></div>
     </div>
-    <div id="campaign-count">0 / 4</div>
-    <div class="meter" role="progressbar" aria-label="Missions completed" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0"><span style="width:0%"></span></div>
+    <div id="campaign-count">0 / 5</div>
+    <div class="meter" role="progressbar" aria-label="Missions completed" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span style="width:0%"></span></div>
     <div id="storage-warning">Progress cannot be saved in this browser mode — it will reset when you close the page.</div>
   </section>
 
@@ -201,6 +203,11 @@ const MISSIONS = {
     theme: 'RETRO RACING · DEFEND AI SYSTEMS IN MOTION',
     objective: 'Finish 3 laps of the Miami smart circuit and make one AI security decision per lap. Bonus: take P1.',
   },
+  5: {
+    accent: '#F47F78',
+    theme: 'CITY UNDER AI CONTROL · SMART-CITY CRISIS',
+    objective: 'CITYOS is broken. As KUKY and GHOST, contain five AI-agent incidents in a living city, stop the cascade and restore every service before a critical one fails.',
+  },
 };
 
 function formatTime(ms) {
@@ -232,6 +239,8 @@ function metaText(level, entry) {
   if (level.id === 4 && Number.isFinite(best.position)) parts.push('Best finish P' + best.position);
   if (level.id === 4 && Number.isFinite(best.timeMs)) parts.push('Best time ' + formatTime(best.timeMs));
   if (level.id === 4 && Number.isFinite(best.securityScore)) parts.push('Best AI security ' + best.securityScore + '/3');
+  if (level.id === 5 && Number.isFinite(best.stability)) parts.push('Best city stability ' + best.stability + '%');
+  if (level.id === 5 && Number.isFinite(best.securityScore)) parts.push('Best first responses ' + best.securityScore + '/5');
   return parts.join(' · ');
 }
 

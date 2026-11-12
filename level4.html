@@ -275,6 +275,7 @@
     <div class="btn-row">
       <button class="btn" id="race-again-btn">RACE AGAIN</button>
       <button class="btn ghost" id="change-car-btn">CHANGE CAR</button>
+      <a class="btn" id="next-btn" href="level5.html" style="text-decoration:none">NEXT MISSION · LEVEL 05 &gt;</a>
       <a class="btn alt" href="index.html" style="text-decoration:none">MISSION HUB</a>
     </div>
   </div>
@@ -710,7 +711,7 @@ function finishRace() {
   add('CAR', CARS[selectedCar].name);
   if (Number.isFinite(best.position)) add('PERSONAL BEST', 'P' + best.position + ' · ' + formatTime(best.timeMs, true));
   $('bonus-line').textContent = place === 1 ? '★ BONUS OBJECTIVE COMPLETE: FIRST PLACE' : 'BONUS OBJECTIVE: FINISH P1';
-  if (HTPProgress.isCampaignComplete(state)) $('bonus-line').textContent += ' · ALL FOUR MISSIONS COMPLETE';
+  if (HTPProgress.isCampaignComplete(state)) $('bonus-line').textContent += ' · ALL MISSIONS COMPLETE';
 
   const rows = $('report-rows');
   rows.replaceChildren();
