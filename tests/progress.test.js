@@ -23,22 +23,48 @@ const T1 = new Date('2026-11-02T10:00:00Z');
 
 test('fresh state: only level 1 is available', () => {
   const s = P.defaultState();
-  assert.deepEqual(P.LEVELS.map(l => P.statusOf(s, l.id)), ['available', 'locked', 'locked', 'locked']);
+  assert.deepEqual(P.LEVELS.map(l => P.statusOf(s, l.id)), ['available', 'locked', 'locked', 'locked', 'locked']);
   assert.equal(P.isCampaignComplete(s), false);
 });
 
 test('completing a level unlocks exactly the next one', () => {
   let s = P.applyCompletion(P.defaultState(), 1, null, T0);
   assert.equal(s.highestUnlocked, 2);
-  assert.deepEqual(P.LEVELS.map(l => P.statusOf(s, l.id)), ['completed', 'available', 'locked', 'locked']);
+  assert.deepEqual(P.LEVELS.map(l => P.statusOf(s, l.id)), ['completed', 'available', 'locked', 'locked', 'locked']);
   assert.equal(s.levels[1].firstCompletedAt, T0.toISOString());
 });
 
-test('full campaign 1 → 4 completes and caps the unlock at the last level', () => {
+test('full campaign 1 → 5 completes and caps the unlock at the last level', () => {
   let s = P.defaultState();
   for (const id of [1, 2, 3, 4]) s = P.applyCompletion(s, id, id === 4 ? { position: 3, timeMs: 90000 } : null, T0);
-  assert.equal(s.highestUnlocked, 4);
+  assert.equal(s.highestUnlocked, 5, 'finishing level 4 unlocks DIGITAL MAYHEM');
+  assert.equal(P.statusOf(s, 5), 'available');
+  assert.equal(P.isCampaignComplete(s), false, 'the campaign now ends with level 5');
+  s = P.applyCompletion(s, 5, { stability: 86, securityScore: 4 }, T0);
+  assert.equal(s.highestUnlocked, 5);
   assert.equal(P.isCampaignComplete(s), true);
+});
+
+test('saves from the four-level campaign keep their history and unlock level 5', () => {
+  const old = P.normalize({ version: 1, highestUnlocked: 4, levels: {
+    1: { completed: true, firstCompletedAt: '2026-01-02T00:00:00.000Z', best: { securityScore: 2 } },
+    2: { completed: true }, 3: { completed: true },
+    4: { completed: true, best: { position: 2, timeMs: 95000, securityScore: 3 } },
+  } });
+  assert.equal(old.highestUnlocked, 5);
+  assert.deepEqual(P.LEVELS.map(l => P.statusOf(old, l.id)), ['completed', 'completed', 'completed', 'completed', 'available']);
+  assert.equal(old.levels[1].firstCompletedAt, '2026-01-02T00:00:00.000Z');
+  assert.deepEqual(old.levels[4].best, { position: 2, timeMs: 95000, securityScore: 3 });
+  // A campaign that stopped at level 3 does not jump ahead.
+  assert.equal(P.statusOf(P.normalize({ version: 1, levels: { 1: { completed: true }, 2: { completed: true }, 3: { completed: true } } }), 5), 'locked');
+});
+
+test('level 5 keeps best stability and best security score independently', () => {
+  let s = P.applyCompletion(P.defaultState(), 5, { stability: 72, securityScore: 5 }, T0);
+  s = P.applyCompletion(s, 5, { stability: 94, securityScore: 2 }, T1);
+  assert.deepEqual(s.levels[5].best, { stability: 94, securityScore: 5 });
+  assert.equal(s.levels[5].firstCompletedAt, T0.toISOString());
+  assert.equal(P.normalize({ version: 1, levels: { 5: { completed: true, best: { stability: '99%' } } } }).levels[5].best, undefined);
 });
 
 test('replaying keeps the first completion time and only improves best results', () => {
@@ -124,7 +150,7 @@ test('normalize: garbage, wrong versions and bad fields fall back safely', () =>
       7: { completed: true },                             // unknown level
     },
   });
-  assert.equal(s.highestUnlocked, 4);                     // derived from level 4 completion
+  assert.equal(s.highestUnlocked, 5);                     // derived from level 4 completion
   assert.deepEqual(s.levels[1], { completed: true });     // L1 has no best fields
   assert.equal(s.levels[2], undefined);
   assert.deepEqual(s.levels[4].best, { timeMs: 1000 });
@@ -179,8 +205,10 @@ test('store: reset wipes progress', () => {
 });
 
 test('campaign order and navigation helpers', () => {
-  assert.deepEqual(P.LEVELS.map(l => l.url), ['level1.html', 'level2.html', 'level3.html', 'level4.html']);
+  assert.deepEqual(P.LEVELS.map(l => l.url), ['level1.html', 'level2.html', 'level3.html', 'level4.html', 'level5.html']);
   assert.equal(P.nextLevel(1).url, 'level2.html');
-  assert.equal(P.nextLevel(4), null);
+  assert.equal(P.nextLevel(4).url, 'level5.html');
+  assert.equal(P.nextLevel(5), null);
+  assert.equal(P.getLevel(5).name, 'DIGITAL MAYHEM');
   assert.equal(P.HUB_URL, 'index.html');
 });

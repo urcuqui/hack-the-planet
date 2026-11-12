@@ -9,7 +9,9 @@
 //
 // Needs Chrome/Chromium (CHROME_PATH to override) and network access to cdnjs.
 // Level 3 walks the whole operation on foot and by car: five investigations,
-// the locked and then unlocked CIPHER, and the final analysis.
+// the locked and then unlocked CIPHER, and the final analysis. Level 5 plays
+// the whole CITYOS crisis with clicks and keys, including GHOST field checks
+// and deliberate mistakes.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createServer } = require('../../tools/serve.js');
@@ -658,6 +660,177 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       assert.equal(await page.eval('document.activeElement.id'), 'race-again-btn');
       await page.send('Emulation.clearDeviceMetricsOverride');
       page.assertNoErrors('level4');
+    });
+
+    await sub('level 5: digital mayhem — both roles, five incidents, mistakes, audio, real input only', async () => {
+      // Count every audio source the page starts (the AUDIO_PROBE cannot see a
+      // gain-muted bus, and the ambience loops never stop).
+      await page.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__starts = 0;
+        const __s = AudioScheduledSourceNode.prototype.start;
+        AudioScheduledSourceNode.prototype.start = function (...a) { window.__starts++; return __s.apply(this, a); };` });
+      await page.goto(base + '/level5.html');
+      assert.equal(await page.eval('audio.info().started'), false, 'no audio before a gesture');
+      if (await page.eval('localStorage.getItem("htp.mayhem.introSeen")') !== '1') {
+        await page.waitFor('document.activeElement.id === "play-intro-btn"', 3000);
+      }
+      await page.click('#play-intro-btn');
+      await page.waitFor('phase === "intro"');
+      assert.equal(await page.eval('audio.info().ctxState'), 'running', 'intro audio starts after the click');
+      const captions = new Set();
+      const introStart = Date.now();
+      while (await page.eval('phase') === 'intro') {
+        assert.ok(Date.now() - introStart < 16000, 'the intro is short');
+        captions.add(await page.eval('document.getElementById("intro-caption").textContent'));
+        await sleep(200);
+      }
+      assert.ok([...captions].some(c => /UNAUTHORIZED TOOL REQUEST/.test(c)), 'the inciting request is shown');
+      assert.ok(Date.now() - introStart > 8000, 'intro runs about 10 s without skipping');
+      await page.waitFor('phase === "title" && document.activeElement.id === "start-btn"');
+      await page.click('#controls-btn');
+      await page.waitFor('document.getElementById("controls-screen").classList.contains("open")');
+      await page.key('Escape');
+      await page.waitFor('document.getElementById("title-screen").classList.contains("open")');
+      await page.click('#start-btn');
+      await page.waitFor('phase === "play"');
+      const debug5 = (...a) => debug('L5', ...a);
+
+      // Camera: drag, wheel and keys.
+      const cam0 = await page.eval('({ x: cam.x, z: cam.z, d: cam.dist })');
+      await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 700, y: 420, button: 'left', buttons: 1, clickCount: 1 });
+      for (let k = 1; k <= 6; k++) await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 700 - k * 20, y: 420 + k * 6, button: 'left', buttons: 1 });
+      await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 580, y: 456, button: 'left', buttons: 0, clickCount: 1 });
+      const cam1 = await page.eval('({ x: cam.x, z: cam.z, d: cam.dist })');
+      assert.ok(Math.hypot(cam1.x - cam0.x, cam1.z - cam0.z) > 3, 'drag pans');
+      await page.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 700, y: 420, deltaX: 0, deltaY: 400 });
+      await page.waitFor('cam.dist > ' + (cam1.d + 5), 2000);
+      await page.key('KeyW', 350);
+      const cam2 = await page.eval('({ x: cam.x, z: cam.z })');
+      assert.ok(Math.hypot(cam2.x - cam1.x, cam2.z - cam1.z) > 2, 'W pans');
+
+      // Space holds the simulation; M stops new music; Esc opens the pause menu.
+      await page.waitFor('sim.state.t > 1', 5000);
+      await page.key('Space');
+      const held = await page.eval('sim.state.t');
+      await sleep(800);
+      assert.equal(await page.eval('sim.state.t'), held, 'Space pauses the simulation');
+      await page.key('KeyM');
+      assert.equal(await page.eval('audio.info().musicOn'), false);
+      await sleep(400);
+      const s0 = await page.eval('window.__starts');
+      await sleep(1500);
+      assert.equal(await page.eval('window.__starts'), s0, 'muted: no new music notes');
+      await page.key('KeyM');
+      await page.waitFor('window.__starts > ' + (s0 + 5), 3000);
+      await page.key('Space');
+      await page.waitFor('sim.state.t > ' + (held + 0.5), 3000);
+      await page.key('Escape');
+      await page.waitFor('phase === "paused" && document.getElementById("pause-screen").classList.contains("open")');
+      assert.equal(await page.eval('audio.info().paused'), true);
+      const tp = await page.eval('sim.state.t');
+      await sleep(600);
+      assert.equal(await page.eval('sim.state.t'), tp, 'pause menu freezes the city');
+      await page.key('Escape');
+      await page.waitFor('phase === "play" && !audio.info().paused');
+
+      // Play the mission. Read state, act only with clicks and keys.
+      const BEST = { 'INC-01': 'RESTRICT TOOL', 'INC-02': 'RESTRICT PRIVILEGES', 'INC-03': 'REQUIRE VERIFIED SENDER', 'INC-04': 'QUARANTINE S-12', 'INC-05': 'ISOLATE SELECTED AGENT' };
+      const actions = () => page.eval(`[...document.querySelectorAll('#inspector .action')].map(b => ({ n: b.dataset.n, kind: b.dataset.kind, label: b.querySelector('b').textContent }))`);
+      const seen = { label: false, approve: false, wrongNode: false, wrongOrder: false, optionalField: false, verifyEarly: false, roleSwitch: false };
+      const started = Date.now();
+      while (await page.eval('phase') === 'play') {
+        assert.ok(Date.now() - started < 300000, 'the mission finishes');
+        const st = await page.eval(`({ field: !!field, walking: !!(field && field.walking), insp: insp && insp.kind, inspId: insp && insp.id, role,
+          incs: sim.state.incidents.filter(i => !['pending', 'verified'].includes(i.status)).map(i => ({ id: i.id, status: i.status, fieldDone: i.fieldDone,
+            req: !!(i.def.field && i.def.field.required), hasField: !!i.def.field, selected: i.selected, choices: i.choices.length })) })`);
+        if (st.field) {
+          const acts = await actions();
+          const todo = acts.find(a => a.kind === 'observe' && !a.label.startsWith('✓'));
+          if (!st.walking && todo) await page.key('Digit' + todo.n);
+          else if (!st.walking && await page.eval('!!document.getElementById("field-report-btn")')) await page.key('Enter');
+          await sleep(250);
+          continue;
+        }
+        const inc = st.incs[0];
+        if (!inc) { await sleep(300); continue; }
+        const open = ['detected', 'investigating'].includes(inc.status);
+        const wantField = inc.hasField && !inc.fieldDone && open && (inc.req || (inc.id === 'INC-02' && !seen.optionalField));
+        if (wantField) {
+          if (st.role !== 'ghost') { await page.key('KeyG'); seen.roleSwitch = true; await sleep(250); continue; }
+          if (inc.id === 'INC-02') seen.optionalField = true;
+          const task = (await actions()).find(a => a.label.includes(inc.id));
+          assert.ok(task, 'GHOST lists the field task for ' + inc.id);
+          await page.key('Digit' + task.n);
+          await page.waitFor('!!field', 3000);
+          debug5('field', inc.id);
+          continue;
+        }
+        if (st.insp !== 'incident' || st.inspId !== inc.id) {
+          if (!seen.label && inc.id === 'INC-01') { seen.label = true; await page.click('.lbl[data-facility="int-04"]'); }
+          else await page.click('.inc-card[data-id="' + inc.id + '"]');
+          await sleep(300);
+          continue;
+        }
+        if (open) {
+          if (inc.id === 'INC-05') {
+            const target = seen.wrongNode ? 'MESH-COORD-01' : 'TRAFFIC-CONTROL-07';
+            if (inc.selected !== target) { await page.click('[data-node="' + target + '"]'); await sleep(200); continue; }
+          }
+          const acts = await actions();
+          let want = BEST[inc.id];
+          if (inc.id === 'INC-01' && !seen.approve) want = 'APPROVE REQUEST';
+          const a = acts.find(x => x.label.startsWith(want));
+          assert.ok(a, inc.id + ' offers ' + want + ' (got ' + acts.map(x => x.label) + ')');
+          await page.key('Digit' + a.n);
+          await sleep(300);
+          const r = await page.eval('insp && insp.result && { grade: insp.result.grade, contained: insp.result.contained }');
+          debug5(inc.id, want, JSON.stringify(r));
+          if (want === 'APPROVE REQUEST') { seen.approve = true; assert.deepEqual(r, { grade: 'unsafe', contained: false }); }
+          else if (inc.id === 'INC-05' && !seen.wrongNode) { seen.wrongNode = true; assert.deepEqual(r, { grade: 'failed', contained: false }); }
+          else assert.equal(r.contained, true, inc.id + ' contained');
+          continue;
+        }
+        const acts = await actions();
+        const rec = acts.filter(a => a.kind === 'recover');
+        if (rec.length) {
+          let a = rec[0];
+          if (inc.id === 'INC-05' && !seen.wrongOrder) {
+            seen.wrongOrder = true;
+            a = rec.find(x => /MERIDIAN/.test(x.label));
+            await page.key('Digit' + a.n);
+            await page.waitFor('sim.state.counters.failedRestores === 1', 2000);
+            continue;
+          }
+          await page.key('Digit' + a.n);
+          await sleep(250);
+          continue;
+        }
+        const ver = acts.find(a => a.kind === 'verify');
+        const unmet = await page.eval('document.querySelectorAll("#verify-live li.no").length');
+        if (ver && (unmet === 0 || !seen.verifyEarly)) {
+          if (unmet) seen.verifyEarly = true;            // one early attempt: explained, no penalty
+          await page.key('Digit' + ver.n);
+          await sleep(300);
+        } else await sleep(400);
+      }
+      assert.deepEqual(seen, { label: true, approve: true, wrongNode: true, wrongOrder: true, optionalField: true, verifyEarly: true, roleSwitch: true });
+      await page.waitFor('phase === "results" && document.getElementById("results-screen").classList.contains("open")');
+      assert.equal(await page.eval('document.getElementById("results-title").textContent'), 'CITY RESTORED');
+      const r = await page.eval('sim.report()');
+      assert.equal(r.incidentsResolved, 5);
+      assert.equal(r.securityScore, 3, 'INC-01 and INC-05 started with mistakes');
+      assert.equal(r.failedRestores, 1);
+      assert.ok(r.blocked > 0);
+      assert.equal(await page.eval('audio.info().ended'), true);
+      const p = await progress(page);
+      assert.equal(p.levels[5].completed, true);
+      await page.click('#review-btn');
+      assert.equal(await page.eval('[...document.querySelectorAll("#results-report details")].every(d => d.open)'), true);
+      await page.click('#replay-btn');
+      await page.waitFor('phase === "play"');
+      assert.equal(await page.eval('sim.state.t < 2 && sim.state.log.length < 3 && sim.state.incidents.every(i => i.status === "pending")'), true, 'no stale state');
+      assert.equal(await page.eval('audio.info().schedulerActive && audio.info().state === "pulse"'), true);
+      assert.equal(await page.eval('!field && role === "kuky" && !insp'), true);
+      page.assertNoErrors('level5');
     });
   } finally {
     await browser.close();

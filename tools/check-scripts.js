@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
-const PAGES = ['index.html', 'level1.html', 'level2.html', 'level3.html', 'level4.html'];
+const PAGES = ['index.html', 'level1.html', 'level2.html', 'level3.html', 'level4.html', 'level5.html'];
 
 function inlineScripts(html) {
   return [...html.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
@@ -29,7 +29,7 @@ function checkAll() {
     scripts.forEach((script, i) => checkSource(`${file} inline script #${i + 1}`, script));
     report.push(`${file}: ${scripts.length} inline script block(s)`);
   }
-  for (const dir of ['js', 'js/racer', 'js/arena', 'js/incident', 'js/social']) {
+  for (const dir of ['js', 'js/racer', 'js/arena', 'js/incident', 'js/social', 'js/mayhem']) {
     for (const file of fs.readdirSync(path.join(ROOT, dir)).filter(f => f.endsWith('.js'))) {
       checkSource(`${dir}/${file}`, fs.readFileSync(path.join(ROOT, dir, file), 'utf8'));
       report.push(`${dir}/${file}`);
