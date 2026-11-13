@@ -7,6 +7,11 @@
 <meta name="description" content="Operation Ghost — Trust No Signal: investigate AI-assisted social engineering across a Cyber Miami Noir city.">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
 <script src="js/progress.js"></script>
+<script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/learning-events.js"></script>
+<script src="js/knowledge/rewards.js"></script>
+<script src="js/knowledge/progress.js"></script>
+<script src="js/knowledge/vault-ui.js"></script>
 <script src="js/social/world.js"></script>
 <script src="js/social/movement.js"></script>
 <script src="js/social/cases.js"></script>
@@ -85,7 +90,7 @@
   .pips { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
   .pips i { width: 10px; height: 10px; border: 1px solid var(--cream); display: inline-block; transform: rotate(45deg); }
   .pips i.on { background: var(--cyan); border-color: var(--cyan); }
-  #op-panel .lbl { font-size: 10px; letter-spacing: 3px; color: var(--muted); margin-top: 6px; }
+  #op-panel .lbl { font-size: 12px; letter-spacing: 3px; color: var(--muted); margin-top: 6px; }
   #active-case { font-size: 14px; line-height: 1.35; }
   #active-loc { font-size: 13px; color: var(--cyan); display: flex; align-items: center; gap: 8px; }
   #guide-arrow { display: inline-block; width: 18px; height: 18px; color: var(--amber); font-size: 16px; line-height: 18px; text-align: center; }
@@ -96,7 +101,7 @@
   }
   #minimap-wrap { position: absolute; top: 14px; right: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
   #minimap { display: block; width: 180px; height: 180px; }
-  #minimap-wrap .map-label { font-size: 10px; letter-spacing: 3px; color: var(--muted); text-align: center; padding-top: 4px; }
+  #minimap-wrap .map-label { font-size: 12px; letter-spacing: 3px; color: var(--muted); text-align: center; padding-top: 4px; }
   #interact-prompt {
     position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); background: var(--panel-solid);
     border: 1px solid var(--amber); color: var(--cream); font-size: 14px; letter-spacing: 2px; padding: 9px 20px; border-radius: 4px;
@@ -114,8 +119,8 @@
     border-radius: 4px; padding: 4px 9px; font-size: 12px; letter-spacing: 1px; white-space: nowrap; pointer-events: none; z-index: 8; text-align: center;
   }
   .npc-label .n { color: var(--cream); font-weight: bold; letter-spacing: 2px; }
-  .npc-label .r { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
-  .npc-label .s { display: block; font-size: 10px; letter-spacing: 2px; margin-top: 2px; }
+  .npc-label .r { color: var(--muted); font-size: 12px; letter-spacing: 2px; }
+  .npc-label .s { display: block; font-size: 12px; letter-spacing: 2px; margin-top: 2px; }
   .npc-label.ACTIVE { border-color: var(--cyan); } .npc-label.ACTIVE .s { color: var(--cyan); }
   .npc-label.AVAILABLE .s { color: var(--amber); }
   .npc-label.COMPLETED { opacity: 0.75; } .npc-label.COMPLETED .s { color: var(--ok); }
@@ -137,7 +142,7 @@
   #case-tech { font-size: 11px; letter-spacing: 2px; color: var(--amber); margin-top: 3px; font-family: var(--mono); }
   #case-close { flex: none; }
   #case-steps { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  #case-steps span { font-size: 10px; letter-spacing: 2px; padding: 3px 7px; border-radius: 3px; color: var(--muted); border: 1px solid transparent; }
+  #case-steps span { font-size: 12px; letter-spacing: 2px; padding: 3px 7px; border-radius: 3px; color: var(--muted); border: 1px solid transparent; }
   #case-steps span.now { color: var(--navy); background: var(--cyan); }
   #case-steps span.done { color: var(--ok); border-color: rgba(143, 227, 196, 0.35); }
   #case-body { padding: 14px 16px; overflow-y: auto; flex: 1; font-size: 14px; line-height: 1.6; }
@@ -159,9 +164,9 @@
   .opts { display: flex; flex-direction: column; gap: 7px; margin: 10px 0; }
   .opts .btn { text-transform: none; letter-spacing: 0.3px; font-size: 14px; }
   .opt[aria-pressed="true"] { border-color: var(--cyan); background: rgba(98, 220, 231, 0.16); }
-  .opt[aria-pressed="true"]::after { content: '  ✓ SELECTED'; font-size: 10px; letter-spacing: 2px; color: var(--cyan); }
+  .opt[aria-pressed="true"]::after { content: '  ✓ SELECTED'; font-size: 12px; letter-spacing: 2px; color: var(--cyan); }
   .opt.tried { opacity: 0.6; text-decoration: line-through; }
-  .opt.tried::after { content: '  ✗ TRIED'; font-size: 10px; letter-spacing: 2px; color: var(--bad); text-decoration: none; }
+  .opt.tried::after { content: '  ✗ TRIED'; font-size: 12px; letter-spacing: 2px; color: var(--bad); text-decoration: none; }
   .sort-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); }
   .sort-row .seg { display: flex; gap: 4px; }
   .seg .btn { padding: 6px 10px; font-size: 11px; }
@@ -169,7 +174,7 @@
   .seg .btn[aria-pressed="true"]::before { content: '● '; }
   .balance { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; font-size: 12px; letter-spacing: 1px; }
   .balance div { border: 1px dashed var(--line); border-radius: 4px; padding: 6px 8px; min-height: 40px; }
-  .balance b { display: block; font-size: 10px; letter-spacing: 3px; color: var(--amber); }
+  .balance b { display: block; font-size: 12px; letter-spacing: 3px; color: var(--amber); }
   #case-feedback { margin: 0 16px; padding: 10px 12px; font-size: 13px; line-height: 1.55; border-radius: 4px; display: none; }
   #case-feedback.ok { display: block; border-left: 3px solid var(--ok); background: rgba(143, 227, 196, 0.08); }
   #case-feedback.bad { display: block; border-left: 3px solid var(--bad); background: rgba(255, 179, 168, 0.08); }
@@ -186,7 +191,7 @@
   #files-list { display: flex; flex-direction: column; gap: 6px; }
   #files-list .btn { text-transform: none; }
   #files-list .btn[aria-current="true"] { border-color: var(--cyan); background: rgba(98, 220, 231, 0.12); }
-  .file-st { display: block; font-size: 10px; letter-spacing: 2px; color: var(--muted); }
+  .file-st { display: block; font-size: 12px; letter-spacing: 2px; color: var(--muted); }
   #file-detail dl { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 14px; }
   #file-detail dt { font-size: 11px; letter-spacing: 2px; color: var(--amber); padding-top: 2px; }
   .map-grid { display: grid; grid-template-columns: 1fr minmax(200px, 250px); gap: 14px; align-items: start; }
@@ -456,6 +461,14 @@ function sfx(kind) {
 // ═══════════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════════
+// ── Knowledge (shared Vault): unlocks wait while GHOST is driving ──
+const unlocks = HTPKnowledge.UI.createNotifier({
+  accent: '#F58FC4', position: 'top-right', top: '84px',
+  isBusy: () => !!drivingCar,
+  sound: kind => { if (audioCtx && sfxBus) HTPKnowledge.UI.playCue(audioCtx, sfxBus, kind); },
+});
+const knowledge = HTPKnowledge.UI.reporter(unlocks);
+
 let gameStarted = false;
 let gamePhase = 'menu';            // menu | playing | case | files | map | paused | results
 let phaseBeforeOverlay = 'playing';
@@ -797,7 +810,7 @@ function loop() {
     clock += dt;
     const n = gamePhase === 'case' && npcById(caseId);
     if (n) Move.stepCamera(camState, { x: walker.x, z: walker.z, yaw: walker.yaw, speed: 0, driving: !!drivingCar }, {}, dt,
-      { autoFollow: false, focus: { x: n.x, z: n.z }, shift: window.innerWidth > 900 ? 2.4 : 0 });
+      { autoFollow: false, reducedMotion, focus: { x: n.x, z: n.z }, shift: window.innerWidth > 900 ? 2.4 : 0 });
     present(dt);
   }
   renderer.render(scene, camera);
@@ -1249,7 +1262,10 @@ function renderCase() {
     c.decide.options.forEach((o, i) => {
       const b = button(o.text, () => {
         const r = op.decide(caseId, o.id);
-        if (r.ok) { sfx('good'); setFeedback('ok', '✓ OUTCOME', r.outcome); renderCase(); focusCase(); }
+        if (r.ok) {
+          const st = op.cases[caseId];
+          knowledge({ source: 'L3:' + caseId, stage: 'apply', result: 'correct', firstTry: st.inspectTries === 1 && st.decideTries === 1 });
+          sfx('good'); setFeedback('ok', '✓ OUTCOME', r.outcome); renderCase(); focusCase(); }
         else { sfx('bad'); b.classList.add('tried'); b.disabled = true; setFeedback('bad', '✗ WHAT WOULD HAPPEN', r.outcome + ' Try another response.'); const next = opts.querySelector('button:not(:disabled)'); if (next) next.focus(); }
       }, { key: String(i + 1) });
       b.classList.add('opt'); b.dataset.opt = String(i + 1);
@@ -1433,7 +1449,11 @@ function renderCipher() {
   }
   actions(
     button(step.id === 'conclusion' ? 'PRESENT CONCLUSION' : 'SUBMIT', () => {
+      const stepIndex = op.cipher.step, stepId = step.id;
       const r = op.cipherAnswer(sel.v);
+      if (r.ok && stepId === 'identities') {
+        knowledge({ source: 'L3:cipher-identities', stage: 'apply', result: 'correct', firstTry: op.cipher.firstTry[stepIndex] === true });
+      }
       if (r.ok) {
         sfx('good'); setFeedback('ok', '✓ CIPHER', r.cipher); sel = null;
         if (op.complete()) {

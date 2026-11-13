@@ -368,6 +368,10 @@
         tone('sine', 2093, t + 0.46, 0.07, 0.05, bus.radio);
       },
 
+      // Where one-off cues (e.g. knowledge unlocks) should play: the SFX bus,
+      // so they follow the master and effects volumes.
+      sfxTarget() { return ctx && bus ? { ctx, dest: bus.sfx } : null; },
+
       // For tests and the HUD.
       info() {
         return { started: !!ctx, ctxState: ctx ? ctx.state : 'none', state, pending, ended, paused,

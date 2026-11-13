@@ -85,7 +85,7 @@
   .mission .meta { font-size: 11px; color: rgba(210,255,215,0.55); line-height: 1.6; min-height: 18px; margin-bottom: 14px; }
   .status {
     position: absolute; top: 16px; right: 16px;
-    font-size: 10px; letter-spacing: 3px; padding: 4px 8px;
+    font-size: 12px; letter-spacing: 3px; padding: 4px 8px;
     border: 1px solid currentColor;
   }
   .status.available { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
@@ -133,8 +133,77 @@
     97% { transform: none; color: var(--pink); }
   }
 
+  /* hub tabs */
+  .tabs { display: flex; gap: 8px; margin: 0 0 18px; flex-wrap: wrap; }
+  .tab { font-family: inherit; font-size: 12px; letter-spacing: 3px; padding: 10px 16px; cursor: pointer;
+    color: var(--green-dim); background: rgba(0,8,2,0.85); border: 1px solid var(--green-faint); }
+  .tab[aria-selected="true"] { color: var(--green); border-color: var(--green); box-shadow: inset 0 -3px 0 var(--green); }
+  .tab:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .tab .count { color: var(--cyan); margin-left: 6px; }
+  [role="tabpanel"][hidden] { display: none; }
+
+  /* knowledge vault */
+  .vault-head { text-align: left; margin-bottom: 14px; }
+  .vault-head h2 { font-size: 26px; letter-spacing: 5px; color: var(--cyan); text-shadow: 0 0 12px rgba(0,255,255,0.45); }
+  .vault-head p { font-size: 12px; letter-spacing: 3px; color: var(--green-dim); margin-top: 4px; }
+  .kv-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 8px; }
+  .kv-stat { border: 1px solid var(--green-faint); background: rgba(0,12,3,0.85); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .kv-num { font-size: 24px; letter-spacing: 2px; color: #eafff0; }
+  .kv-k { font-size: 11px; letter-spacing: 3px; color: var(--green-dim); }
+  .kv-note { font-size: 12px; color: rgba(210,255,215,0.6); line-height: 1.6; margin: 6px 0 14px; }
+  .kv-review { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .kv-col { border: 1px solid var(--green-faint); background: rgba(0,8,2,0.85); padding: 12px; }
+  .kv-col h3 { font-size: 11px; letter-spacing: 3px; color: var(--cyan); margin-bottom: 8px; font-weight: normal; }
+  .kv-col ul { list-style: none; display: grid; gap: 6px; font-size: 12px; line-height: 1.5; color: rgba(210,255,215,0.85); }
+  .kv-col b { color: #eafff0; font-weight: normal; }
+  .kv-empty, .kv-muted, .kv-why { color: rgba(210,255,215,0.55); }
+  .kv-link { color: var(--cyan); letter-spacing: 2px; }
+  .kv-recent { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .kv-chip { font-size: 12px; border: 1px solid var(--green-faint); padding: 3px 8px; color: #eafff0; }
+  .kv-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .kv-fbtn { font-family: inherit; font-size: 11px; letter-spacing: 2px; padding: 6px 10px; cursor: pointer; color: var(--green-dim); background: transparent; border: 1px solid var(--green-faint); }
+  .kv-fbtn[aria-pressed="true"] { color: #000; background: var(--green); border-color: var(--green); }
+  .kv-fbtn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .kv-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .kv-card { width: 100%; height: 100%; display: grid; grid-template-columns: 44px 1fr; align-content: start; gap: 4px 10px;
+    text-align: left; font-family: inherit; color: #eafff0; padding: 12px; cursor: pointer;
+    background: linear-gradient(160deg, rgba(0,40,20,0.65), rgba(0,8,2,0.95)); border: 1px solid var(--green-faint); }
+  .kv-card:hover, .kv-card:focus-visible { border-color: var(--cyan); outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .kv-card .kv-ic { grid-row: span 5; }
+  .kv-ic { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; color: var(--cyan); }
+  .kv-ic.locked { color: #4c5a4f; border-style: dashed; }
+  .kv-card[data-status="locked"] { background: rgba(0,8,2,0.7); color: rgba(210,255,215,0.6); }
+  .kv-card[data-status="mastered"] { border-color: #ffd23f; }
+  .kv-card[data-status="mastered"] .kv-ic { color: #ffd23f; }
+  .kv-title { font-size: 13px; letter-spacing: 1px; line-height: 1.3; }
+  .kv-cat, .kv-lv { font-size: 11px; letter-spacing: 2px; color: rgba(210,255,215,0.55); }
+  .kv-status { font-size: 11px; letter-spacing: 2px; }
+  .s-locked { color: #8a9a8d; } .s-discovered { color: var(--cyan); } .s-understood { color: var(--green); } .s-mastered { color: #ffd23f; }
+  .kv-pips { display: flex; gap: 3px; } .kv-pips i { width: 16px; height: 4px; background: rgba(255,255,255,0.12); }
+  .kv-pips i.on { background: var(--green); }
+  .kv-card[data-status="mastered"] .kv-pips i.on { background: #ffd23f; }
+  .kv-dialog { max-width: 640px; border-color: var(--cyan); color: #dfffe6; background: #020a05; box-shadow: 0 0 40px rgba(0,255,255,0.2); }
+  .kv-dialog h2 { color: var(--cyan); font-size: 20px; letter-spacing: 3px; margin: 2px 0; }
+  .kv-dhead { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+  .kv-dialog p, .kv-dialog li { font-size: 13px; line-height: 1.65; margin-bottom: 8px; }
+  .kv-dialog b { color: var(--cyan); font-weight: normal; letter-spacing: 2px; font-size: 11px; }
+  .kv-dialog details { border-top: 1px solid var(--green-faint); padding: 8px 0; }
+  .kv-dialog summary { cursor: pointer; font-size: 12px; letter-spacing: 3px; color: var(--green); }
+  .kv-dialog ul { list-style: none; margin-top: 8px; }
+  .kv-dialog .btn { --accent: var(--cyan); }
+  .kv-badges { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .kv-badge { display: grid; grid-template-columns: 54px 1fr; gap: 12px; padding: 14px; border: 1px solid var(--green-faint); background: rgba(0,8,2,0.85); }
+  .kv-badge h3 { font-size: 14px; letter-spacing: 2px; margin: 3px 0 6px; color: #eafff0; font-weight: normal; }
+  .kv-badge p { font-size: 12px; line-height: 1.6; color: rgba(210,255,215,0.8); margin-bottom: 6px; }
+  .kv-medal { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 50%; border: 2px dashed #4c5a4f; color: #4c5a4f; }
+  .kv-badge.earned { border-color: #ffd23f; }
+  .kv-badge.earned .kv-medal { border: 2px solid #ffd23f; color: #ffd23f; background: radial-gradient(circle, rgba(255,210,63,0.18), transparent 70%); }
+  .xp-chip { grid-column: 1 / -1; font-size: 12px; letter-spacing: 2px; color: var(--cyan); }
+
   @media (max-width: 720px) {
     #missions { grid-template-columns: 1fr; }
+    .kv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kv-review { grid-template-columns: 1fr; }
     main { padding-top: 28px; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -164,9 +233,26 @@
     <div id="campaign-count">0 / 5</div>
     <div class="meter" role="progressbar" aria-label="Missions completed" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span style="width:0%"></span></div>
     <div id="storage-warning">Progress cannot be saved in this browser mode — it will reset when you close the page.</div>
+    <div class="xp-chip" id="xp-chip"></div>
   </section>
 
-  <ol id="missions" aria-label="Missions"></ol>
+  <div class="tabs" role="tablist" aria-label="Mission Hub sections">
+    <button class="tab" role="tab" id="tab-missions" aria-controls="panel-missions" aria-selected="true" type="button">MISSIONS</button>
+    <button class="tab" role="tab" id="tab-vault" aria-controls="panel-vault" aria-selected="false" tabindex="-1" type="button">KNOWLEDGE VAULT<span class="count" id="vault-count"></span></button>
+    <button class="tab" role="tab" id="tab-badges" aria-controls="panel-badges" aria-selected="false" tabindex="-1" type="button">ACHIEVEMENTS<span class="count" id="badge-count"></span></button>
+  </div>
+
+  <section role="tabpanel" id="panel-missions" aria-labelledby="tab-missions">
+    <ol id="missions" aria-label="Missions"></ol>
+  </section>
+  <section role="tabpanel" id="panel-vault" aria-labelledby="tab-vault" hidden>
+    <div class="vault-head"><h2>KNOWLEDGE VAULT</h2><p>YOUR AI SECURITY DISCOVERIES · PLAY. DISCOVER. UNDERSTAND. MASTER.</p></div>
+    <div id="vault"></div>
+  </section>
+  <section role="tabpanel" id="panel-badges" aria-labelledby="tab-badges" hidden>
+    <div class="vault-head"><h2>ACHIEVEMENTS</h2><p>SPECIALIST BADGES · EARNED BY DECISIONS, NOT BY FINISHING</p></div>
+    <div id="badges"></div>
+  </section>
 
   <footer>
     <span>Arrow keys move between missions · Enter launches</span>
@@ -178,7 +264,7 @@
 
 <dialog id="reset-dialog" aria-labelledby="reset-title">
   <h2 id="reset-title">WIPE CAMPAIGN DATA?</h2>
-  <p>This erases completed missions, unlocks and best results stored in this browser. Level 1 stays available. This cannot be undone.</p>
+  <p>This erases <b>everything</b> stored in this browser for HACK THE PLANET: completed missions, unlocks and best results, <b>and your Knowledge Vault</b> — discovered, understood and mastered concepts, learning XP and badges. Level 1 stays available. This cannot be undone.</p>
   <form method="dialog" class="actions">
     <button class="btn" value="cancel" autofocus>CANCEL</button>
     <button class="btn danger" value="confirm">WIPE DATA</button>
@@ -186,7 +272,13 @@
 </dialog>
 
 <script src="js/progress.js"></script>
+<script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/learning-events.js"></script>
+<script src="js/knowledge/rewards.js"></script>
+<script src="js/knowledge/progress.js"></script>
+<script src="js/knowledge/vault-ui.js"></script>
 <script>
+const $ = id => document.getElementById(id);
 // Mission copy shown on the hub. Campaign order and URLs come from HTPProgress.LEVELS.
 const MISSIONS = {
   1: {
@@ -306,6 +398,16 @@ function render() {
   meter.setAttribute('aria-valuenow', String(done));
   meter.firstElementChild.style.width = (done / total * 100) + '%';
 
+  // Knowledge Vault and achievements (separate save: htp.knowledge).
+  const K = HTPKnowledge;
+  const unlocked = HTPProgress.LEVELS.filter(l => HTPProgress.statusOf(state, l.id) !== 'locked').map(l => l.id);
+  const ks = K.Progress.summary(K.Progress.load());
+  $('xp-chip').textContent = 'LEARNING XP ' + ks.xp + ' · CONCEPTS DISCOVERED ' + ks.discovered + '/' + ks.total + ' · BADGES ' + ks.badges + '/' + ks.badgesTotal;
+  $('vault-count').textContent = ks.discovered + '/' + ks.total;
+  $('badge-count').textContent = ks.badges + '/' + ks.badgesTotal;
+  K.UI.renderVault($('vault'), { levels: HTPProgress.LEVELS, unlocked });
+  K.UI.renderAchievements($('badges'));
+
   const next = HTPProgress.LEVELS.find(l => HTPProgress.statusOf(state, l.id) === 'available');
   document.getElementById('next-objective').textContent = HTPProgress.isCampaignComplete(state)
     ? '> CAMPAIGN COMPLETE. THE PLANET IS HACKED. Replay any mission to beat your best.'
@@ -324,6 +426,30 @@ document.getElementById('missions').addEventListener('keydown', e => {
   actions[(i + step + actions.length) % actions.length].focus();
 });
 
+// Tabs: click or arrow keys; the selected panel is the only one shown.
+const TABS = ['tab-missions', 'tab-vault', 'tab-badges'];
+function selectTab(id, focus) {
+  for (const t of TABS) {
+    const on = t === id;
+    $(t).setAttribute('aria-selected', String(on));
+    $(t).tabIndex = on ? 0 : -1;
+    $($(t).getAttribute('aria-controls')).hidden = !on;
+  }
+  if (focus) $(id).focus();
+  try { sessionStorage.setItem('htp.hub.tab', id); } catch (e) { /* convenience only */ }
+}
+for (const t of TABS) {
+  $(t).addEventListener('click', () => selectTab(t));
+  $(t).addEventListener('keydown', e => {
+    const i = TABS.indexOf(t);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      selectTab(TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length], true);
+    }
+  });
+}
+try { const saved = sessionStorage.getItem('htp.hub.tab'); if (TABS.includes(saved)) selectTab(saved); } catch (e) { /* default tab */ }
+
 // Locked missions explain themselves instead of doing nothing.
 document.getElementById('missions').addEventListener('click', e => {
   const btn = e.target.closest('.btn[aria-disabled="true"]');
@@ -332,8 +458,9 @@ document.getElementById('missions').addEventListener('click', e => {
 
 function resetProgress() {
   HTPProgress.reset();
+  HTPKnowledge.Progress.reset();          // the dialog says so explicitly
   render();
-  document.getElementById('announce').textContent = 'Campaign progress reset.';
+  document.getElementById('announce').textContent = 'Campaign progress and Knowledge Vault reset.';
   document.querySelector('.mission-action').focus();
 }
 

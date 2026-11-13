@@ -1,0 +1,251 @@
+// HACK THE PLANET — the canonical AI security concept registry.
+//
+// Every concept here is taught by at least one existing gameplay scenario
+// (see learning-events.js for the exact sources). Concept IDs are stable:
+// saves refer to them, so never rename one — add a new id instead.
+//
+// mastery: how MASTERED can be earned.
+//   'cross-level'    a later first-try, unguided success in a different level
+//   'cross-scenario' a later first-try, unguided success in a different scenario
+//   'none'           no independent scenario exists yet: the concept stays at UNDERSTOOD
+//
+// Classic script: window.HTPKnowledge.Concepts in the browser, module in Node.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else (root.HTPKnowledge = root.HTPKnowledge || {}).Concepts = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const CATEGORIES = [
+    { id: 'agentic', label: 'AGENTIC AI', blurb: 'Agents that call tools, talk to each other and act on their own.' },
+    { id: 'model', label: 'MODEL SECURITY', blurb: 'Attacks on what a model reads, learns and reveals.' },
+    { id: 'social', label: 'SOCIAL ENGINEERING', blurb: 'Manipulating people, now with AI doing the persuading.' },
+    { id: 'responsible', label: 'RESPONSIBLE AI', blurb: 'Making model output fair and grounded in fact.' },
+  ];
+
+  const CONCEPTS = [
+    {
+      id: 'least-privilege',
+      title: 'Least Privilege & Tool Scope',
+      category: 'agentic',
+      icon: 'key',
+      relatedLevels: [1, 4, 5],
+      mastery: 'cross-level',
+      shortDescription: 'Give an AI agent only the tools and targets its job needs — and check every call against that scope.',
+      detailedExplanation: 'An agent that holds a powerful tool will eventually use it, whether because of a bug, a bad instruction or an attacker. Least privilege limits the damage in advance: tools are granted per role, targets are scoped, sensitive operations need a human, and every tool call is checked when it runs, not only when the agent was deployed.',
+      learningObjectives: [
+        'Spot a tool call that falls outside an agent\'s role or scope',
+        'Restrict the unsafe tool without stopping the agent\'s legitimate work',
+      ],
+      realWorldApplication: 'Agents with shell, cloud, email or payment tools should hold only what their task needs, with sensitive calls approved outside the model and scopes enforced at execution time.',
+      verificationGuidance: 'Review each agent\'s tool list against its role, check that out-of-scope calls are denied (not just logged), and confirm in the logs that blocked calls never executed.',
+      discoveryCriteria: 'Review an AI agent\'s tool request and decide what it may do.',
+      understandingCriteria: 'Choose a targeted restriction (scope or revoke the unsafe tool, keep legitimate work running).',
+      masteryCriteria: 'Apply the same restriction first time, without guidance, in a different mission.',
+      lockedHint: 'Some agents ask for more power than their job needs.',
+    },
+    {
+      id: 'identity-verification',
+      title: 'Identity & Message Verification',
+      category: 'agentic',
+      icon: 'badge',
+      relatedLevels: [1, 3, 5],
+      mastery: 'cross-level',
+      shortDescription: 'A claimed identity is not a verified one: check signatures, channels and authority before acting.',
+      detailedExplanation: 'Agents and people are told who a message is from — but anyone can type a name. Verification means checking evidence the sender cannot fake easily: a valid signature from a known key, the expected channel, freshness, and whether that sender may request this action at all. Urgent or authoritative messages deserve more checking, not less.',
+      learningObjectives: [
+        'Tell a claimed identity apart from a verified one using evidence',
+        'Hold or reject a request whose sender cannot be authenticated',
+      ],
+      realWorldApplication: 'Multi-agent systems, partner integrations and help desks all receive orders "from" someone. Sign and authenticate messages, verify unusual requests out of band, and authorise the sender for the specific action.',
+      verificationGuidance: 'Check which channels accept commands, that unsigned or replayed messages are rejected or held, and that trusted keys and contacts belong to who they claim.',
+      discoveryCriteria: 'Examine a message or person whose identity is in question.',
+      understandingCriteria: 'Act only on the authenticated sender; hold or reject the unverified claim.',
+      masteryCriteria: 'Recognise and handle an identity problem first time, without guidance, in a different mission.',
+      lockedHint: 'Someone — or something — is not who they say they are.',
+    },
+    {
+      id: 'agent-observability',
+      title: 'Agent Observability',
+      category: 'agentic',
+      icon: 'trace',
+      relatedLevels: [1, 5],
+      mastery: 'cross-level',
+      shortDescription: 'Trace what an agent observed, concluded, requested and executed — so you can find where things went wrong.',
+      detailedExplanation: 'You cannot secure what you cannot see. Observability records each step of an agent\'s behaviour — observation, inference, tool request, policy decision, execution — and who tasked it. When something breaks, that trail is how you find the origin instead of treating symptoms.',
+      learningObjectives: [
+        'Read an agent\'s activity trail from observation to execution',
+        'Use delegation and version evidence to find where a problem started',
+      ],
+      realWorldApplication: 'Log agent inputs, decisions, tool calls and results with enough context (who asked, which version) to reconstruct an incident; make those logs searchable before you need them.',
+      verificationGuidance: 'Pick a past agent action and try to trace it end to end from the logs: input, decision, policy result, execution and requester.',
+      discoveryCriteria: 'Scan a running agent and look at what it is doing.',
+      understandingCriteria: 'Trace an agent\'s behaviour through its activity log.',
+      masteryCriteria: 'Use agent traces to find the origin of a problem in a different mission, first time.',
+      lockedHint: 'Every action leaves a trail, if you know where to look.',
+    },
+    {
+      id: 'cascading-failures',
+      title: 'Cascading Failures',
+      category: 'agentic',
+      icon: 'cascade',
+      relatedLevels: [5],
+      mastery: 'none',
+      shortDescription: 'When agents trust each other, one compromised component can drive many — contain the origin, then restore in order.',
+      detailedExplanation: 'In connected systems an incident rarely stays put. A compromised coordinator can send validly signed tasks to every agent that trusts it, and each downstream action looks legitimate on its own. Containment means finding and isolating the origin and revoking its credentials; recovery means restoring services in dependency order.',
+      learningObjectives: [
+        'Trace coordinated failures back to a single origin',
+        'Contain the origin and restore dependent services in a safe order',
+      ],
+      realWorldApplication: 'Map which components can task which, limit what one agent may delegate, stage updates, and rehearse isolating a component and revoking its tokens.',
+      verificationGuidance: 'Check delegation chains in the logs, that revoked tokens are refused, and that your recovery runbook restores services in dependency order.',
+      discoveryCriteria: 'Investigate failures spreading across several systems at once.',
+      understandingCriteria: 'Contain the cascade at its origin.',
+      masteryCriteria: 'No independent mastery scenario yet — this concept stays at UNDERSTOOD.',
+      lockedHint: 'One failure can become many.',
+    },
+    {
+      id: 'prompt-injection',
+      title: 'Prompt Injection',
+      category: 'model',
+      icon: 'bubble',
+      relatedLevels: [2, 4],
+      mastery: 'cross-level',
+      shortDescription: 'Content a model reads must stay data — it must never get to change the model\'s instructions or privileges.',
+      detailedExplanation: 'Models mix instructions and content in one stream of text. Hidden or explicit instructions inside a web page, email, document or broadcast can redirect a model that reads them. Filters help but are not reliable on their own; the strongest defences keep untrusted content separate and limit what the model can do even if it is fooled.',
+      learningObjectives: [
+        'Recognise instructions arriving through untrusted content',
+        'Keep untrusted content as data and authorise actions outside the model',
+      ],
+      realWorldApplication: 'Assistants that read email, tickets, web pages or documents meet injected text. Separate it from instructions, give the assistant minimal privileges and require approval for consequential actions.',
+      verificationGuidance: 'Find every path by which external content reaches the model, test whether it can trigger tools or change settings, and review actions taken right after reading external content.',
+      discoveryCriteria: 'Work out how untrusted content redirected an AI system.',
+      understandingCriteria: 'Keep the injected content as data and stop it from steering actions.',
+      masteryCriteria: 'Handle an injection first time, without guidance, in a different mission.',
+      lockedHint: 'Some text is written for the model, not for you.',
+    },
+    {
+      id: 'data-poisoning',
+      title: 'Data Poisoning & Provenance',
+      category: 'model',
+      icon: 'drop',
+      relatedLevels: [2, 5],
+      mastery: 'cross-level',
+      shortDescription: 'A model is only as trustworthy as its data: know where every input came from and validate before you learn from it.',
+      detailedExplanation: 'Poisoned training or input data can plant triggers, skew predictions or blind a model to real conditions — often slowly and quietly. Provenance (who supplied the data, signed how, reviewed when), validation against trusted sources and the ability to roll back to a known-good model are the controls that matter.',
+      learningObjectives: [
+        'Identify a data source whose provenance or behaviour is suspicious',
+        'Isolate untrusted data and restore a model trained on trusted data',
+      ],
+      realWorldApplication: 'Review new data feeds before they reach training, sign and track data sources, monitor model behaviour against independent measurements and keep rollback snapshots.',
+      verificationGuidance: 'Check feed provenance and onboarding history, compare predictions with independent sources, and confirm that a rollback really restores the earlier behaviour.',
+      discoveryCriteria: 'Trace a model\'s bad behaviour back to the data it learned from.',
+      understandingCriteria: 'Isolate the untrusted data and restore trustworthy behaviour, then verify it.',
+      masteryCriteria: 'Identify and isolate poisoned data first time, without guidance, in a different mission.',
+      lockedHint: 'Bad data makes confident models.',
+    },
+    {
+      id: 'adversarial-inputs',
+      title: 'Adversarial Inputs',
+      category: 'model',
+      icon: 'noise',
+      relatedLevels: [2, 4],
+      mastery: 'cross-level',
+      shortDescription: 'Inputs can be crafted to fool a model — treat predictions as estimates and cross-check them independently.',
+      detailedExplanation: 'Small, deliberate changes to an input (stickers, painted markings, tweaked pixels or features) can flip a model\'s prediction while looking harmless to people. Robust systems test against such inputs, combine independent signals and fall back to a safe mode when signals disagree.',
+      learningObjectives: [
+        'Recognise a prediction that crafted input could have manipulated',
+        'Cross-check with independent signals and fail safe when they disagree',
+      ],
+      realWorldApplication: 'Vision, fraud, spam and malware models all face crafted inputs. Test on adversarial examples, monitor confidence and disagreement, and keep a safe fallback.',
+      verificationGuidance: 'Measure accuracy on adversarial test sets, check that critical decisions use an independent second signal, and test what the system does when signals disagree.',
+      discoveryCriteria: 'Examine a model prediction that does not match reality.',
+      understandingCriteria: 'Use independent evidence and a safe fallback instead of trusting the single prediction.',
+      masteryCriteria: 'Handle a manipulated prediction first time, without guidance, in a different mission.',
+      lockedHint: 'What a model sees is not always what is there.',
+    },
+    {
+      id: 'model-inversion',
+      title: 'Training-Data Privacy',
+      category: 'model',
+      icon: 'face',
+      relatedLevels: [2],
+      mastery: 'none',
+      shortDescription: 'A model\'s answers can leak the data it was trained on to anyone patient enough to keep asking.',
+      detailedExplanation: 'Repeated, iterative queries against a prediction API can reconstruct sensitive training records, such as a face. Limiting and monitoring queries, returning less detail and privacy-preserving training all reduce what an attacker can extract.',
+      learningObjectives: [
+        'Recognise iterative probing of a model in its query logs',
+        'Choose controls that limit what model outputs reveal',
+      ],
+      realWorldApplication: 'Any API that returns model scores about people can leak training data. Minimise output detail, rate-limit and monitor per-client query patterns.',
+      verificationGuidance: 'Review per-client query volumes and patterns, how much detail responses carry, and alerts for iterative probing.',
+      discoveryCriteria: 'Identify which client is probing a model and what it could reveal.',
+      understandingCriteria: 'Apply and verify controls that limit what the model\'s outputs reveal.',
+      masteryCriteria: 'No independent mastery scenario yet — this concept stays at UNDERSTOOD.',
+      lockedHint: 'Answers can give away more than they say.',
+    },
+    {
+      id: 'social-engineering',
+      title: 'AI-Assisted Social Engineering',
+      category: 'social',
+      icon: 'mask',
+      relatedLevels: [3],
+      mastery: 'cross-scenario',
+      shortDescription: 'Persuasion attacks — baiting, impersonation, pretexting, trading favours, friendly questioning — now scaled and polished by AI.',
+      detailedExplanation: 'Social engineering targets people rather than systems. AI makes it cheaper and more convincing: fluent personalised messages, cloned voices, copied writing styles, instant chatbots and synthetic personas. Polish and urgency are not proof of origin; the defence is to slow down and verify through a channel you already trust.',
+      learningObjectives: [
+        'Identify the persuasion technique from what was observed and said',
+        'Respond by verifying through a trusted channel instead of the attacker\'s',
+      ],
+      realWorldApplication: 'Phishing, vishing, help-desk pretexting and "friendly" information gathering all rely on trust and urgency. Train people to verify out of band and make verification easy.',
+      verificationGuidance: 'Check that staff know the trusted channels for verification, that sensitive requests have a callback or approval step, and that reporting suspicious contact is simple.',
+      discoveryCriteria: 'Investigate a social-engineering attempt and identify its technique.',
+      understandingCriteria: 'Choose the response that verifies through a trusted channel.',
+      masteryCriteria: 'Analyse and respond correctly first time in a different case.',
+      lockedHint: 'The friendliest stranger is not always a friend.',
+    },
+    {
+      id: 'fairness',
+      title: 'Bias & Fairness',
+      category: 'responsible',
+      icon: 'scale',
+      relatedLevels: [2],
+      mastery: 'none',
+      shortDescription: 'Models that score people can treat groups differently — measure outcomes per group before you trust them.',
+      detailedExplanation: 'Skewed training data or proxies for protected traits can make a model systematically worse for some groups. Fairness work means measuring outcomes per group on more than one metric, with enough data behind each number, and fixing the cause rather than hiding the symptom.',
+      learningObjectives: [
+        'Read per-group outcome data, noticing small samples',
+        'Choose controls that address the cause of a disparity and re-measure',
+      ],
+      realWorldApplication: 'Hiring, lending, access and moderation models all score people. Measure outcomes per group and metric before and after deployment, and keep a human review path.',
+      verificationGuidance: 'Review outcome rates per group on several metrics, the sample size behind each, and who signs off the results.',
+      discoveryCriteria: 'Diagnose why a model treats a group differently.',
+      understandingCriteria: 'Apply and verify controls that reduce the disparity.',
+      masteryCriteria: 'No independent mastery scenario yet — this concept stays at UNDERSTOOD.',
+      lockedHint: 'Averages can hide who gets left out.',
+    },
+    {
+      id: 'hallucination',
+      title: 'Hallucination & Grounding',
+      category: 'responsible',
+      icon: 'cloud',
+      relatedLevels: [2],
+      mastery: 'none',
+      shortDescription: 'Fluent answers can be confidently wrong — ground them in sources and check claims against those sources.',
+      detailedExplanation: 'Language models generate plausible text, not verified facts. Grounding answers in retrieved sources and checking each claim against them reduces — but does not eliminate — fabricated details. Unsupported claims should be flagged, not presented as fact.',
+      learningObjectives: [
+        'Check each generated claim against the sources: supported, contradicted or unsupported',
+        'Choose grounding and claim-checking controls and verify them',
+      ],
+      realWorldApplication: 'Assistants that answer from documents should cite retrievable sources, flag unsupported statements and be spot-checked against those sources.',
+      verificationGuidance: 'Sample answers and check each claim against the cited sources; confirm unsupported answers are flagged, not presented as fact.',
+      discoveryCriteria: 'Compare a model\'s claims with its sources.',
+      understandingCriteria: 'Apply and verify grounding controls.',
+      masteryCriteria: 'No independent mastery scenario yet — this concept stays at UNDERSTOOD.',
+      lockedHint: 'Confidence is not the same as being right.',
+    },
+  ];
+
+  const byId = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));
+  return { CATEGORIES, CONCEPTS, byId };
+});

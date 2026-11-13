@@ -43,7 +43,7 @@ Priorities: **P0** correctness or softlock, **P1** learning/workflow clarity, **
 | P1 | Terminal | No way to leave without deciding, though the README says undecided requests stay held | Forced choice | `Esc` leaves; request stays held | Manual run | ✅ |
 | P1 | Report | No practical takeaway | Weak learning transfer | IN THE REAL WORLD / WHAT TO VERIFY per objective; rows to learn from open by default | `tests/arena.test.js` | ✅ |
 | P2 | HUD | Charges shown only as dimmed dots; music button had no state | Colour-only state | Text count and aria-label; `aria-pressed` on music; objective is a live region | Code review | ✅ |
-| P2 | Mouse | The click that recaptures the cursor may also fire (suspected) | Accidental shot | Not changed: headless tests cannot lock the pointer, so a fix could not be verified | — | ⏳ |
+| P2 | Mouse | The click that recaptures the cursor may also fire (suspected) | Accidental shot | **Phase 7:** the recapture click no longer fires once pointer lock has worked; source-checked (headless browsers cannot lock the pointer) | Source check; manual | ✅ |
 
 ### Level 02 — AI Incident Lab
 
@@ -59,7 +59,7 @@ Priorities: **P0** correctness or softlock, **P1** learning/workflow clarity, **
 | P1 | Mitigation | A 4th control click silently did nothing | Confusing | Message: "Up to 3 controls — deselect one first" | Code review | ✅ |
 | P1 | Verification replay | Focus fell to `<body>` while the replay re-rendered; replay timer had no owner | Keyboard users lost | Focus kept in the analyzer; replay bound to its session | Code review | ✅ |
 | P2 | Report | No practical takeaway | Weak transfer | IN THE REAL WORLD / WHAT TO VERIFY for worked cases | `tests/incident.test.js` | ✅ |
-| P2 | Dialogs | No `aria-modal`/focus trap; some 8–10 px canvas labels | Accessibility | Not changed in this phase | — | ⏳ |
+| P2 | Dialogs | No `aria-modal`/focus trap; some 8–10 px canvas labels | Accessibility | **Phase 7:** `aria-modal` + shared focus trap; 9–10 px CSS text raised to 11–12 px (two decorative 8 px sprite words remain) | Smoke; code review | ✅ |
 
 ### Level 03 — Operation Ghost
 
@@ -73,7 +73,7 @@ Priorities: **P0** correctness or softlock, **P1** learning/workflow clarity, **
 | P1 | CIPHER | The final analysis did not show the evidence collected | Evidence not linked to the conclusion | "YOUR INTEL FILES" beside every CIPHER question | Code review | ✅ |
 | P1 | Learn / results | No real-world verification step | Weak transfer | IN REAL LIFE, VERIFY per case, also in results | `tests/social.test.js` | ✅ |
 | P2 | HUD | Whole HUD was `aria-live`, re-announcing distances every metre | Screen-reader noise | Live region moved to toasts and the hint line | Code review | ✅ |
-| P2 | Camera | `prefers-reduced-motion` not applied to camera swings | Motion discomfort | Not changed in this phase | — | ⏳ |
+| P2 | Camera | `prefers-reduced-motion` not applied to camera swings | Motion discomfort | **Phase 7:** the camera cuts instead of swinging (walk, drive, conversation) | `tests/social.test.js` | ✅ |
 
 ### Level 04 — Neon Grand Prix
 

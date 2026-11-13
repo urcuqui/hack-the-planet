@@ -78,7 +78,7 @@
   }
   #intro-terminal .term-header {
     background: rgba(0,255,65,0.15); padding: 6px 14px;
-    font-size: 10px; letter-spacing: 4px; color: #00ff41;
+    font-size: 12px; letter-spacing: 4px; color: #00ff41;
     border-bottom: 1px solid rgba(0,255,65,0.3);
     display: flex; justify-content: space-between;
   }
@@ -171,7 +171,7 @@
   #hud { position: absolute; inset: 0; pointer-events: none; display: none; color: var(--cream); user-select: none; font-family: 'Courier New', monospace; }
   #hud-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 16px; padding: 12px 18px; }
   .hud-chip { background: var(--panel); border: 1px solid var(--panel-line); padding: 6px 10px; }
-  .lbl { font-size: 10px; letter-spacing: 3px; color: var(--orange); }
+  .lbl { font-size: 12px; letter-spacing: 3px; color: var(--orange); }
   .val { font-size: 15px; letter-spacing: 2px; color: var(--cream); }
   .bar-bg { width: min(200px, 24vw); height: 7px; background: rgba(0,0,0,0.5); margin-top: 4px; }
   .bar { height: 100%; }
@@ -182,7 +182,7 @@
   #enemy-chip .bar-bg { margin-left: auto; }
   #bounty-chip { text-align: center; }
   #bounty-count { font-size: 22px; letter-spacing: 3px; }
-  #breaches { font-size: 10px; letter-spacing: 2px; color: #ffc0c0; }
+  #breaches { font-size: 12px; letter-spacing: 2px; color: #ffc0c0; }
   #crosshair { position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); }
   #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(245,221,180,0.95); }
   #crosshair::before { width: 2px; height: 14px; top: 4px; left: 10px; }
@@ -216,19 +216,19 @@
   #toast b { color: var(--cyan); font-weight: normal; letter-spacing: 2px; }
   #agent-chip { position: absolute; left: 16px; bottom: 16px; width: min(330px, 42vw); font-size: 12px; }
   #agent-chip .row { display: flex; justify-content: space-between; gap: 8px; margin-top: 3px; }
-  #agent-chip .k { color: rgba(245,221,180,0.65); font-size: 10px; letter-spacing: 2px; }
+  #agent-chip .k { color: rgba(245,221,180,0.65); font-size: 12px; letter-spacing: 2px; }
   #inspector-mini { display: none; margin-top: 6px; border-top: 1px dashed var(--panel-line); padding-top: 5px; line-height: 1.5; }
   #inspector-mini.open { display: block; }
   #inspector-mini dl { display: grid; grid-template-columns: 82px 1fr; gap: 1px 8px; }
-  #inspector-mini dt { color: rgba(245,221,180,0.6); font-size: 10px; letter-spacing: 1px; padding-top: 2px; }
+  #inspector-mini dt { color: rgba(245,221,180,0.6); font-size: 12px; letter-spacing: 1px; padding-top: 2px; }
   #action-chip { position: absolute; right: 16px; bottom: 16px; width: min(330px, 42vw); text-align: right; font-size: 12px; }
   .keycap { display: inline-block; background: var(--cream); color: var(--navy); font-weight: bold; padding: 0 5px; margin: 0 4px; }
   #objective-text { margin-top: 5px; line-height: 1.45; }
   #interact { display: none; margin-top: 6px; color: var(--amber); }
   #cylinder { margin-top: 6px; letter-spacing: 3px; font-size: 14px; }
   #cylinder .empty { color: rgba(245,221,180,0.25); }
-  #reloading { color: var(--amber); font-size: 10px; letter-spacing: 2px; }
-  #music-btn { position: absolute; top: 74px; right: 16px; font-family: inherit; font-size: 10px; letter-spacing: 2px; color: var(--cream);
+  #reloading { color: var(--amber); font-size: 12px; letter-spacing: 2px; }
+  #music-btn { position: absolute; top: 74px; right: 16px; font-family: inherit; font-size: 12px; letter-spacing: 2px; color: var(--cream);
     background: var(--panel); border: 1px solid var(--panel-line); padding: 5px 9px; cursor: pointer; pointer-events: all; }
   /* State badges: icon + word, never colour alone */
   .st::before { margin-right: 6px; }
@@ -291,7 +291,7 @@
   .poster .btn.primary { background: var(--brown); color: var(--cream); }
   /* Consoles + inspector log */
   .log { display: grid; grid-template-columns: 170px 1fr; gap: 6px 14px; font-size: 13px; line-height: 1.5; margin: 10px 0; }
-  .log dt { font-size: 10px; letter-spacing: 2px; padding-top: 3px; color: var(--orange); }
+  .log dt { font-size: 12px; letter-spacing: 2px; padding-top: 3px; color: var(--orange); }
   .log dt.bad { color: var(--red); } .log dt.ok { color: var(--green); }
   .options { display: grid; gap: 8px; }
   .option { display: grid; grid-template-columns: 36px 1fr; gap: 8px; text-align: left; cursor: pointer; font-family: inherit; font-size: 13px; line-height: 1.45;
@@ -303,7 +303,7 @@
   .outcome.complete { color: var(--green); } .outcome.exploited { color: var(--red); } .outcome.needs-improvement { color: var(--amber); }
   #console-card p, #inspector-card p { font-size: 14px; line-height: 1.6; margin: 6px 0; }
   .audit { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-  .audit th { text-align: left; font-weight: normal; color: var(--orange); font-size: 10px; letter-spacing: 2px; border-bottom: 1px solid var(--panel-line); padding: 3px 6px; }
+  .audit th { text-align: left; font-weight: normal; color: var(--orange); font-size: 12px; letter-spacing: 2px; border-bottom: 1px solid var(--panel-line); padding: 3px 6px; }
   .audit td { padding: 3px 6px; border-bottom: 1px solid rgba(245,221,180,0.1); vertical-align: top; }
   .audit .yes { color: var(--green); } .audit .no { color: var(--red); } .audit .wait { color: var(--amber); }
   .result-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 22px; }
@@ -318,7 +318,7 @@
   #hint-line:empty { display: none; }
   .res-not-completed { color: var(--red); } .res-not-completed::before { content: "✕ "; }
   .report dl { display: grid; grid-template-columns: 120px 1fr; gap: 5px 10px; font-size: 12px; line-height: 1.55; margin-top: 8px; }
-  .report dt { color: rgba(245,221,180,0.6); font-size: 10px; letter-spacing: 2px; padding-top: 2px; }
+  .report dt { color: rgba(245,221,180,0.6); font-size: 12px; letter-spacing: 2px; padding-top: 2px; }
   .score-line { font-size: 15px; letter-spacing: 3px; margin-top: 10px; }
   .disclaimer { font-size: 11px; color: rgba(245,221,180,0.6); margin-top: 6px; line-height: 1.5; }
   .knowledge { list-style: none; font-size: 13px; line-height: 1.7; }
@@ -436,7 +436,7 @@
 </div>
 
 <!-- ══ BRIEFING ══ -->
-<div id="overlay" class="screen" role="dialog" aria-labelledby="brief-title">
+<div id="overlay" class="screen" role="dialog" aria-modal="true" aria-labelledby="brief-title">
   <div class="card brief">
     <div class="pre-title">&gt; LOADING FSYNDICATE.EXE</div>
     <h1 id="brief-title">FSYNDICATE</h1>
@@ -455,7 +455,7 @@
 </div>
 
 <!-- ══ BOUNTY BOARD ══ -->
-<div id="board-screen" class="screen" role="dialog" aria-labelledby="board-title">
+<div id="board-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="board-title">
   <div class="card" style="width:min(1000px,100%)">
     <div class="pre-title">&gt; MAIN STREET · BOUNTY BOARD</div>
     <h1 id="board-title" style="font-size:clamp(24px,5vw,38px)">THREE BOUNTIES</h1>
@@ -467,7 +467,7 @@
 </div>
 
 <!-- ══ PAUSE ══ -->
-<div id="pause-screen" class="screen" role="dialog" aria-labelledby="pause-title">
+<div id="pause-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="pause-title">
   <div class="card">
     <div class="pre-title">&gt; DUEL FROZEN</div>
     <h1 id="pause-title" style="font-size:36px">PAUSED</h1>
@@ -481,17 +481,17 @@
 </div>
 
 <!-- ══ CONSOLE (tool review / message verification) ══ -->
-<div id="console-screen" class="screen" role="dialog" aria-labelledby="console-title">
+<div id="console-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="console-title">
   <div class="card" id="console-card"></div>
 </div>
 
 <!-- ══ AGENT INSPECTOR — full activity log ══ -->
-<div id="inspector-screen" class="screen" role="dialog" aria-labelledby="inspector-title">
+<div id="inspector-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="inspector-title">
   <div class="card" id="inspector-card" style="width:min(940px,100%)"></div>
 </div>
 
 <!-- ══ RESULTS ══ -->
-<div id="results-screen" class="screen" role="dialog" aria-labelledby="results-title">
+<div id="results-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="results-title">
   <div class="card" style="width:min(980px,100%)">
     <div class="pre-title" id="results-pre">&gt; FSYNDICATE</div>
     <h1 id="results-title" style="font-size:clamp(26px,5vw,42px)">FRONTIER SECURED</h1>
@@ -514,7 +514,13 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="js/a11y.js"></script>
 <script src="js/progress.js"></script>
+<script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/learning-events.js"></script>
+<script src="js/knowledge/rewards.js"></script>
+<script src="js/knowledge/progress.js"></script>
+<script src="js/knowledge/vault-ui.js"></script>
 <script src="js/arena/world.js"></script>
 <script src="js/arena/player.js"></script>
 <script src="js/arena/agents.js"></script>
@@ -1175,6 +1181,14 @@ const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)
 // 0-B. CHIPTUNE ENGINE (Megaman X style)
 // ═══════════════════════════════════════════════════
 let audioCtx = null;
+// ── Knowledge (shared Vault): unlocks wait until the duel is not live ──
+const unlocks = HTPKnowledge.UI.createNotifier({
+  accent: '#ffb347', position: 'top-center', top: '90px',
+  isBusy: () => phase === 'playing' || phase === 'draw',
+  sound: kind => { if (audioCtx) HTPKnowledge.UI.playCue(audioCtx, audioCtx.destination, kind); },
+});
+const knowledge = HTPKnowledge.UI.reporter(unlocks);
+HTPA11y.installModalTrap(() => document.querySelector('.screen.open'));   // Tab stays inside open dialogs
 let musicEnabled = true;
 let musicStarted = false;
 let musicBus = null;     // master gain of the loop currently playing
@@ -1741,8 +1755,9 @@ function requestLock() {
 // it must not be mistaken for the player letting go (which pauses the duel).
 let ownRelease = false;
 function releaseLock() { if (locked()) { ownRelease = true; document.exitPointerLock(); } }
+let lockEverWorked = false;
 document.addEventListener('pointerlockchange', () => {
-  if (locked()) return;
+  if (locked()) { lockEverWorked = true; return; }
   if (ownRelease) { ownRelease = false; return; }
   if (phase === 'playing') pauseGame('cursor released');
 });
@@ -1772,7 +1787,12 @@ document.addEventListener('mousemove', e => {
 });
 document.addEventListener('mousedown', e => {
   if (e.button !== 0 || phase !== 'playing' || e.target.closest('button, a, input, label, .screen')) return;
-  if (!locked()) requestLock();
+  if (!locked()) {
+    requestLock();
+    // Recapturing the cursor is not a shot. (Where pointer lock never works,
+    // e.g. some embedded/headless browsers, clicks still fire.)
+    if (lockEverWorked) return;
+  }
   shotQueued = true;
 });
 window.addEventListener('blur', () => { if (phase === 'playing') pauseGame('window lost focus'); });
@@ -1965,6 +1985,7 @@ function doScan() {
   playSFX('scan');
   showStatus('SCAN · ' + res.info.state + ' · ' + res.info.lastAction);
   if (res.tip) toast('<b>AGENT OBSERVABILITY</b><br>' + res.tip + '<br>Press <b>[I]</b> for the full activity log.');
+  if (agent.kind === 'scout') knowledge({ source: 'L1:scout', stage: 'discover' });
 }
 
 function nearestConsole() {
@@ -2270,6 +2291,7 @@ function openInspector() {
   openScreen('inspector-screen', 'inspector-close');
   if (agent.kind === 'scout' && security.outcomes().scout === 'complete' && !openInspector.done) {
     openInspector.done = true;
+    knowledge({ source: 'L1:scout', stage: 'apply', result: 'complete', firstTry: true });
     toast('<b>✓ AGENT OBSERVABILITY</b><br>You traced the Scout from signal to attack: observation, inference, request, policy, execution.');
   }
 }
@@ -2318,6 +2340,7 @@ function chooseConsole(i) {
   if (!consoleView || consoleView.stage !== 'choose') return;
   const res = security.decide(agent.kind, i, combatTime);
   if (!res) return;
+  knowledge({ source: 'L1:' + agent.kind, stage: 'apply', result: res.option.outcome, firstTry: true });
   const { def, option } = res;
   consoleView.stage = 'feedback';
   const status = Agents.resolvePending(agent, security.policy);

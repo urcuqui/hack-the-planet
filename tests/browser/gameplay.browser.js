@@ -613,13 +613,18 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       })()`;
       const keys = keyboard(page);
       const end = Date.now() + 300000;
-      let samples = 0, offTrack = 0, decisions = 0, paused = false;
+      let samples = 0, offTrack = 0, decisions = 0, paused = false, unlockWhileRacing = 0;
       const picks = [/untrusted data/, /Cross-check/, /only the in-role/];
       for (;;) {
         const s = await page.eval(LOOK);
         if (s.done) break;
         assert.ok(Date.now() < end, 'finish three laps within 5 minutes');
         if (s.options.length) {
+          if (decisions === 0) {
+            // Space (boost) pressed and released on the card must not choose anything.
+            await page.keyDown('Space'); await sleep(120); await page.keyUp('Space');
+            assert.equal(await page.eval('decisionView'), 'choose', 'releasing Space does not pick an option');
+          }
           await keys.releaseAll();
           const i = s.options.findIndex(o => picks[decisions].test(o));
           assert.ok(i >= 0, 'the mitigation is offered: ' + s.options.join(' | '));
@@ -643,6 +648,8 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
           continue;
         }
         samples++;
+        // Allow the notifier's 150 ms poll to react after the race resumes.
+        if (samples % 40 === 0 && await page.eval('phase === "racing" && raceTime - (window.__resumedAt || 0) > 0.3 && !!document.querySelector(".htpk-unlock:not([hidden])")')) unlockWhileRacing++;
         if (/OFF TRACK|BARRIER/.test(s.warn)) offTrack++;
         const aim = s.near * 0.6 + s.far * 0.4;
         await keys.set('KeyD', aim > 0.02); await keys.set('KeyA', aim < -0.02);
@@ -659,6 +666,11 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       const p = await progress(page);
       assert.equal(p.levels[4].completed, true);
       assert.equal(p.levels[4].best.securityScore, 3);
+      // Knowledge: three safe calls are real evidence; unlocks never covered the road while racing.
+      const kn = JSON.parse(await page.eval('localStorage.getItem("htp.knowledge")'));
+      assert.ok(kn.badges['safety-first-driver'], 'SAFETY-FIRST DRIVER earned from the three decisions');
+      for (const id of ['prompt-injection', 'adversarial-inputs', 'least-privilege']) assert.ok(kn.concepts[id] && kn.concepts[id].understoodAt, id);
+      assert.equal(unlockWhileRacing, 0, 'knowledge unlocks wait until the car is not racing');
       assert.match(await page.eval('document.getElementById("report-score").textContent'), /3 \/ 3/);
       assert.equal(await page.eval('document.querySelectorAll("#knowledge li").length'), 3);
       assert.equal(await page.eval('document.activeElement.id'), 'race-again-btn');
@@ -739,6 +751,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       // Play the mission. Read state, act only with clicks and keys.
       const BEST = { 'INC-01': 'RESTRICT TOOL', 'INC-02': 'RESTRICT PRIVILEGES', 'INC-03': 'REQUIRE VERIFIED SENDER', 'INC-04': 'QUARANTINE S-12', 'INC-05': 'ISOLATE SELECTED AGENT' };
       const actions = () => page.eval(`[...document.querySelectorAll('#inspector .action')].map(b => ({ n: b.dataset.n, kind: b.dataset.kind, label: b.querySelector('b').textContent }))`);
+      let seenUnlock = false;
       const seen = { label: false, approve: false, wrongNode: false, wrongOrder: false, optionalField: false, verifyEarly: false, roleSwitch: false };
       const started = Date.now();
       while (await page.eval('phase') === 'play') {
@@ -746,6 +759,7 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
         const st = await page.eval(`({ field: !!field, walking: !!(field && field.walking), insp: insp && insp.kind, inspId: insp && insp.id, role,
           incs: sim.state.incidents.filter(i => !['pending', 'verified'].includes(i.status)).map(i => ({ id: i.id, status: i.status, fieldDone: i.fieldDone,
             req: !!(i.def.field && i.def.field.required), hasField: !!i.def.field, selected: i.selected, choices: i.choices.length })) })`);
+        if (!seenUnlock && await page.eval('!!document.querySelector(".htpk-unlock:not([hidden])")')) seenUnlock = true;
         if (st.field) {
           const acts = await actions();
           const todo = acts.find(a => a.kind === 'observe' && !a.label.startsWith('✓'));
@@ -823,6 +837,15 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       assert.equal(r.incidentsResolved, 5);
       assert.equal(r.securityScore, 3, 'INC-01 and INC-05 started with mistakes');
       assert.equal(r.failedRestores, 1);
+      // Knowledge from real decisions: every incident's concept understood (after
+      // feedback where the first response was wrong); no badge for a wrong first INC-05.
+      const kn = JSON.parse(await page.eval('localStorage.getItem("htp.knowledge")'));
+      for (const id of ['least-privilege', 'identity-verification', 'data-poisoning', 'cascading-failures', 'agent-observability']) {
+        assert.ok(kn.concepts[id] && kn.concepts[id].understoodAt, id + ' understood');
+      }
+      assert.equal(kn.concepts['cascading-failures'].masteredAt, undefined, 'no independent scenario, no mastery');
+      assert.equal(kn.badges['city-guardian'], undefined, 'the first INC-05 response isolated the wrong agent');
+      assert.ok(seenUnlock, 'a KNOWLEDGE UNLOCKED card was shown during the mission');
       assert.ok(r.blocked > 0);
       assert.equal(await page.eval('audio.info().ended'), true);
       const p = await progress(page);

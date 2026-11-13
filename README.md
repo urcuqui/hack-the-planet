@@ -12,6 +12,7 @@
 
 - **Who it's for:** anyone curious about agentic AI security — tool permissions, prompt injection, data poisoning, identity and message verification, cascading failures. No prior security knowledge is needed; experienced players can skip the tutorials.
 - **How long:** about 5–15 minutes per mission. Open `index.html` (or run `npm start`) and pick a mission in the **Mission Hub**, which saves your progress.
+- **What you take away:** every mission feeds one **Knowledge Vault** in the Mission Hub. Concepts you meet in play become *discovered*, applying the right control makes them *understood*, and applying it again first time in a different mission makes them *mastered* — with learning XP, five specialist badges and a review of what to practise next. **PLAY. DISCOVER. UNDERSTAND. MASTER.**
 - **What it is not:** an independent, experimental learning project. It is **not affiliated with or endorsed by TryHackMe** or any other company, and nothing in it measures a real system. The agents are transparent simulations (state machines and policies), not AI models.
 
 Everything runs in the browser with plain HTML, CSS and JavaScript. There's no build step, no framework and no backend. All music and sound effects are generated live with the Web Audio API, so the game ships no audio files.
@@ -33,6 +34,7 @@ Everything runs in the browser with plain HTML, CSS and JavaScript. There's no b
 - Only Level 1 is available at first. Beating a level's win condition unlocks the next one.
 - Completed levels show **COMPLETED** in the hub and can be replayed. Replaying never re-locks anything.
 - Progress is saved in your browser's `localStorage` (key `htp.progress`) and survives a page refresh. **RESET PROGRESS** in the hub wipes it after you confirm.
+- The **Knowledge Vault** has its own save, `htp.knowledge` (concepts, learning XP, badges, a few evidence references). It never changes `htp.progress`, so saves from before Phase 7 keep working. **RESET PROGRESS** says explicitly that it wipes both, and does.
 - Level 5 also remembers whether you finished or skipped its guide (`htp.mayhem.guide`) and its audio settings (`htp.mayhem.audio`, including REDUCED ALERTS); neither affects campaign progress.
 - What gets saved: completed levels, the highest unlocked level, first and last completion times, and a few best results (Level 1: best AI security score; Level 2: highest integrity remaining and most diagnoses right first time; Level 3: most responses right first time; Level 4: best finishing position, best time and best AI security score; Level 5: best city stability and most best-practice first responses).
 - Adding Level 5 didn't reset anything: saves from the four-level campaign keep their completions and best results, and anyone who had already beaten Level 4 finds Level 5 unlocked.
@@ -87,6 +89,18 @@ Every level has a **MISSION HUB** link on its start screen and on its end screen
 **Onboarding.** No level opens with a tutorial page. Each one teaches through the first interaction and then gets out of the way: Level 1 shows one next step at a time (aim → scan → open the log → the terminal with a pending request, with its distance); Level 2 labels the robot you can inspect until your first inspection and shows the analyzer's EVIDENCE ▸ DIAGNOSE ▸ MITIGATE ▸ VERIFY steps; Level 3 starts you on the nearest case with a walk → talk → drive hint; Level 4 announces each AI anomaly on screen well before its decision; Level 5 has the guided first incident and an always-visible objective. Hints disappear once you have done what they describe.
 
 ---
+
+## Knowledge Vault
+
+The Mission Hub has three tabs: **MISSIONS**, **KNOWLEDGE VAULT** and **ACHIEVEMENTS**. Each mission reports what the player actually did at real decision points — a terminal decision, a verified fix, a case response, a race decision, a policy response — and a shared system turns that into progress on 11 AI security concepts:
+
+| State | How you get there |
+|---|---|
+| ◆ **DISCOVERED** | You examined the evidence (never just by opening a screen, and never before the concept's name would stop being a hint) |
+| ✓ **UNDERSTOOD** | You applied the right control. Unsafe or over-restrictive choices count as attempts, not understanding |
+| ★ **MASTERED** | Later, you applied it right first time, without the guide, in a *different* mission (or a different case, for social engineering). Concepts with no independent scenario stay at UNDERSTOOD |
+
+Learning XP (25 / 75 / 150) is paid once per milestone and cannot be farmed by replaying. Five specialist badges — AGENT CONTAINMENT SPECIALIST, AI SECURITY INVESTIGATOR, IDENTITY DETECTIVE, SAFETY-FIRST DRIVER, CITY GUARDIAN — have explicit conditions; none is given for finishing a mission. In a mission, a short **KNOWLEDGE UNLOCKED** card (with an original sound cue) appears after the decision that earned it, and waits while you are fighting, racing or driving. Locked concept cards never reveal names or answers. The full design — catalog, event mappings, reward conditions — is in [`docs/PHASE7-KNOWLEDGE.md`](docs/PHASE7-KNOWLEDGE.md).
 
 ## Mission notes
 
@@ -192,6 +206,13 @@ hack-the-planet/
 ├── level5.html              # 05 Digital Mayhem: intro, HUD, inspector, dependency map, field checks, log, radio, results (logic in js/mayhem/)
 ├── js/
 │   ├── progress.js          # Shared campaign state: level list, unlocks, localStorage
+│   ├── a11y.js              # Shared modal focus trap
+│   ├── knowledge/           # Shared Knowledge Vault (classic scripts, also loadable in Node)
+│   │   ├── concepts.js      #   the concept registry (stable ids)
+│   │   ├── learning-events.js #   gameplay sources → concepts, validation
+│   │   ├── rewards.js       #   learning XP and badge conditions
+│   │   ├── progress.js      #   DISCOVERED/UNDERSTOOD/MASTERED, idempotent events, review, htp.knowledge
+│   │   └── vault-ui.js      #   icons, unlock cards, reward sounds, Vault and Achievements views
 │   ├── arena/               # Level 1 modules (classic scripts, also loadable in Node)
 │   │   ├── world.js         #   Main Street geometry, collisions, line of sight, navigation, barriers
 │   │   ├── player.js        #   movement, mouse look, aim direction
@@ -234,6 +255,8 @@ hack-the-planet/
 │   ├── racer.test.js        # Level 4: circuit, physics, rivals, security events, report
 │   ├── mayhem.test.js       # Level 5: policy, simulation, pressure, cascade, recovery order, incidents, city layout
 │   ├── mayhem-audio.test.js # Level 5: audio gating, transitions, mute, volumes, pause, restart, stings (fake AudioContext)
+│   ├── knowledge.test.js    # Knowledge system: registry, events, learning states, mastery, persistence
+│   ├── rewards.test.js      # Learning XP and badge conditions
 │   ├── serve.test.js        # Static server: valid, missing, malformed, traversal
 │   ├── pages.test.js        # Links, completion hooks, SRI, intro still present
 │   └── browser/
@@ -243,6 +266,7 @@ hack-the-planet/
 ├── gen_gif.py               # Builds trailer.gif from captured gameplay (needs Chrome + ImageMagick)
 ├── trailer.gif              # README trailer (7.6 s, 640×360, 12 fps)
 ├── docs/PHASE6-REVIEW.md    # Learning objectives, usability review findings and open playtest questions
+├── docs/PHASE7-KNOWLEDGE.md # Knowledge system: catalog, learning events, rewards, Vault, a11y/camera/audio changes
 ├── trailer-contact-sheet.png  # Frames from each scene, for reviewing the trailer
 ├── preview.gif              # Earlier illustrated preview
 ├── package.json             # npm scripts only, no dependencies
@@ -356,7 +380,8 @@ Gameplay timing varies a little between runs, so each capture yields a slightly 
 - The smoke test triggers win conditions programmatically. The gameplay test plays with real input, but its bots read exact positions, so it shows that a level can be beaten, not how hard it feels.
 - Level 3's five cases and CIPHER's analysis are fixed, hand-written scenarios. Pedestrians walk through GHOST rather than around him, traffic only yields (no crashes), and the city is a compact, stylised Miami, not a map of the real one.
 - Level 5's crisis is deterministic: the same five incidents in the same order every run, so the tests can replay it exactly. The district has cars and drones but no pedestrians, and GHOST's field checks are short guided scenes, not free movement. The radio's spoken announcements depend on the browser's speech voices.
-- Accessibility has been improved (keyboard focus in the Level 3 and Level 5 panels, text plus icons for every security state, live regions, reduced motion, reduced alerts in Level 5) but **not tested with assistive technology**. Levels 1–2 dialogs still lack focus traps, and aiming (Level 1), walking (Levels 2–3) and driving (Level 4) have no non-pointer/keyboard-free alternative. Full accessibility compliance is not claimed.
+- Accessibility has been improved (focus traps in every modal dialog, text plus symbols for every security and learning state, live regions, 11 px minimum CSS text, reduced motion including Level 3's camera, reduced alerts in Level 5) but **not tested with assistive technology**. Aiming (Level 1), walking (Levels 2–3) and driving (Level 4) have no alternative to real-time keyboard/mouse control. Full accessibility compliance is not claimed.
+- Knowledge Vault: four concepts have only one scenario and cannot be mastered yet; XP and badges reflect decisions in these games, not real-world competence. The Level 1 pointer-lock fix and the reward sounds are not exercised by headless tests.
 - The learning objectives in `docs/PHASE6-REVIEW.md` describe what each mission asks players to do; no learner study has been run, so learning effects are not claimed.
 - Level 2's incidents are fixed, hand-written cases, and the same every run. The evidence is simplified for teaching, and SECURITY STATUS is a simple weighting rule for this lab, not a real risk model.
 

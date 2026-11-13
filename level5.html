@@ -78,7 +78,7 @@
   .brand { font-size: 13px; letter-spacing: 4px; color: var(--pink); white-space: nowrap; }
   .brand b { color: var(--cyan); font-weight: normal; }
   .stat { display: flex; flex-direction: column; gap: 3px; }
-  .stat .k { font-size: 9px; letter-spacing: 3px; color: var(--muted); }
+  .stat .k { font-size: 11px; letter-spacing: 3px; color: var(--muted); }
   .stat .v { font-size: 14px; letter-spacing: 2px; }
   .meter { position: relative; height: 6px; background: rgba(255,255,255,0.1); width: 130px; }
   .meter > span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--stable); transition: width 0.3s, background 0.3s; }
@@ -97,7 +97,7 @@
 
   #side { position: absolute; top: calc(var(--top) + 8px); left: 12px; width: 290px; max-height: calc(100% - var(--top) - 56px); overflow-y: auto;
     background: var(--panel); border: 1px solid var(--line); padding: 12px; }
-  .sec-title { font-size: 10px; letter-spacing: 3px; color: var(--cyan); margin: 4px 0 8px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
+  .sec-title { font-size: 12px; letter-spacing: 3px; color: var(--cyan); margin: 4px 0 8px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
   .sec-title > span:last-child { color: var(--muted); letter-spacing: 2px; }
   #incident-list { list-style: none; display: grid; gap: 6px; margin-bottom: 14px; }
   .inc-card { width: 100%; text-align: left; cursor: pointer; background: rgba(255,255,255,0.04); color: var(--text);
@@ -106,15 +106,15 @@
   .inc-card[data-status="contained"], .inc-card[data-status="recovering"] { border-left-color: var(--warning); }
   .inc-card[data-status="verified"] { border-left-color: var(--stable); opacity: 0.75; }
   .inc-card[aria-current="true"] { background: rgba(114,220,235,0.12); border-color: var(--selected); }
-  .inc-card .id { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
-  .inc-card .st { display: block; font-size: 10px; letter-spacing: 2px; margin-top: 2px; }
+  .inc-card .id { color: var(--muted); font-size: 12px; letter-spacing: 2px; }
+  .inc-card .st { display: block; font-size: 12px; letter-spacing: 2px; margin-top: 2px; }
   .empty { font-size: 11px; color: var(--muted); line-height: 1.5; }
   .svc { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 11px; margin-bottom: 9px; }
   .svc .bar { grid-column: 1 / -1; height: 5px; background: rgba(255,255,255,0.1); position: relative; }
   .svc .bar span { position: absolute; left: 0; top: 0; bottom: 0; transition: width 0.3s; }
   .svc .bar i { position: absolute; top: -2px; bottom: -2px; width: 1px; background: rgba(255,255,255,0.5); left: 70%; }
-  .svc .why { grid-column: 1 / -1; font-size: 10px; color: var(--muted); }
-  .chip { font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
+  .svc .why { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+  .chip { font-size: 12px; letter-spacing: 1px; white-space: nowrap; }
   .s-STABLE { color: var(--stable); } .s-DEGRADED { color: var(--warning); } .s-CRITICAL, .s-OFFLINE { color: var(--critical); }
   .s-STABLE::before { content: "● "; } .s-DEGRADED::before { content: "▲ "; } .s-CRITICAL::before { content: "■ "; } .s-OFFLINE::before { content: "✕ "; }
 
@@ -122,19 +122,19 @@
     background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; display: none; }
   #inspector.open { display: block; }
   #inspector h2 { font-size: 17px; letter-spacing: 3px; color: var(--pink); margin: 2px 0 6px; }
-  #inspector h3 { font-size: 10px; letter-spacing: 4px; color: var(--cyan); margin: 14px 0 6px; }
+  #inspector h3 { font-size: 12px; letter-spacing: 4px; color: var(--cyan); margin: 14px 0 6px; }
   .insp-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
-  .held-note { font-size: 10px; letter-spacing: 2px; color: var(--warning); margin-bottom: 6px; }
+  .held-note { font-size: 12px; letter-spacing: 2px; color: var(--warning); margin-bottom: 6px; }
   .kv { display: grid; grid-template-columns: 96px 1fr; gap: 4px 10px; font-size: 12px; line-height: 1.45; }
-  .kv dt { font-size: 10px; letter-spacing: 2px; color: var(--muted); padding-top: 2px; }
+  .kv dt { font-size: 12px; letter-spacing: 2px; color: var(--muted); padding-top: 2px; }
   .kv dd.bad { color: var(--critical); } .kv dd.warn { color: var(--warning); } .kv dd.ok { color: var(--stable); }
-  .perm { display: inline-block; font-size: 10px; border: 1px solid rgba(255,255,255,0.25); padding: 1px 5px; margin: 1px 3px 2px 0; }
+  .perm { display: inline-block; font-size: 12px; border: 1px solid rgba(255,255,255,0.25); padding: 1px 5px; margin: 1px 3px 2px 0; }
   .perm.critical { border-color: var(--critical); color: var(--critical); }
   .perm.revoked { text-decoration: line-through; opacity: 0.5; }
   .perm.review { border-style: dashed; border-color: var(--warning); color: var(--warning); }
   .evidence { list-style: none; display: grid; gap: 6px; font-size: 12px; line-height: 1.5; }
   .evidence li { border-left: 2px solid rgba(255,255,255,0.25); padding-left: 8px; }
-  .evidence li b { font-weight: normal; font-size: 10px; letter-spacing: 2px; color: var(--muted); display: block; }
+  .evidence li b { font-weight: normal; font-size: 12px; letter-spacing: 2px; color: var(--muted); display: block; }
   .evidence li.policy { border-color: var(--warning); } .evidence li.log { border-color: var(--cyan); } .evidence li.field { border-color: var(--pink); }
   .risk { font-size: 12px; line-height: 1.5; color: var(--sand); }
   .actions { display: grid; gap: 7px; }
@@ -155,15 +155,15 @@
   .checks li.no::before { content: "✕ "; color: var(--critical); }
   .checks small { display: block; color: var(--muted); margin-left: 16px; }
   .learn p { font-size: 12px; line-height: 1.6; margin: 4px 0; }
-  .learn b { color: var(--cyan); font-weight: normal; letter-spacing: 2px; font-size: 10px; }
-  .st-chain { font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
+  .learn b { color: var(--cyan); font-weight: normal; letter-spacing: 2px; font-size: 12px; }
+  .st-chain { font-size: 12px; letter-spacing: 1px; white-space: nowrap; }
   .st-COMPLETED { color: var(--stable); } .st-BLOCKED { color: var(--critical); } .st-HELD { color: var(--warning); }
   .st-FAILED { color: var(--critical); } .st-PROPOSED { color: var(--muted); } .st-APPROVED, .st-EXECUTING { color: var(--cyan); }
 
   /* dependency map */
   #depmap { position: relative; height: 230px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); margin-top: 4px; }
   #depmap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .node { position: absolute; transform: translate(-50%, -50%); font-size: 9px; letter-spacing: 1px; padding: 5px 6px; cursor: pointer;
+  .node { position: absolute; transform: translate(-50%, -50%); font-size: 11px; letter-spacing: 1px; padding: 5px 6px; cursor: pointer;
     background: #17213a; color: var(--text); border: 1px solid rgba(255,255,255,0.3); max-width: 120px; line-height: 1.3; text-align: center; }
   .node.hot { border-color: var(--critical); box-shadow: 0 0 10px rgba(239,100,106,0.5); }
   .node.isolated { opacity: 0.45; border-style: dashed; }
@@ -174,12 +174,12 @@
   /* labels over the city */
   #labels { position: fixed; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
   .lbl { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; white-space: nowrap;
-    font-size: 10px; letter-spacing: 1px; color: var(--text); background: rgba(12,18,32,0.82); border: 1px solid rgba(255,255,255,0.22);
+    font-size: 12px; letter-spacing: 1px; color: var(--text); background: rgba(12,18,32,0.82); border: 1px solid rgba(255,255,255,0.22);
     padding: 3px 6px; transform: translate(-50%, -100%); }
   .lbl:hover, .lbl[aria-pressed="true"] { border-color: var(--selected); }
   .lbl .ic { color: var(--cyan); margin-right: 4px; }
   .lbl .alert { color: var(--critical); margin-left: 5px; }
-  .lbl.minor { font-size: 9px; opacity: 0.8; }
+  .lbl.minor { font-size: 11px; opacity: 0.8; }
   .lbl[data-state="open"] { border-color: var(--critical); }
   .lbl[data-state="contained"], .lbl[data-state="recovering"] { border-color: var(--warning); }
 
@@ -189,12 +189,12 @@
   .toast { background: rgba(12,18,32,0.94); border: 1px solid var(--line); border-left: 4px solid var(--cyan); padding: 8px 12px; font-size: 12px; line-height: 1.5; }
   .toast.bad { border-left-color: var(--critical); } .toast.warn { border-left-color: var(--warning); } .toast.good { border-left-color: var(--stable); }
   .toast .tt { letter-spacing: 3px; font-size: 11px; display: block; margin-bottom: 2px; }
-  .toast .tl { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+  .toast .tl { color: var(--muted); font-size: 12px; letter-spacing: 2px; }
   #log-drawer { position: absolute; left: 12px; right: 12px; bottom: 40px; max-height: 38vh; overflow-y: auto; display: none;
     background: rgba(10,14,26,0.95); border: 1px solid var(--line); padding: 10px 12px; }
   #log-drawer.open { display: block; }
   #log-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  #log-table th { text-align: left; font-weight: normal; font-size: 9px; letter-spacing: 3px; color: var(--muted); padding: 3px 6px; position: sticky; top: -10px; background: rgba(10,14,26,0.98); }
+  #log-table th { text-align: left; font-weight: normal; font-size: 11px; letter-spacing: 3px; color: var(--muted); padding: 3px 6px; position: sticky; top: -10px; background: rgba(10,14,26,0.98); }
   #log-table td { padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: top; }
   #log-table tr.unsafe td:nth-child(3) { color: var(--coral); }
   .log-filters { display: flex; gap: 6px; align-items: center; }
@@ -205,7 +205,7 @@
   .toggle-row { display: flex; gap: 14px; font-size: 11px; flex-wrap: wrap; align-items: center; }
   #radio-line { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); font-size: 12px; letter-spacing: 2px; color: var(--pink);
     background: rgba(10,14,26,0.85); padding: 5px 12px; border: 1px solid rgba(240,138,189,0.4); display: none; max-width: 90vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #hints { position: absolute; left: 12px; bottom: 8px; right: 12px; font-size: 10px; letter-spacing: 1px; color: var(--muted); pointer-events: none; }
+  #hints { position: absolute; left: 12px; bottom: 8px; right: 12px; font-size: 12px; letter-spacing: 1px; color: var(--muted); pointer-events: none; }
   #crisis { position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%); display: none; font-size: 12px; letter-spacing: 3px;
     background: rgba(60, 10, 16, 0.92); border: 1px solid var(--critical); color: #ffd6d8; padding: 6px 14px; white-space: nowrap; }
 
@@ -214,7 +214,7 @@
     background: rgba(10, 14, 26, 0.94); border: 1px solid var(--line); border-left: 4px solid var(--cyan); }
   #coach.guide { border-left-color: var(--pink); }
   #coach.tip { border-left-color: var(--warning); }
-  #coach .coach-k { font-size: 10px; letter-spacing: 3px; color: var(--cyan); white-space: nowrap; }
+  #coach .coach-k { font-size: 12px; letter-spacing: 3px; color: var(--cyan); white-space: nowrap; }
   #coach.guide .coach-k { color: var(--pink); }
   #coach.tip .coach-k { color: var(--warning); }
   #coach-text { flex: 1 1 260px; }
@@ -229,15 +229,15 @@
 
   /* observability trace and recovery plan */
   .trace { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; }
-  .trace th { text-align: left; font-weight: normal; font-size: 9px; letter-spacing: 2px; color: var(--muted); padding: 2px 4px; }
+  .trace th { text-align: left; font-weight: normal; font-size: 11px; letter-spacing: 2px; color: var(--muted); padding: 2px 4px; }
   .trace td { padding: 4px; border-top: 1px solid rgba(255,255,255,0.07); vertical-align: top; overflow-wrap: anywhere; }
   .trace tr.unsafe td:first-child { color: var(--coral); }
   .trace .v-ALLOW { color: var(--stable); } .trace .v-DENY { color: var(--critical); } .trace .v-REVIEW { color: var(--warning); }
   .trace tr.unsafe .v-ALLOW { color: var(--critical); }
   .trace small { display: block; color: var(--muted); }
   .plan { border: 1px solid rgba(242,190,92,0.45); background: rgba(242,190,92,0.06); padding: 8px 10px; font-size: 12px; line-height: 1.55; margin-bottom: 8px; }
-  .plan b { font-weight: normal; font-size: 10px; letter-spacing: 2px; color: var(--warning); }
-  details.raw summary { cursor: pointer; font-size: 10px; letter-spacing: 2px; color: var(--muted); margin-top: 8px; }
+  .plan b { font-weight: normal; font-size: 12px; letter-spacing: 2px; color: var(--warning); }
+  details.raw summary { cursor: pointer; font-size: 12px; letter-spacing: 2px; color: var(--muted); margin-top: 8px; }
 
   /* field mode */
   .obs-done { color: var(--stable); }
@@ -256,7 +256,7 @@
   .report details { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 7px 0; }
   .report summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
   .report dl { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 11px; line-height: 1.55; margin-top: 6px; }
-  .report dt { color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+  .report dt { color: var(--muted); font-size: 12px; letter-spacing: 2px; }
   .disclaimer { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
   #webgl-error .panel { border-color: var(--critical); }
   #webgl-error code { color: var(--warning); }
@@ -499,7 +499,13 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="js/a11y.js"></script>
 <script src="js/progress.js"></script>
+<script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/learning-events.js"></script>
+<script src="js/knowledge/rewards.js"></script>
+<script src="js/knowledge/progress.js"></script>
+<script src="js/knowledge/vault-ui.js"></script>
 <script src="js/social/character.js"></script>
 <script src="js/mayhem/policy.js"></script>
 <script src="js/mayhem/incidents.js"></script>
@@ -524,6 +530,15 @@ const storeSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* 
 
 // ── Audio ─────────────────────────────────────────────────
 const audio = HTPMayhem.Audio.createAudio();
+
+// ── Knowledge (shared Vault): reported from verified simulation transitions ──
+const unlocks = HTPKnowledge.UI.createNotifier({
+  accent: '#F08ABD', position: 'bottom-left', bottom: '44px',
+  isBusy: () => phase !== 'play' && phase !== 'results',
+  sound: kind => { const t = audio.sfxTarget(); if (t) HTPKnowledge.UI.playCue(t.ctx, t.dest, kind); },
+});
+const knowledge = HTPKnowledge.UI.reporter(unlocks);
+HTPA11y.installModalTrap(() => document.querySelector('.screen.open'));   // pause, results, title, controls
 let lastHoverSfx = 0;
 function sfx(name) { audio.sfx(name); }
 document.addEventListener('pointerover', e => {
@@ -1396,6 +1411,9 @@ function doAction(id, a) {
     const res = sim.respond(id, a.id);
     if (!res) { sfx('invalid'); return; }
     insp.result = res;
+    // A real decision: the knowledge system decides what it demonstrates.
+    knowledge({ source: 'L5:' + id, stage: 'apply', result: res.grade, firstTry: sim.incident(id).choices.length === 1,
+      guided: guide.on && id === 'INC-01', ref: res.option.id });
     const isolates = res.option.controls.some(c => c[0] === 'isolate');
     sfx(res.grade === 'best' ? 'approved' : res.grade === 'safe' ? (isolates ? 'isolated' : 'blocked') : 'failed');
     if (res.blocked.length || res.held.length) setTimeout(() => sfx('blocked'), 180);
@@ -1741,6 +1759,7 @@ function showResults() {
     completionRecorded = true;
     // Completing the incident chain completes the level; the security score is reported separately.
     const { state } = HTPProgress.recordCompletion(5, { stability: r.stability, securityScore: r.securityScore });
+    knowledge({ source: 'L5:city', stage: 'apply', result: r.criticalFailures === 0 ? 'restored-clean' : 'restored', firstTry: true });
     $('results-campaign').textContent = HTPProgress.isCampaignComplete(state)
       ? '★ CAMPAIGN COMPLETE · ALL ' + HTPProgress.LEVELS.length + ' MISSIONS CLEARED. THE PLANET IS HACKED.'
       : 'Level 05 recorded in campaign progress.';

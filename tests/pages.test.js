@@ -11,7 +11,7 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const LEVEL_PAGES = PAGES.filter(p => p !== 'index.html');
 
 test('inline scripts in the hub and all five levels parse, plus every module', () => {
-  const modules = ['js', 'js/racer', 'js/arena', 'js/incident', 'js/social', 'js/mayhem'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.js')));
+  const modules = ['js', 'js/racer', 'js/arena', 'js/incident', 'js/social', 'js/mayhem', 'js/knowledge'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.js')));
   assert.equal(checkAll().length, PAGES.length + modules.length);
   assert.ok(modules.length >= 6, 'progress + racer modules');
 });
@@ -92,4 +92,30 @@ test('level 5 is wired into the campaign: hub copy, level 4 hand-off, intro and 
   assert.doesNotMatch(html, /new\s+(window\.)?(webkit)?AudioContext/);
   assert.match(html, /\$\('start-btn'\)\.onclick = startMission/);
   assert.match(html, /function startMission\(\) \{\s*audio\.unlock\(\);/);
+});
+
+test('every level reports to the shared Knowledge Vault and traps focus in its dialogs', () => {
+  const order = ['concepts', 'learning-events', 'rewards', 'progress', 'vault-ui'];
+  for (const page of LEVEL_PAGES) {
+    const html = read(page);
+    const at = order.map(m => html.indexOf('<script src="js/knowledge/' + m + '.js"></script>'));
+    assert.ok(at.every(i => i > 0), page + ' loads the knowledge modules');
+    assert.deepEqual([...at].sort((a, b) => a - b), at, page + ' loads them in dependency order');
+    assert.match(html, /HTPKnowledge\.UI\.createNotifier\(/, page + ' has an unlock notifier');
+    assert.match(html, /isBusy:/, page + ' says when unlocks must wait');
+    assert.match(html, /knowledge\(\{ source: 'L\d/, page + ' reports learning events');
+    if (page !== 'level3.html') assert.match(html, /HTPA11y\.installModalTrap\(/, page + ' traps Tab in dialogs');
+    else assert.match(html, /function trapTab\(/, 'level 3 keeps its own trap');
+    assert.doesNotMatch(html, /font-size:\s*(9|10)px/, page + ' has no 9–10 px CSS text');
+  }
+  const hub = read('index.html');
+  assert.match(hub, /role="tablist"/);
+  assert.match(hub, /HTPKnowledge\.Progress\.reset\(\)/, 'hub reset also resets knowledge');
+  assert.match(hub, /and your Knowledge Vault/, 'and says so');
+});
+
+test('level 1: recapturing the cursor is not a shot', () => {
+  const html = read('level1.html');
+  assert.match(html, /if \(!locked\(\)\) \{\s*requestLock\(\);[\s\S]{0,200}if \(lockEverWorked\) return;\s*\}\s*shotQueued = true;/);
+  assert.match(html, /if \(locked\(\)\) \{ lockEverWorked = true; return; \}/);
 });

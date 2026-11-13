@@ -292,6 +292,45 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       page.assertNoErrors('hub after campaign');
     });
 
+    await t.test('hub: knowledge vault — tabs by keyboard, card states, details, focus, explicit reset', async () => {
+      await page.goto(base + '/');
+      await page.eval('localStorage.clear()');
+      // Evidence through the public API, exactly as the levels report it.
+      await page.eval(`(() => { const K = HTPKnowledge.Progress;
+        K.record({ source: 'L1:enforcer', stage: 'apply', result: 'complete', firstTry: true });
+        K.record({ source: 'L2:injector', stage: 'discover' });
+        K.record({ source: 'L4:agent-permissions', stage: 'apply', result: 'mitigated', firstTry: true }); })()`);
+      await page.goto(base + '/');
+      assert.match(await page.eval('document.getElementById("xp-chip").textContent'), /LEARNING XP 275/);
+      await page.click('#tab-missions');
+      await page.key('ArrowRight');
+      assert.equal(await page.eval('document.activeElement.id'), 'tab-vault', 'arrow keys move between tabs');
+      assert.equal(await page.eval('document.getElementById("panel-vault").hidden'), false);
+      const states = await page.eval('Object.fromEntries([...document.querySelectorAll(".kv-card")].map(c => [c.dataset.concept, c.dataset.status]))');
+      assert.equal(states['least-privilege'], 'mastered');
+      assert.equal(states['prompt-injection'], 'discovered');
+      assert.equal(states['data-poisoning'], 'locked');
+      assert.equal(await page.eval('document.querySelector(".kv-card[data-concept=data-poisoning]").textContent.includes("Poison")'), false, 'locked cards are not spoiled');
+      await page.eval('document.querySelector(".kv-card[data-concept=least-privilege]").focus()');
+      await page.key('Enter');
+      await page.waitFor('document.getElementById("kv-detail").open');
+      assert.match(await page.eval('document.getElementById("kv-detail").textContent'), /WHERE YOU MET IT[\s\S]*THE ENFORCER/);
+      await page.key('Escape');
+      await page.waitFor('!document.getElementById("kv-detail").open');
+      assert.equal(await page.eval('document.activeElement.dataset.concept'), 'least-privilege', 'focus returns to the card');
+      await page.click('#tab-badges');
+      assert.equal(await page.eval('document.querySelectorAll(".kv-badge.earned").length'), 1);
+      await page.click('#reset-btn');
+      await page.waitFor('document.getElementById("reset-dialog").open');
+      assert.match(await page.eval('document.getElementById("reset-dialog").textContent'), /Knowledge Vault/);
+      await page.click('#reset-dialog button[value="confirm"]');
+      // The dialog's close event runs as its own task: wait for the reset itself.
+      await page.waitFor('localStorage.getItem("htp.knowledge") === null', 3000);
+      assert.equal(await page.eval('localStorage.getItem("htp.progress")'), null);
+      assert.match(await page.eval('document.getElementById("xp-chip").textContent'), /LEARNING XP 0/);
+      page.assertNoErrors('hub vault');
+    });
+
     await t.test('hub: corrupt storage renders a fresh campaign without errors', async () => {
       await page.eval('localStorage.setItem("htp.progress", "{corrupt")');
       await page.goto(base + '/');

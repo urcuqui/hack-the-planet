@@ -328,3 +328,25 @@ test('every case tells the player what to verify in real life, once decided', ()
   const c = Cases.CASES[0];
   assert.equal(op.caseFile(c.id).verify, null, 'hidden before the decision');
 });
+
+// ── Phase 7: reduced-motion camera ──
+test('reduced motion: the camera cuts instead of swinging', () => {
+  const target = { x: 0, z: 0, yaw: 1.2, speed: 6, driving: false, movingForward: true };
+  // Walking: no automatic swing towards the walking direction.
+  const calm = M.createCamera(0); M.stepCamera(calm, target, {}, 0.016, { reducedMotion: true });
+  for (let i = 0; i < 30; i++) M.stepCamera(calm, target, {}, 0.016, { reducedMotion: true });
+  assert.equal(calm.yaw, 0, 'walking does not drag the camera round');
+  const normal = M.createCamera(0); for (let i = 0; i < 30; i++) M.stepCamera(normal, target, {}, 0.016, {});
+  assert.ok(normal.yaw > 0.05, 'the default camera does follow');
+  // Driving: rigid chase camera keeps orientation.
+  const drive = M.createCamera(0); M.stepCamera(drive, { ...target, driving: true }, {}, 0.016, { reducedMotion: true });
+  assert.equal(drive.yaw, M.wrap(1.2));
+  // Conversation: one cut to the partner, no interpolated swing.
+  const talk = M.createCamera(0); M.stepCamera(talk, { x: 0, z: 0, yaw: 0, speed: 0 }, {}, 0.016, { reducedMotion: true, focus: { x: 5, z: 0 } });
+  assert.ok(Math.abs(M.wrap(talk.yaw - Math.atan2(5, 0))) < 1e-9, 'framed in one step');
+  // Position: no easing.
+  const p = M.createCamera(0); M.stepCamera(p, { x: 0, z: 0, yaw: 0, speed: 0 }, {}, 0.016, { reducedMotion: true });
+  M.stepCamera(p, { x: 5, z: 0, yaw: 0, speed: 0 }, {}, 0.016, { reducedMotion: true });
+  const q = M.createCamera(0); M.stepCamera(q, { x: 5, z: 0, yaw: 0, speed: 0 }, {}, 0.016, { reducedMotion: true });
+  assert.ok(Math.abs(p.x - q.x) < 1e-9 && Math.abs(p.z - q.z) < 1e-9, 'the camera sits where it should at once');
+});

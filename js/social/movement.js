@@ -231,26 +231,34 @@
   // `focus` frames a conversation partner: the camera turns to look past
   // GHOST's shoulder at them; `shift` (m) slides the framing sideways so a
   // panel on the right does not cover them.
+  // With opts.reducedMotion the camera cuts instead of swinging: no walking
+  // auto-follow, a rigid chase camera when driving (for orientation), an
+  // instant cut to frame a conversation, and no positional easing.
   function stepCamera(cam, target, input, dt, opts = {}) {
     const t = Math.min(Math.max(dt, 0), MAX_FRAME);
+    const calm = !!opts.reducedMotion;
     if (input.drag) { cam.yaw = wrap(cam.yaw + input.drag); cam.dragHold = 1.2; }
     if (input.rotate) cam.yaw = wrap(cam.yaw + input.rotate * CAM.rotSpeed * t);
     cam.dragHold = Math.max(0, cam.dragHold - t);
     const auto = opts.autoFollow !== false && !cam.dragHold && !input.rotate;
-    if (auto && target.driving && Math.abs(target.speed) > 1) {
+    if (calm && auto && target.driving) {
+      cam.yaw = wrap(target.yaw);
+    } else if (calm) {
+      // no automatic swing while walking
+    } else if (auto && target.driving && Math.abs(target.speed) > 1) {
       cam.yaw = wrap(cam.yaw + wrap(target.yaw - cam.yaw) * Math.min(1, CAM.followDrive * t));
     } else if (auto && !target.driving && target.movingForward && target.speed > 1) {
       cam.yaw = wrap(cam.yaw + wrap(target.yaw - cam.yaw) * Math.min(1, CAM.follow * t * target.speed / WALK_SPEED));
     }
     cam.fk = cam.fk === undefined ? 0 : cam.fk;
-    cam.fk += ((opts.focus ? 1 : 0) - cam.fk) * Math.min(1, 3 * t);
+    cam.fk += ((opts.focus ? 1 : 0) - cam.fk) * (calm ? 1 : Math.min(1, 3 * t));
     if (opts.focus && !cam.dragHold && !input.rotate) {
       const to = Math.atan2(opts.focus.x - target.x, opts.focus.z - target.z);
-      cam.yaw = wrap(cam.yaw + wrap(to - cam.yaw) * Math.min(1, 2.5 * t) * cam.fk);
+      cam.yaw = calm ? wrap(to) : wrap(cam.yaw + wrap(to - cam.yaw) * Math.min(1, 2.5 * t) * cam.fk);
     }
     if (opts.focus) cam.focus = { x: opts.focus.x, z: opts.focus.z, shift: opts.shift || 0 };
     const mode = target.driving ? CAM.drive : CAM.walk;
-    const kz = cam.init ? Math.min(1, CAM.zoom * t) : 1;
+    const kz = cam.init && !calm ? Math.min(1, CAM.zoom * t) : 1;
     cam.dist += (mode.dist - cam.dist) * kz;
     cam.height += (mode.height - cam.height) * kz;
     cam.look += (mode.look - cam.look) * kz;
@@ -265,7 +273,7 @@
     cam.blocked = hit < 1;
     const gx = target.x - f.x * dist + rt.x * side, gz = target.z - f.z * dist + rt.z * side;
     const gy = cam.height * (0.65 + 0.35 * dist / camDist);
-    const kp = cam.init ? Math.min(1, CAM.pos * t) : 1;
+    const kp = cam.init && !calm ? Math.min(1, CAM.pos * t) : 1;
     cam.x += (gx - cam.x) * kp; cam.z += (gz - cam.z) * kp; cam.y += (gy - cam.y) * kp;
     // Snap if the smoothed position would sit inside a wall (sudden obstruction).
     if (World.segmentHit(target.x, target.z, cam.x, cam.z, 0.3) < 0.98) { cam.x = gx; cam.z = gz; }

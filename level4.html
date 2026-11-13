@@ -44,10 +44,10 @@
     cursor: pointer; padding: 12px; text-align: left;
   }
   .car-card:hover, .car-card[aria-pressed="true"] { border-color: var(--cyan); background: rgba(0,229,255,0.07); }
-  .car-card[aria-pressed="true"] .car-name::after { content: "  ✓ SELECTED"; color: var(--green); font-size: 10px; }
+  .car-card[aria-pressed="true"] .car-name::after { content: "  ✓ SELECTED"; color: var(--green); font-size: 12px; }
   .car-preview { display: block; width: 100%; height: 70px; margin-bottom: 10px; }
   .car-name { font-size: 13px; letter-spacing: 2px; color: var(--yellow); margin-bottom: 8px; }
-  .stat { display: grid; grid-template-columns: 58px 1fr; gap: 8px; align-items: center; font-size: 10px; color: var(--muted); margin: 6px 0; }
+  .stat { display: grid; grid-template-columns: 58px 1fr; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); margin: 6px 0; }
   .bar { height: 6px; background: rgba(0,229,255,0.12); }
   .bar span { display: block; height: 100%; background: var(--cyan); }
   .controls { font-size: 12px; letter-spacing: 1px; line-height: 1.9; color: var(--muted); }
@@ -67,7 +67,7 @@
   /* ── HUD ── */
   #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: none; }
   .hud-box { position: absolute; background: rgba(4,2,22,0.72); border: 1px solid rgba(0,229,255,0.25); padding: 8px 12px; }
-  .lbl { font-size: 10px; letter-spacing: 3px; color: rgba(255,110,180,0.85); }
+  .lbl { font-size: 12px; letter-spacing: 3px; color: rgba(255,110,180,0.85); }
   .big { font-size: 30px; letter-spacing: 2px; color: var(--text); line-height: 1.1; }
   .mid { font-size: 16px; letter-spacing: 2px; color: var(--text); }
   .small { font-size: 11px; letter-spacing: 1px; color: var(--muted); margin-top: 3px; }
@@ -83,7 +83,7 @@
   #telemetry { right: 14px; bottom: 14px; width: 300px; font-size: 12px; }
   #telemetry .head { display: flex; justify-content: space-between; gap: 8px; }
   #telemetry dl { display: grid; grid-template-columns: 70px 1fr; gap: 3px 8px; margin-top: 7px; }
-  #telemetry dt { color: var(--muted); font-size: 10px; letter-spacing: 2px; padding-top: 2px; }
+  #telemetry dt { color: var(--muted); font-size: 12px; letter-spacing: 2px; padding-top: 2px; }
   #telemetry dd { color: var(--text); letter-spacing: 1px; }
   #telemetry .note { margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.5; }
   #telemetry.collapsed dl, #telemetry.collapsed .note { display: none; }
@@ -113,7 +113,7 @@
 
   /* ── Decision & feedback ── */
   .context { display: grid; grid-template-columns: 150px 1fr; gap: 8px 14px; font-size: 13px; line-height: 1.55; margin: 14px 0; }
-  .context dt { font-size: 10px; letter-spacing: 2px; padding-top: 3px; }
+  .context dt { font-size: 12px; letter-spacing: 2px; padding-top: 3px; }
   .context dt.obs { color: var(--cyan); }
   .context dt.inf { color: var(--yellow); }
   .context dt.req { color: var(--pink); }
@@ -155,7 +155,7 @@
   .report summary .res-exploited, .report summary .res-not-reached { color: var(--red); }
   .report summary .res-over-restricted { color: var(--violet); }
   .report dl { display: grid; grid-template-columns: 110px 1fr; gap: 5px 10px; font-size: 12px; line-height: 1.55; margin-top: 8px; }
-  .report dt { color: var(--muted); font-size: 10px; letter-spacing: 2px; padding-top: 2px; }
+  .report dt { color: var(--muted); font-size: 12px; letter-spacing: 2px; padding-top: 2px; }
   .score { font-size: 16px; letter-spacing: 3px; margin-top: 12px; }
   .disclaimer { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
   .knowledge { list-style: none; font-size: 12px; line-height: 1.6; margin-top: 6px; }
@@ -284,7 +284,13 @@
   </div>
 </div>
 
+<script src="js/a11y.js"></script>
 <script src="js/progress.js"></script>
+<script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/learning-events.js"></script>
+<script src="js/knowledge/rewards.js"></script>
+<script src="js/knowledge/progress.js"></script>
+<script src="js/knowledge/vault-ui.js"></script>
 <script src="js/racer/track.js"></script>
 <script src="js/racer/physics.js"></script>
 <script src="js/racer/opponents.js"></script>
@@ -657,6 +663,7 @@ function chooseOption(i) {
   if (decisionView !== 'choose' || !decisionArmed) return;
   const res = security.choose(i, raceTime);
   if (!res) return;
+  knowledge({ source: 'L4:' + res.event.def.id, stage: 'apply', result: res.option.outcome, firstTry: true, ref: 'lap ' + res.event.def.lap });
   decisionView = 'feedback';
   const { event, option } = res;
   const d = event.def;
@@ -704,6 +711,7 @@ function closeDecision() {
   decisionView = null;
   closeScreens();
   phase = 'racing';
+  window.__resumedAt = raceTime;           // read by the gameplay test
   for (const k in keys) keys[k] = false;
   if (document.activeElement) document.activeElement.blur();
 }
@@ -782,6 +790,15 @@ $('resume-btn').onclick = resumeRace;
 $('restart-btn').onclick = startRace;
 $('race-again-btn').onclick = startRace;
 $('change-car-btn').onclick = () => { phase = 'select'; $('hud').style.display = 'none'; openScreen('select-screen'); $('car-options').children[selectedCar].focus(); };
+
+// ── Knowledge (shared Vault): unlocks wait until the car is not racing ──
+const unlocks = HTPKnowledge.UI.createNotifier({
+  accent: '#ffd23f', position: 'top-center', top: '96px',
+  isBusy: () => phase === 'racing' || phase === 'countdown',
+  sound: kind => { if (!audioCtx) return; if (!sfxBus) { sfxBus = audioCtx.createGain(); sfxBus.gain.value = 0.5; sfxBus.connect(audioCtx.destination); } HTPKnowledge.UI.playCue(audioCtx, sfxBus, kind); },
+});
+const knowledge = HTPKnowledge.UI.reporter(unlocks);
+HTPA11y.installModalTrap(() => document.querySelector('.screen.open'));   // Tab stays inside open dialogs
 
 // ── Audio (synthwave engine; music via masterGain, effects via their own bus) ──
 let audioCtx = null, musicOn = true, musicTimer = null, masterGain = null;

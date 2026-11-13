@@ -24,7 +24,7 @@
     width: min(800px, 100vw); display: grid; grid-template-columns: 1.7fr 1fr 1fr 1.25fr; gap: 6px 14px; align-items: center;
     padding: 6px 10px; background: rgba(0,8,2,0.95); border: 1px solid var(--line); border-bottom: none; font-size: 12px; color: var(--text);
   }
-  #hud .k { display: block; font-size: 10px; letter-spacing: 2px; color: var(--dim); }
+  #hud .k { display: block; font-size: 12px; letter-spacing: 2px; color: var(--dim); }
   #hud .title { color: var(--g); letter-spacing: 2px; font-size: 12px; white-space: nowrap; }
   .ev-ref { border: 1px dashed var(--line); padding: 6px 10px; margin-top: 10px; }
   .ev-ref summary { cursor: pointer; font-size: 11px; letter-spacing: 2px; color: var(--cyan); }
@@ -56,7 +56,7 @@
 
   /* ── Analyzer ── */
   .an-head { display: grid; grid-template-columns: 150px 1fr; gap: 4px 12px; font-size: 13px; margin: 8px 0; }
-  .an-head dt { font-size: 10px; letter-spacing: 2px; color: var(--dim); padding-top: 2px; }
+  .an-head dt { font-size: 12px; letter-spacing: 2px; color: var(--dim); padding-top: 2px; }
   .an-head .status { color: var(--amber); }
   .an-body { display: grid; grid-template-columns: 240px 1fr; gap: 14px; margin-top: 10px; }
   .ev-list { display: flex; flex-direction: column; gap: 6px; }
@@ -68,7 +68,7 @@
   .ev-view .meta { font-size: 11px; color: var(--dim); letter-spacing: 1px; margin-bottom: 8px; }
   .ev-view code { display: block; font-family: inherit; color: var(--cyan); background: rgba(95,246,255,0.06); padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; }
   table.data { width: 100%; border-collapse: collapse; font-size: 12px; }
-  table.data th { text-align: left; font-weight: normal; color: var(--dim); font-size: 10px; letter-spacing: 1px; border-bottom: 1px solid var(--line); padding: 4px 6px; }
+  table.data th { text-align: left; font-weight: normal; color: var(--dim); font-size: 12px; letter-spacing: 1px; border-bottom: 1px solid var(--line); padding: 4px 6px; }
   table.data td { padding: 4px 6px; border-bottom: 1px solid rgba(0,255,65,0.1); vertical-align: top; }
   .objective { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--amber); font-size: 13px; }
   .choices { display: grid; gap: 6px; margin-top: 8px; }
@@ -94,7 +94,7 @@
   .report details { border-bottom: 1px solid var(--line); padding: 8px 0; }
   .report summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
   .report dl { display: grid; grid-template-columns: 140px 1fr; gap: 5px 10px; font-size: 12px; line-height: 1.55; margin-top: 8px; }
-  .report dt { font-size: 10px; letter-spacing: 2px; color: var(--dim); padding-top: 2px; }
+  .report dt { font-size: 12px; letter-spacing: 2px; color: var(--dim); padding-top: 2px; }
   .ok-t { color: var(--g); } .ok-t::before { content: "✓ "; }
   .no-t { color: var(--amber); } .no-t::before { content: "◐ "; }
   .kv { display: grid; grid-template-columns: 230px 1fr; gap: 5px 10px; font-size: 13px; }
@@ -110,7 +110,13 @@
   .stepper li.done { color: #7dff9a; }
   .stepper li.cur { color: #ffcc33; text-decoration: underline; text-underline-offset: 4px; }
 </style>
+<script src="js/a11y.js"></script>
 <script src="js/progress.js"></script>
+<script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/learning-events.js"></script>
+<script src="js/knowledge/rewards.js"></script>
+<script src="js/knowledge/progress.js"></script>
+<script src="js/knowledge/vault-ui.js"></script>
 <script src="js/incident/world.js"></script>
 <script src="js/incident/cases.js"></script>
 <script src="js/incident/investigation.js"></script>
@@ -126,7 +132,7 @@
 <canvas id="c" width="800" height="544" aria-label="PandeCorp AI Incident Lab map"></canvas>
 
 <!-- Briefing -->
-<div id="overlay" class="screen open" role="dialog" aria-labelledby="brief-title">
+<div id="overlay" class="screen open" role="dialog" aria-modal="true" aria-labelledby="brief-title">
   <div class="card">
     <div class="pre">HACK THE PLANET · LEVEL 02</div>
     <h1 id="brief-title">VULNERABILITY HUNTER</h1>
@@ -146,12 +152,12 @@
 </div>
 
 <!-- AI Incident Analyzer -->
-<div id="analyzer" class="screen" role="dialog" aria-labelledby="an-title">
+<div id="analyzer" class="screen" role="dialog" aria-modal="true" aria-labelledby="an-title">
   <div class="card" id="analyzer-card"></div>
 </div>
 
 <!-- Incident log -->
-<div id="log-screen" class="screen" role="dialog" aria-labelledby="log-title">
+<div id="log-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="log-title">
   <div class="card">
     <div class="pre">PANDECORP AI INCIDENT LAB</div>
     <h1 id="log-title" style="font-size:28px">INCIDENT LOG</h1>
@@ -161,7 +167,7 @@
 </div>
 
 <!-- Pause -->
-<div id="pause-screen" class="screen" role="dialog" aria-labelledby="pause-title">
+<div id="pause-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="pause-title">
   <div class="card">
     <div class="pre">SIMULATION FROZEN</div>
     <h1 id="pause-title" style="font-size:32px">PAUSED</h1>
@@ -175,7 +181,7 @@
 </div>
 
 <!-- Results (victory or defeat) -->
-<div id="results-screen" class="screen" role="dialog" aria-labelledby="results-title">
+<div id="results-screen" class="screen" role="dialog" aria-modal="true" aria-labelledby="results-title">
   <div class="card">
     <div class="pre" id="results-pre">PANDECORP AI INCIDENT LAB</div>
     <h1 id="results-title">MISSION COMPLETE</h1>
@@ -650,6 +656,8 @@ function stageDiagnose(card, s, c) {
   confirm.disabled = !ready;
   confirm.onclick = () => {
     an.result = lab.diagnose(an.caseId, an.draft);
+    // Discovery once the player has reasoned to the right diagnosis (naming it earlier would spoil it).
+    if (an.result.ok) knowledge({ source: 'L2:' + an.caseId, stage: 'discover' });
     syncCounters();
     an.result.ok ? playPatchSound() : playErrorSound();
     an.stage = 'diag-result';
@@ -781,6 +789,11 @@ function stageVerify(card, s, c) {
 }
 function runVerification() {
   an.verifyResult = lab.verify(an.caseId);
+  {
+    const s = lab.get(an.caseId);
+    knowledge({ source: 'L2:' + an.caseId, stage: 'apply', result: an.verifyResult.pass ? 'verified' : 'failed',
+      firstTry: s.diagnoseAttempts === 1 && s.verifyAttempts === 1 });
+  }
   syncCounters();
   an.shownSteps = reducedMotion ? an.verifyResult.steps.length : 1;
   playScanSound();
@@ -1018,6 +1031,15 @@ canvas.setAttribute('tabindex', '0');
 resetLab();
 requestAnimationFrame(gameLoop);
 $('start-btn').focus();
+
+// ── Knowledge (shared Vault): unlocks appear after a verification ──
+const unlocks = HTPKnowledge.UI.createNotifier({
+  accent: '#7dff9a', position: 'top-right', top: '64px', font: '"Courier New", monospace',
+  isBusy: () => !!(an && an.verifyResult && an.shownSteps < an.verifyResult.steps.length),   // after the replay finishes
+  sound: kind => { if (audioCtx) HTPKnowledge.UI.playCue(audioCtx, audioCtx.destination, kind); },
+});
+const knowledge = HTPKnowledge.UI.reporter(unlocks);
+HTPA11y.installModalTrap(() => document.querySelector('.screen.open'));   // Tab stays inside open dialogs
 
 function playScanSound() {
   const ac = getAudioCtx(), now = ac.currentTime;
