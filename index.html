@@ -198,6 +198,19 @@
   .kv-medal { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 50%; border: 2px dashed #4c5a4f; color: #4c5a4f; }
   .kv-badge.earned { border-color: #ffd23f; }
   .kv-badge.earned .kv-medal { border: 2px solid #ffd23f; color: #ffd23f; background: radial-gradient(circle, rgba(255,210,63,0.18), transparent 70%); }
+  .kv-continue { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: center; border: 1px solid var(--cyan); background: rgba(0,30,30,0.6); padding: 14px; margin-bottom: 14px; }
+  .kv-continue h3 { grid-column: 1 / -1; font-size: 12px; letter-spacing: 3px; color: var(--cyan); font-weight: normal; }
+  .kv-ctitle { font-size: 16px; letter-spacing: 2px; color: #eafff0; }
+  .kv-go { display: inline-block; margin-top: 8px; color: #000; background: var(--cyan); padding: 8px 12px; font-size: 12px; letter-spacing: 2px; text-decoration: none; }
+  .kv-go:focus-visible, .kv-cta:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .kv-sec { font-size: 12px; letter-spacing: 3px; color: var(--cyan); margin: 18px 0 10px; font-weight: normal; }
+  .kv-ev { border-left: 2px solid var(--green-faint); padding-left: 10px; margin: 8px 0; }
+  .kv-evh { font-size: 12px; letter-spacing: 1px; color: #eafff0; margin-bottom: 4px; }
+  .kv-mastery { border: 1px solid var(--green-faint); padding: 10px 12px; margin: 10px 0; }
+  .kv-mastery h3 { font-size: 12px; letter-spacing: 3px; color: var(--cyan); font-weight: normal; margin-bottom: 6px; }
+  .kv-mstate { font-size: 14px; letter-spacing: 2px; color: #ffd23f; margin-bottom: 6px; }
+  .kv-cta { display: inline-block; margin: 6px 0; text-decoration: none; }
+  .vault-tools { display: flex; justify-content: flex-end; margin-top: -8px; margin-bottom: 8px; }
   .xp-chip { grid-column: 1 / -1; font-size: 12px; letter-spacing: 2px; color: var(--cyan); }
 
   @media (max-width: 720px) {
@@ -246,7 +259,8 @@
     <ol id="missions" aria-label="Missions"></ol>
   </section>
   <section role="tabpanel" id="panel-vault" aria-labelledby="tab-vault" hidden>
-    <div class="vault-head"><h2>KNOWLEDGE VAULT</h2><p>YOUR AI SECURITY DISCOVERIES · PLAY. DISCOVER. UNDERSTAND. MASTER.</p></div>
+    <div class="vault-head"><h2>KNOWLEDGE VAULT</h2><p>YOUR AI SECURITY PROGRESS · PLAY. DISCOVER. UNDERSTAND. MASTER.</p></div>
+    <div class="vault-tools"><button class="kv-fbtn" id="reward-sounds" type="button" aria-pressed="true">REWARD SOUNDS: ON</button></div>
     <div id="vault"></div>
   </section>
   <section role="tabpanel" id="panel-badges" aria-labelledby="tab-badges" hidden>
@@ -273,6 +287,7 @@
 
 <script src="js/progress.js"></script>
 <script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/challenges.js"></script>
 <script src="js/knowledge/learning-events.js"></script>
 <script src="js/knowledge/rewards.js"></script>
 <script src="js/knowledge/progress.js"></script>
@@ -406,6 +421,9 @@ function render() {
   $('vault-count').textContent = ks.discovered + '/' + ks.total;
   $('badge-count').textContent = ks.badges + '/' + ks.badgesTotal;
   K.UI.renderVault($('vault'), { levels: HTPProgress.LEVELS, unlocked });
+  const rs = K.UI.prefs().rewardSounds;
+  $('reward-sounds').textContent = 'REWARD SOUNDS: ' + (rs ? 'ON' : 'OFF');
+  $('reward-sounds').setAttribute('aria-pressed', String(rs));
   K.UI.renderAchievements($('badges'));
 
   const next = HTPProgress.LEVELS.find(l => HTPProgress.statusOf(state, l.id) === 'available');
@@ -449,6 +467,18 @@ for (const t of TABS) {
   });
 }
 try { const saved = sessionStorage.getItem('htp.hub.tab'); if (TABS.includes(saved)) selectTab(saved); } catch (e) { /* default tab */ }
+$('reward-sounds').addEventListener('click', () => { HTPKnowledge.UI.setPref('rewardSounds', !HTPKnowledge.UI.prefs().rewardSounds); render(); $('reward-sounds').focus(); });
+// Returning from a mastery challenge: back to the concept card that launched it.
+function restoreVaultFocus() {
+  try {
+    const id = sessionStorage.getItem('htp.hub.focus');
+    if (!id) return;
+    sessionStorage.removeItem('htp.hub.focus');
+    selectTab('tab-vault');
+    const card = document.querySelector('#kv-all .kv-card[data-concept="' + CSS.escape(id) + '"]');
+    if (card) { card.scrollIntoView({ block: 'center' }); card.focus(); }
+  } catch (e) { /* focus restore is a convenience */ }
+}
 
 // Locked missions explain themselves instead of doing nothing.
 document.getElementById('missions').addEventListener('click', e => {
@@ -476,9 +506,10 @@ dialog.addEventListener('close', () => {
 
 if (!HTPProgress.isPersistent()) document.getElementById('storage-warning').style.display = 'block';
 
-// Returning via the back button can restore a cached page; re-read progress.
-window.addEventListener('pageshow', render);
+// Returning via the back button can restore a cached page: re-read progress then.
+window.addEventListener('pageshow', e => { if (e.persisted) render(); restoreVaultFocus(); });
 render();
+restoreVaultFocus();
 
 // ── Matrix rain backdrop (skipped entirely for reduced-motion users) ──
 (function rain() {

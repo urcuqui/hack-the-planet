@@ -113,6 +113,7 @@
 <script src="js/a11y.js"></script>
 <script src="js/progress.js"></script>
 <script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/challenges.js"></script>
 <script src="js/knowledge/learning-events.js"></script>
 <script src="js/knowledge/rewards.js"></script>
 <script src="js/knowledge/progress.js"></script>
@@ -791,8 +792,10 @@ function runVerification() {
   an.verifyResult = lab.verify(an.caseId);
   {
     const s = lab.get(an.caseId);
+    const applied = s.def.mitigation.options.filter(o => s.selected.includes(o.id)).map(o => o.label).join('; ');
     knowledge({ source: 'L2:' + an.caseId, stage: 'apply', result: an.verifyResult.pass ? 'verified' : 'failed',
-      firstTry: s.diagnoseAttempts === 1 && s.verifyAttempts === 1 });
+      firstTry: s.diagnoseAttempts === 1 && s.verifyAttempts === 1,
+      insight: { action: 'Applied: ' + applied, outcome: an.verifyResult.pass ? 'Verification PASSED: the replayed incident no longer succeeds.' : 'Verification FAILED: ' + (an.verifyResult.reasons[0] || 'the incident still reproduces.') } });
   }
   syncCounters();
   an.shownSteps = reducedMotion ? an.verifyResult.steps.length : 1;
@@ -1035,7 +1038,7 @@ $('start-btn').focus();
 // ── Knowledge (shared Vault): unlocks appear after a verification ──
 const unlocks = HTPKnowledge.UI.createNotifier({
   accent: '#7dff9a', position: 'top-right', top: '64px', font: '"Courier New", monospace',
-  isBusy: () => !!(an && an.verifyResult && an.shownSteps < an.verifyResult.steps.length),   // after the replay finishes
+  isBusy: () => gamePhase === 'paused' || !!(an && an.verifyResult && an.shownSteps < an.verifyResult.steps.length),   // after the replay finishes
   sound: kind => { if (audioCtx) HTPKnowledge.UI.playCue(audioCtx, audioCtx.destination, kind); },
 });
 const knowledge = HTPKnowledge.UI.reporter(unlocks);

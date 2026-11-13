@@ -47,6 +47,8 @@ Discovery is reported no earlier than the moment the concept's name stops being 
 
 Concepts with no independent scenario (`mastery: 'none'`) stay at UNDERSTOOD, and the Vault says so. MASTERED counts are shown out of the masterable concepts only.
 
+> **Phase 8 update:** the four `none` concepts below now use `mastery: 'challenge'` and are mastered through an optional challenge (an unguided pass after understanding the concept in its mission). All 11 concepts are masterable. See [`PHASE8-MASTERY.md`](PHASE8-MASTERY.md).
+
 ## 3. Concept catalog
 
 | Concept (id) | Category | Taught in | Mastery |

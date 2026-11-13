@@ -502,6 +502,7 @@
 <script src="js/a11y.js"></script>
 <script src="js/progress.js"></script>
 <script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/challenges.js"></script>
 <script src="js/knowledge/learning-events.js"></script>
 <script src="js/knowledge/rewards.js"></script>
 <script src="js/knowledge/progress.js"></script>
@@ -1411,9 +1412,6 @@ function doAction(id, a) {
     const res = sim.respond(id, a.id);
     if (!res) { sfx('invalid'); return; }
     insp.result = res;
-    // A real decision: the knowledge system decides what it demonstrates.
-    knowledge({ source: 'L5:' + id, stage: 'apply', result: res.grade, firstTry: sim.incident(id).choices.length === 1,
-      guided: guide.on && id === 'INC-01', ref: res.option.id });
     const isolates = res.option.controls.some(c => c[0] === 'isolate');
     sfx(res.grade === 'best' ? 'approved' : res.grade === 'safe' ? (isolates ? 'isolated' : 'blocked') : 'failed');
     if (res.blocked.length || res.held.length) setTimeout(() => sfx('blocked'), 180);
@@ -1431,6 +1429,11 @@ function doAction(id, a) {
     ];
     const title = res.contained ? 'POLICY UPDATED · ' + id + (res.grade === 'safe' ? ' · CONTAINED AT A COST' : '') : (res.grade === 'failed' ? 'CONTAINMENT FAILED · ' : 'UNSAFE ACTION EXECUTED · ') + id;
     toast(title, '', res.contained ? (res.grade === 'best' ? 'good' : 'warn') : 'bad', 9000, lines);
+    // A real decision: the knowledge system decides what it demonstrates; the
+    // insight states what the policy actually did (blocked / held / executing).
+    knowledge({ source: 'L5:' + id, stage: 'apply', result: res.grade, firstTry: sim.incident(id).choices.length === 1,
+      guided: guide.on && id === 'INC-01', ref: res.option.id,
+      insight: { action: res.option.label, outcome: lines[1].replace('ACTION: ', '') + ' · ' + lines[2].replace('IMPACT: ', '') } });
     if (city) city.ping(d.facility, res.contained ? (res.grade === 'best' ? 'good' : 'warn') : 'bad');
     if (res.contained) showTip('log', 'L opens the activity log: every request, its policy decision and its result, for every agent.');
   } else if (a.kind === 'recover') {

@@ -80,17 +80,30 @@
   .htpk-unlock.bottom-center { top: auto; right: auto; bottom: var(--htpk-bottom, 56px); left: calc(50% - min(160px, 50vw - 16px)); }
   .htpk-unlock.top-center { right: auto; left: calc(50% - min(160px, 50vw - 16px)); }
   .htpk-unlock.bottom-left { top: auto; right: auto; left: 12px; bottom: var(--htpk-bottom, 44px); }
-  .htpk-unlock .ic { grid-row: span 4; color: var(--htpk-accent, #72DCEB); width: 44px; height: 44px; display: grid; place-items: center;
+  .htpk-unlock > :not(.ic) { grid-column: 2; }
+  .htpk-unlock .ic { grid-row: 1 / span 3; color: var(--htpk-accent, #72DCEB); width: 44px; height: 44px; display: grid; place-items: center;
     border: 1px solid currentColor; border-radius: 50%; }
   .htpk-unlock .k { font-size: 11px; letter-spacing: 3px; color: var(--htpk-accent, #72DCEB); }
   .htpk-unlock .t { font-size: 15px; letter-spacing: 1px; font-weight: bold; line-height: 1.25; }
   .htpk-unlock .d { font-size: 12px; line-height: 1.45; color: rgba(244,247,255,0.82); }
   .htpk-unlock .x { font-size: 11px; letter-spacing: 2px; color: rgba(244,247,255,0.7); }
+  .htpk-unlock .ins { font-size: 12px; line-height: 1.45; display: grid; gap: 2px; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 4px; margin-top: 2px; }
+  .htpk-unlock .ins b { font-weight: normal; font-size: 11px; letter-spacing: 2px; color: var(--htpk-accent, #72DCEB); }
+  /* Reward tiers: each step is a little more distinctive, never flashing. */
+  .htpk-unlock.k-discovered { border-left-width: 2px; }
+  .htpk-unlock.k-discovered .ic { border-style: dashed; }
+  .htpk-unlock.k-mastered, .htpk-unlock.k-excellence { border-color: #ffd23f; border-left-width: 6px; }
+  .htpk-unlock.k-mastered .ic, .htpk-unlock.k-excellence .ic { color: #ffd23f; border-width: 2px; background: radial-gradient(circle, rgba(255,210,63,0.18), transparent 70%); }
+  .htpk-unlock.k-mastered .k, .htpk-unlock.k-excellence .k { color: #ffd23f; }
+  .htpk-unlock.k-badge { border-color: #ffd23f; }
+  .htpk-unlock.k-badge .ic { color: #ffd23f; border: 2px double #ffd23f; border-radius: 30%; }
   .htpk-unlock.anim { animation: htpkIn 0.35s ease-out; }
-  .htpk-unlock.anim .ic { animation: htpkPulse 1.1s ease-out 0.15s; }
+  .htpk-unlock.anim.k-understood .ic, .htpk-unlock.anim.k-mastered .ic, .htpk-unlock.anim.k-badge .ic { animation: htpkPulse 1.1s ease-out 0.15s; }
+  .htpk-unlock.anim.k-mastered .ic, .htpk-unlock.anim.k-excellence .ic { animation: htpkPulse 1.1s ease-out 0.15s, htpkGrow 0.5s ease-out; }
+  @keyframes htpkGrow { from { transform: scale(0.7); } to { transform: none; } }
   @keyframes htpkIn { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
   @keyframes htpkPulse { 0% { box-shadow: 0 0 0 0 var(--htpk-accent, #72DCEB); } 100% { box-shadow: 0 0 0 14px transparent; } }
-  @media (prefers-reduced-motion: reduce) { .htpk-unlock.anim, .htpk-unlock.anim .ic { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .htpk-unlock.anim, .htpk-unlock.anim .ic { animation: none !important; } }
   `;
   function injectCss() {
     if (typeof document === 'undefined' || document.getElementById('htpk-css')) return;
@@ -100,7 +113,18 @@
     document.head.appendChild(st);
   }
 
-  const KICKER = { discovered: 'KNOWLEDGE UNLOCKED', understood: 'CONCEPT UNDERSTOOD', mastered: 'CONCEPT MASTERED', badge: 'BADGE EARNED' };
+  const KICKER = { discovered: 'KNOWLEDGE UNLOCKED', understood: 'SECURITY INSIGHT · CONCEPT UNDERSTOOD', mastered: 'CONCEPT MASTERED · COLLECTION UPGRADED',
+    excellence: 'EXCELLENCE · MASTERED ON THE FIRST ATTEMPT', badge: 'BADGE EARNED' };
+
+  // Player preference shared by every page: reward sounds on or off.
+  const PREFS_KEY = 'htp.prefs';
+  function prefs() {
+    try { const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); return { rewardSounds: p.rewardSounds !== false }; }
+    catch (e) { return { rewardSounds: true }; }
+  }
+  function setPref(k, v) {
+    try { const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); p[k] = v; localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (e) { /* not persistent */ }
+  }
 
   // Merges one batch of changes into cards: a concept discovered and
   // understood at once shows as one UNDERSTOOD card worth both rewards.
@@ -109,7 +133,7 @@
     for (const ch of changes) {
       if (ch.kind === 'badge') { cards.push({ kind: 'badge', id: ch.id, xp: 0 }); continue; }
       const prev = byId.get(ch.id);
-      const rank = { discovered: 0, understood: 1, mastered: 2 };
+      const rank = { discovered: 0, understood: 1, mastered: 2, excellence: 3 };
       if (!prev) { const c = { kind: ch.kind, id: ch.id, xp: ch.xp }; byId.set(ch.id, c); cards.push(c); }
       else { prev.xp += ch.xp; if (rank[ch.kind] > rank[prev.kind]) prev.kind = ch.kind; }
     }
@@ -148,8 +172,18 @@
       const t = document.createElement('div'); t.className = 't'; t.textContent = def.title.toUpperCase();
       const d = document.createElement('div'); d.className = 'd'; d.textContent = isBadge ? def.description : def.shortDescription;
       const x = document.createElement('div'); x.className = 'x';
-      x.textContent = (card.xp ? '+' + card.xp + ' LEARNING XP · ' : '') + (isBadge ? 'SAVED TO ACHIEVEMENTS' : 'ADDED TO KNOWLEDGE VAULT');
-      box.append(ic, k, t, d, x);
+      x.textContent = (card.xp ? '+' + card.xp + ' LEARNING XP · ' : '') + (isBadge ? 'SAVED TO ACHIEVEMENTS' : 'REVIEW IT IN THE KNOWLEDGE VAULT');
+      box.append(ic, k, t, d);
+      // SECURITY INSIGHT: what you did and what really happened (from game state).
+      if (card.insight && card.insight.action && !isBadge) {
+        const ins = document.createElement('div'); ins.className = 'ins';
+        const line = (label, v) => { const r = document.createElement('div'); const b = document.createElement('b'); b.textContent = label + ' '; r.append(b, document.createTextNode(v)); ins.append(r); };
+        line('YOUR ACTION', card.insight.action);
+        if (card.insight.outcome) line('RESULT', card.insight.outcome);
+        box.append(ins);
+      }
+      box.append(x);
+      box.className = 'htpk-unlock k-' + card.kind + (opts.position && opts.position !== 'top-right' ? ' ' + opts.position : '');
       box.classList.toggle('anim', !reduced);
       box.hidden = false;
     }
@@ -158,8 +192,11 @@
       if (opts.isBusy && opts.isBusy()) return;               // wait for a safe moment
       showing = queue.shift();
       render(showing);
-      if (opts.sound) { try { opts.sound(showing.kind); } catch (e) { /* sound is optional */ } }
-      timer = setTimeout(() => { showing = null; box.hidden = true; box.classList.remove('anim'); next(); }, reduced ? 3200 : 2800);
+      if (opts.sound && prefs().rewardSounds) {
+        try { opts.sound(showing.kind === 'excellence' ? 'mastered' : showing.kind); } catch (e) { /* sound is optional */ }
+      }
+      const ms = (showing.insight ? 4600 : 2800) + (reduced ? 400 : 0);
+      timer = setTimeout(() => { showing = null; box.hidden = true; box.classList.remove('anim'); next(); }, ms);
     }
     // If play turns intense while a card is up (a race resumes), the card
     // gets out of the way at once; it is always reviewable in the Vault.
@@ -170,7 +207,14 @@
     }
     const poll = setInterval(() => { hideIfBusy(); next(); }, 150);
     return {
-      push(changes) { for (const c of cardsFor(changes || [])) queue.push(c); next(); },
+      // insightOf(conceptId) → the stored insight for that concept, if any.
+      push(changes, insightOf) {
+        for (const c of cardsFor(changes || [])) {
+          if (insightOf && c.kind !== 'badge' && c.kind !== 'discovered') c.insight = insightOf(c.id) || null;
+          queue.push(c);
+        }
+        next();
+      },
       pending: () => queue.length + (showing ? 1 : 0),
       clear() { queue.length = 0; clearTimeout(timer); showing = null; box.hidden = true; },
       dispose() { clearInterval(poll); clearTimeout(timer); box.remove(); },
@@ -182,7 +226,7 @@
   function reporter(notifier) {
     return input => {
       const res = Progress.record(input);
-      if (notifier && res.changes.length) notifier.push(res.changes);
+      if (notifier && res.changes.length) notifier.push(res.changes, id => res.state.concepts[id] && res.state.concepts[id].insight);
       return res;
     };
   }
@@ -198,12 +242,17 @@
   const catLabel = id => (Concepts.CATEGORIES.find(c => c.id === id) || {}).label || id;
   const levelCode = n => 'MISSION 0' + n;
 
-  // opts.levels: HTPProgress.LEVELS; opts.unlocked: ids the player can open.
+  // opts.levels: HTPProgress.LEVELS; opts.unlocked: ids the player can open;
+  // opts.challengeUrl(challengeId) → where a challenge is played.
   function renderVault(host, opts = {}) {
     const state = Progress.load();
     const sum = Progress.summary(state);
     const levels = opts.levels || [];
-    const levelName = n => { const l = levels.find(x => x.id === n); return l ? l.code + ' · ' + l.name : levelCode(n); };
+    const unlocked = opts.unlocked || [];
+    const challengeUrl = opts.challengeUrl || (id => 'mastery.html?c=' + encodeURIComponent(id));
+    const levelOf = n => levels.find(x => x.id === n);
+    const levelName = n => { const l = levelOf(n); return l ? l.code + ' · ' + l.name : levelCode(n); };
+    const Ch = (typeof HTPKnowledge !== 'undefined' && HTPKnowledge.Challenges) || null;
     host.replaceChildren();
 
     const stats = el('div', 'kv-stats');
@@ -214,72 +263,89 @@
     stat('LEARNING XP', sum.xp);
     stat('BADGES', sum.badges, sum.badgesTotal);
     host.append(stats);
-    host.append(el('p', 'kv-note', 'MASTERED counts only concepts that have an independent scenario to prove it in. XP and badges reflect what you did in these games — not real-world competence.'));
+    host.append(el('p', 'kv-note', 'XP and badges reflect what you did in these games — not real-world competence.'));
 
-    // Learning review
-    const rv = Progress.review(state, opts.unlocked);
+    const rv = Progress.review(state, unlocked);
+
+    // CONTINUE LEARNING — one deterministic recommendation.
+    const cont = el('section', 'kv-continue');
+    cont.setAttribute('aria-label', 'Continue learning');
+    cont.append(el('h3', '', 'CONTINUE LEARNING'));
+    if (rv.next) {
+      const n = rv.next;
+      const concept = n.conceptId && Concepts.byId[n.conceptId];
+      if (concept) { const ic = el('span', 'kv-ic'); ic.append(icon(concept.icon, 30)); cont.append(ic); }
+      const body = el('div');
+      body.append(el('div', 'kv-ctitle', concept ? concept.title : levelName(n.level)), el('div', 'kv-why', n.why));
+      const a = el('a', 'kv-go');
+      if (n.type === 'challenge') { const ch = Ch && Ch.byId[n.challenge]; a.textContent = (/Optional review/.test(n.why) ? 'REPLAY ' : 'START ') + (ch ? ch.title : 'CHALLENGE') + ' >'; a.href = challengeUrl(n.challenge); }
+      else { const l = levelOf(n.level); a.textContent = 'PLAY ' + (l ? l.code + ' · ' + l.name : levelCode(n.level)) + ' >'; a.href = l ? l.url : '#'; }
+      body.append(a);
+      cont.append(body);
+    } else cont.append(el('p', 'kv-why', 'Unlock a mission in the campaign to start discovering concepts.'));
+    host.append(cont);
+
+    // WHAT YOU KNOW · WHAT YOU CAN PRACTISE
     const review = el('section', 'kv-review');
     review.setAttribute('aria-label', 'Learning review');
     const col = (title, items) => { const c = el('div', 'kv-col'); c.append(el('h3', '', title)); const ul = el('ul'); items.forEach(i => ul.append(i)); if (!items.length) ul.append(el('li', 'kv-empty', '—')); c.append(ul); review.append(c); };
-    col('CONCEPTS MASTERED', rv.mastered.map(m => el('li', '', '★ ' + Concepts.byId[m.id].title)));
-    col('CONCEPTS TO PRACTISE', rv.practise.slice(0, 5).map(p => {
+    col('WHAT YOU KNOW', rv.know.map(k => el('li', '', STATUS[k.status].mark + ' ' + Concepts.byId[k.id].title + ' — ' + STATUS[k.status].label.toLowerCase())));
+    const work = new Map(rv.needsWork.map(n => [n.id, n.why]));
+    col('WHAT YOU CAN PRACTISE', rv.practise.slice(0, 6).map(p => {
       const li = el('li');
-      li.append(el('b', '', Concepts.byId[p.id].title), document.createTextNode(' — ' + p.why + (p.levels.length ? ' Try ' + p.levels.map(levelCode).join(' or ') + '.' : '')));
+      li.append(el('b', '', (work.has(p.id) ? '⚠ ' : '') + Concepts.byId[p.id].title), document.createTextNode(' — ' + (work.get(p.id) || p.why) +
+        (p.levels.length ? ' Try ' + p.levels.map(levelCode).join(' or ') + '.' : '')));
       return li;
     }));
-    const nextItems = [];
-    if (rv.next) {
-      const li = el('li');
-      const lvl = levels.find(l => l.id === rv.next.level);
-      if (lvl) { const a = el('a', 'kv-link', 'PLAY ' + lvl.code + ' · ' + lvl.name + ' >'); a.href = lvl.url; li.append(a); }
-      li.append(el('div', 'kv-why', rv.next.why));
-      nextItems.push(li);
-    }
-    col('NEXT LEARNING OPPORTUNITY', nextItems);
     host.append(review);
 
-    // Recent unlocks
-    if (state.recent.length) {
-      const rec = el('div', 'kv-recent');
-      rec.append(el('span', 'kv-k', 'RECENTLY UNLOCKED '));
-      for (const r of state.recent.slice().reverse().slice(0, 5)) {
-        const def = r.kind === 'badge' ? Rewards.badgeById[r.id] : Concepts.byId[r.id];
-        if (def) rec.append(el('span', 'kv-chip', (r.kind === 'badge' ? '◎ ' : STATUS[r.kind === 'discovered' ? 'discovered' : r.kind].mark + ' ') + def.title));
-      }
-      host.append(rec);
+    const grid = (ids, label) => {
+      const ul = el('ul', 'kv-grid');
+      ul.setAttribute('aria-label', label);
+      for (const id of ids) ul.append(card(Concepts.byId[id]));
+      return ul;
+    };
+    function card(c) {
+      const st = Progress.status(state, c.id);
+      const li = el('li');
+      const b = el('button', 'kv-card');
+      b.type = 'button';
+      b.dataset.status = st;
+      b.dataset.concept = c.id;
+      const ic = el('span', 'kv-ic'); ic.append(icon(st === 'locked' ? 'cloud' : c.icon, 30));
+      if (st === 'locked') ic.classList.add('locked');
+      const title = st === 'locked' ? 'UNDISCOVERED CONCEPT' : c.title;
+      const pips = el('span', 'kv-pips');
+      pips.setAttribute('aria-hidden', 'true');
+      for (let i = 0; i < 3; i++) pips.append(el('i', i < STATUS[st].pips ? 'on' : ''));
+      const excellent = state.concepts[c.id] && state.concepts[c.id].excellenceAt;
+      b.append(ic, el('span', 'kv-title', title), el('span', 'kv-cat', catLabel(c.category)),
+        el('span', 'kv-status s-' + st, STATUS[st].mark + ' ' + STATUS[st].label + (excellent ? ' · EXCELLENCE' : '')), pips,
+        el('span', 'kv-lv', c.relatedLevels.map(n => '0' + n).join(' · ') + (c.mastery === 'challenge' && st !== 'locked' ? ' · CHALLENGE' : '')));
+      b.setAttribute('aria-label', title + ', ' + catLabel(c.category) + ', ' + STATUS[st].label + (excellent ? ' with excellence' : '') + ', missions ' + c.relatedLevels.join(' and '));
+      b.onclick = () => openDetail(c.id, b);
+      li.append(b);
+      return li;
     }
 
-    // Category filter
+    // NEEDS PRACTICE — concepts with something left to do.
+    const practiseIds = rv.practise.map(p => p.id);
+    if (practiseIds.length) { host.append(el('h3', 'kv-sec', 'NEEDS PRACTICE')); host.append(grid(practiseIds, 'Concepts to practise')); }
+    // MASTERED — the collection.
+    if (rv.mastered.length) { host.append(el('h3', 'kv-sec', 'MASTERED CONCEPTS')); host.append(grid(rv.mastered.map(m => m.id), 'Mastered concepts')); }
+
+    // ALL CONCEPTS — with a category filter.
+    host.append(el('h3', 'kv-sec', 'ALL CONCEPTS'));
     const filter = el('div', 'kv-filter');
     filter.setAttribute('role', 'group');
     filter.setAttribute('aria-label', 'Filter concepts by category');
-    const grid = el('ul', 'kv-grid');
-    grid.setAttribute('aria-label', 'Concept cards');
+    const all = el('ul', 'kv-grid');
+    all.setAttribute('aria-label', 'All concept cards');
+    all.id = 'kv-all';
     let current = 'all';
     const draw = () => {
-      grid.replaceChildren();
-      for (const c of Concepts.CONCEPTS) {
-        if (current !== 'all' && c.category !== current) continue;
-        const st = Progress.status(state, c.id);
-        const li = el('li');
-        const b = el('button', 'kv-card');
-        b.type = 'button';
-        b.dataset.status = st;
-        b.dataset.concept = c.id;
-        const ic = el('span', 'kv-ic'); ic.append(icon(st === 'locked' ? 'cloud' : c.icon, 30));
-        if (st === 'locked') ic.classList.add('locked');
-        const title = st === 'locked' ? 'UNDISCOVERED CONCEPT' : c.title;
-        const pips = el('span', 'kv-pips');
-        pips.setAttribute('aria-hidden', 'true');
-        for (let i = 0; i < 3; i++) pips.append(el('i', i < STATUS[st].pips ? 'on' : ''));
-        b.append(ic, el('span', 'kv-title', title), el('span', 'kv-cat', catLabel(c.category)),
-          el('span', 'kv-status s-' + st, STATUS[st].mark + ' ' + STATUS[st].label), pips,
-          el('span', 'kv-lv', c.relatedLevels.map(n => '0' + n).join(' · ')));
-        b.setAttribute('aria-label', title + ', ' + catLabel(c.category) + ', ' + STATUS[st].label + ', missions ' + c.relatedLevels.join(' and '));
-        b.onclick = () => openDetail(c.id, b);
-        li.append(b);
-        grid.append(li);
-      }
+      all.replaceChildren();
+      for (const c of Concepts.CONCEPTS) if (current === 'all' || c.category === current) all.append(card(c));
     };
     for (const cat of [{ id: 'all', label: 'ALL' }].concat(Concepts.CATEGORIES)) {
       const fb = el('button', 'kv-fbtn', cat.label);
@@ -288,61 +354,92 @@
       fb.onclick = () => { current = cat.id; for (const x of filter.children) x.setAttribute('aria-pressed', String(x === fb)); draw(); };
       filter.append(fb);
     }
-    host.append(filter, grid);
+    host.append(filter, all);
     draw();
 
-    // Detail dialog (native <dialog>: Esc closes and focus returns)
+    // Detail dialog (native <dialog>: Esc closes, focus returns to the card)
     let dlg = document.getElementById('kv-detail');
     if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'kv-detail'; dlg.className = 'kv-dialog'; dlg.setAttribute('aria-labelledby', 'kv-detail-title'); document.body.appendChild(dlg); }
     function openDetail(id, opener) {
       const c = Concepts.byId[id];
       const st = Progress.status(state, id);
+      const cs = state.concepts[id];
       dlg.replaceChildren();
       const head = el('div', 'kv-dhead');
       const ic = el('span', 'kv-ic'); ic.append(icon(st === 'locked' ? 'cloud' : c.icon, 40));
       const h = el('h2', '', st === 'locked' ? 'UNDISCOVERED CONCEPT' : c.title);
       h.id = 'kv-detail-title';
-      const hs = el('div'); hs.append(el('div', 'kv-cat', catLabel(c.category) + ' · ' + c.relatedLevels.map(levelCode).join(' · ')), h, el('div', 'kv-status s-' + st, STATUS[st].mark + ' ' + STATUS[st].label));
+      const hs = el('div'); hs.append(el('div', 'kv-cat', catLabel(c.category) + ' · ' + c.relatedLevels.map(levelCode).join(' · ')), h,
+        el('div', 'kv-status s-' + st, STATUS[st].mark + ' ' + STATUS[st].label + (cs && cs.excellenceAt ? ' · EXCELLENCE' : '')));
       head.append(ic, hs);
       dlg.append(head);
+      const sec = (k, v) => { const p = el('p'); p.append(el('b', '', k + ' '), document.createTextNode(v)); return p; };
       if (st === 'locked') {
         dlg.append(el('p', '', c.lockedHint), el('p', 'kv-muted', 'Play the missions listed above to discover it. Its details stay hidden until then, so nothing is spoiled.'));
       } else {
-        const sec = (k, v) => { const p = el('p'); p.append(el('b', '', k + ' '), document.createTextNode(v)); return p; };
-        dlg.append(sec('WHAT IT MEANS', c.shortDescription), sec('WHY IT MATTERS', c.detailedExplanation));
-        const ev = (state.concepts[id] && state.concepts[id].evidence) || [];
-        const met = el('details'); met.open = true;
-        met.append(el('summary', '', 'WHERE YOU MET IT'));
-        const ul = el('ul');
+        dlg.append(sec('WHAT IT MEANS', c.shortDescription));
+        // Where, evidence, action, result — newest first, one per scenario.
+        const ev = (cs && cs.evidence) || [];
+        const ins = cs && cs.insight;
+        const where = el('section', 'kv-where');
         const seen = new Set();
         for (const e of ev.slice().reverse()) {
           if (seen.has(e.source)) continue;
           seen.add(e.source);
-          const s = Events.SOURCES[e.source];
+          const src = Events.SOURCES[e.source];
           const ok = e.type === 'knowledge.understood';
-          const li = el('li');
-          li.append(el('b', '', s.scenario + ' — ' + levelName(s.level)));
-          li.append(el('div', '', 'Evidence: ' + s.evidence));
-          li.append(el('div', '', ok ? 'What you did: ' + s.did : 'What you did: a decision that did not hold up — the mission\'s report explains why.'));
-          li.append(el('div', 'kv-muted', 'What happened: ' + (ok ? (e.firstTry ? 'right first time' : 'right after feedback') : 'not yet applied correctly') +
-            (e.guided ? ' · guided' : '') + ' · ' + new Date(e.at).toLocaleDateString()));
-          ul.append(li);
+          const box = el('div', 'kv-ev');
+          box.append(el('div', 'kv-evh', (src.context === 'challenge' ? 'MASTERY CHALLENGE · ' + src.scenario : src.scenario + ' — ' + levelName(src.level))));
+          box.append(sec('EVIDENCE YOU OBSERVED', src.evidence));
+          const insHere = ins && ins.source === e.source ? ins : null;
+          box.append(sec('ACTION YOU TOOK', insHere && insHere.action ? insHere.action : ok ? src.did : 'A decision that did not hold up — the report explains why.'));
+          box.append(sec('WHAT HAPPENED', (insHere && insHere.outcome ? insHere.outcome + ' · ' : '') + (ok ? (e.firstTry ? 'right first time' : 'right after feedback') : 'not applied correctly yet') + (e.guided ? ' · guided' : '')));
+          where.append(box);
         }
-        if (!ul.children.length) ul.append(el('li', 'kv-muted', 'Discovered — no decision recorded yet.'));
-        met.append(ul);
+        if (!where.children.length) where.append(el('p', 'kv-muted', 'Discovered — no decision recorded yet.'));
+        const whereD = el('details'); whereD.open = true;
+        whereD.append(el('summary', '', 'WHERE YOU ENCOUNTERED IT'), where);
+        const why = el('details');
+        why.append(el('summary', '', 'WHY IT MATTERS'), el('p', '', c.detailedExplanation));
         const world = el('details');
-        world.append(el('summary', '', 'IN THE REAL WORLD'), sec('APPLICATION', c.realWorldApplication), sec('WHAT TO VERIFY', c.verificationGuidance));
-        const mastery = el('details');
-        mastery.append(el('summary', '', 'MASTERY'));
-        mastery.append(sec('UNDERSTOOD WHEN', c.understandingCriteria), sec('MASTERED WHEN', c.masteryCriteria));
+        world.append(el('summary', '', 'REAL-WORLD APPLICATION · WHAT TO VERIFY'), sec('APPLICATION', c.realWorldApplication), sec('WHAT TO VERIFY', c.verificationGuidance));
+        dlg.append(whereD, why, world);
+      }
+      // PRACTICE / MASTERY
+      const m = el('section', 'kv-mastery');
+      m.append(el('h3', '', 'PRACTICE / MASTERY'));
+      const ch = c.mastery === 'challenge' && Ch ? Ch.byId[c.challenge] : null;
+      const chs = ch && state.challenges[ch.id];
+      if (ch) {
+        if (st === 'mastered') {
+          m.append(el('div', 'kv-mstate', '★ MASTERED'), el('p', 'kv-muted', ch.title + ' — ' + ch.setting));
+          const a = el('a', 'btn kv-cta', 'REPLAY CHALLENGE'); a.href = challengeUrl(ch.id); m.append(a);
+        } else if (st === 'understood') {
+          m.append(el('div', 'kv-mstate', 'MASTERY CHALLENGE AVAILABLE'), el('p', '', 'Apply what you learned in a new scenario: ' + ch.title + ' (' + ch.minutes + ' min).'));
+          const a = el('a', 'btn kv-cta', 'START CHALLENGE'); a.href = challengeUrl(ch.id); a.id = 'kv-start-challenge'; m.append(a);
+        } else {
+          m.append(el('div', 'kv-mstate', 'FIRST, UNDERSTAND THIS CONCEPT'));
+          const lvl = c.relatedLevels.find(n => unlocked.includes(n));
+          if (lvl) { const a = el('a', 'btn kv-cta', 'GO TO ' + levelName(lvl) + ' >'); a.href = levelOf(lvl).url; m.append(a); }
+          else m.append(el('p', 'kv-muted', 'Its mission is not unlocked yet.'));
+        }
+        if (chs && chs.attempts) m.append(el('p', 'kv-muted', 'Challenge attempts: ' + chs.attempts + ' · passed ' + chs.passes + ' · first attempt: ' + (chs.firstAttempt === 'pass' ? 'passed' : 'not passed') + (chs.hintsUsed ? ' · hints used ' + chs.hintsUsed : '')));
+      } else if (st !== 'locked') {
         const pr = rv.practise.find(p => p.id === id);
-        if (st === 'mastered') mastery.append(el('p', 'kv-muted', 'Mastered: you applied it first time, unguided, in a new context.'));
-        else if (c.mastery === 'none') mastery.append(el('p', 'kv-muted', 'No independent mastery scenario exists yet, so this concept stays at UNDERSTOOD.'));
-        else if (pr && pr.levels.length) mastery.append(el('p', '', 'Available challenge: ' + pr.levels.map(levelName).join(' or ') + '.'));
+        if (st === 'mastered') m.append(el('div', 'kv-mstate', '★ MASTERED'), el('p', 'kv-muted', 'You applied it first time, unguided, in a new context.'));
+        else if (pr && pr.levels.length) {
+          m.append(el('div', 'kv-mstate', st === 'understood' ? 'MASTER IT IN ANOTHER MISSION' : 'FIRST, UNDERSTAND THIS CONCEPT'), el('p', '', pr.why));
+          const lvl = pr.levels[0];
+          const a = el('a', 'btn kv-cta', 'GO TO ' + levelName(lvl) + ' >'); a.href = levelOf(lvl) ? levelOf(lvl).url : '#'; m.append(a);
+        } else m.append(el('p', 'kv-muted', 'Play the related missions to practise it.'));
+      }
+      if (st !== 'locked') m.append(sec('MASTERED WHEN', c.masteryCriteria));
+      dlg.append(m);
+      if (st !== 'locked') {
         const objectives = el('details');
         objectives.append(el('summary', '', 'LEARNING OBJECTIVES'));
         const ol = el('ul'); c.learningObjectives.forEach(o => ol.append(el('li', '', o))); objectives.append(ol);
-        dlg.append(met, world, mastery, objectives);
+        dlg.append(objectives);
       }
       const close = el('button', 'btn', 'CLOSE');
       close.type = 'button';
@@ -353,7 +450,7 @@
       if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
       close.focus();
     }
-    return { state, summary: sum, openDetail };
+    return { state, summary: sum, review: rv, openDetail };
   }
 
   function renderAchievements(host) {
@@ -377,5 +474,5 @@
     host.append(el('p', 'kv-note', 'Badges are earned from specific decisions, never from finishing a mission alone.'));
   }
 
-  return { GLYPH, icon, CUES, playCue, createNotifier, cardsFor, reporter, renderVault, renderAchievements, STATUS };
+  return { GLYPH, icon, CUES, playCue, createNotifier, cardsFor, reporter, renderVault, renderAchievements, STATUS, prefs, setPref, PREFS_KEY };
 });

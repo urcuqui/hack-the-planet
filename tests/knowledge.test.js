@@ -33,25 +33,37 @@ test('concept registry: unique stable ids, complete entries, valid levels', () =
     assert.ok(cats.includes(c.category), c.id + ' category');
     assert.ok(c.learningObjectives.length >= 2 && c.learningObjectives.every(o => o.length > 15), c.id + ' objectives');
     assert.ok(c.relatedLevels.length && c.relatedLevels.every(l => levels.includes(l)), c.id + ' levels');
-    assert.ok(['cross-level', 'cross-scenario', 'none'].includes(c.mastery));
-    // The levels a concept claims are exactly the levels that teach it.
-    const taught = [...new Set(Events.sourcesForConcept(c.id).map(s => s.level))].sort();
+    assert.ok(['cross-level', 'cross-scenario', 'challenge', 'none'].includes(c.mastery));
+    // The levels a concept claims are exactly the campaign levels that teach it.
+    const taught = [...new Set(Events.sourcesForConcept(c.id).filter(s => s.context === 'campaign').map(s => s.level))].sort();
     assert.deepEqual([...c.relatedLevels].sort(), taught, c.id + ' relatedLevels match its sources');
     // Mastery is only offered where an independent scenario exists.
     if (c.mastery === 'cross-level') assert.ok(taught.length >= 2, c.id + ' needs two levels for cross-level mastery');
     if (c.mastery === 'cross-scenario') assert.ok(Events.sourcesForConcept(c.id).length >= 2, c.id + ' needs two scenarios');
+    if (c.mastery === 'challenge') {
+      const ch = require('../js/knowledge/challenges.js').byId[c.challenge];
+      assert.ok(ch && ch.concept === c.id, c.id + ' has its challenge');
+      assert.ok(taught.length >= 1, c.id + ' is first understood in a mission');
+    }
     // A locked hint must not spoil the concept's name.
     for (const word of c.title.toLowerCase().split(/\W+/).filter(w => w.length > 4)) {
       assert.ok(!c.lockedHint.toLowerCase().includes(word), c.id + ' hint leaks "' + word + '"');
     }
   }
-  assert.ok(Concepts.CONCEPTS.filter(c => c.mastery !== 'none').length >= 5, 'at least five concepts can be mastered');
+  assert.equal(Concepts.CONCEPTS.filter(c => c.mastery !== 'none').length, Concepts.CONCEPTS.length, 'every concept can now be mastered');
 });
 
 test('every learning source refers to real concepts, levels and results', () => {
   for (const [id, s] of Object.entries(Events.SOURCES)) {
-    assert.match(id, /^L[1-5]:/);
-    assert.equal(Number(id[1]), s.level);
+    if (s.context === 'challenge') {
+      assert.match(id, /^C:/, 'challenge sources are not dressed up as levels');
+      assert.equal(s.level, null);
+      assert.ok(s.challengeId);
+    } else {
+      assert.match(id, /^L[1-5]:/);
+      assert.equal(Number(id[1]), s.level);
+      assert.equal(s.context, 'campaign');
+    }
     assert.ok(s.accept.length, id + ' accepts something');
     for (const c of s.concepts) assert.ok(Concepts.byId[c], id + ' → ' + c);
     if (s.concepts.length) assert.ok(s.scenario && s.evidence && s.did, id + ' describes itself');
@@ -127,12 +139,12 @@ test('cross-scenario mastery: social engineering needs a different case', () => 
   assert.equal(K.status(r.s, 'social-engineering'), 'mastered');
 });
 
-test('concepts without an independent scenario stay at UNDERSTOOD', () => {
+test('campaign replays never master a challenge concept', () => {
   let r = play([{ source: 'L5:INC-05', stage: 'apply', result: 'best', firstTry: true }]);
   r = play([{ source: 'L5:INC-05', stage: 'apply', result: 'best', firstTry: true }], r.s);
-  assert.equal(K.status(r.s, 'cascading-failures'), 'understood');
-  const forged = K.normalize({ version: 1, concepts: { 'cascading-failures': { discoveredAt: T0.toISOString(), understoodAt: T0.toISOString(), masteredAt: T0.toISOString() } } });
-  assert.equal(K.status(forged, 'cascading-failures'), 'understood', 'a forged mastery is dropped');
+  assert.equal(K.status(r.s, 'cascading-failures'), 'understood', 'only THE DOMINO PROTOCOL can master it');
+  const forged = K.normalize({ version: 1, concepts: { 'agent-observability': { discoveredAt: T0.toISOString(), masteredAt: T0.toISOString() } } });
+  assert.equal(K.status(forged, 'agent-observability'), 'discovered', 'mastery without understanding is dropped');
 });
 
 test('duplicate events do not duplicate rewards, and replays cannot farm XP', () => {
@@ -161,7 +173,7 @@ test('learning review points to missions, not answers', () => {
   assert.deepEqual(lp.levels, [4, 5], 'master it in another mission');
   const id = rv.practise.find(p => p.id === 'identity-verification');
   assert.match(id.why, /Discovered/);
-  assert.equal(rv.next.level, 1, 'Level 1 still has undiscovered concepts');
+  assert.deepEqual([rv.next.type, rv.next.level, rv.next.conceptId], ['level', 4, 'least-privilege'], 'mastery opportunity first');
   assert.ok(!JSON.stringify(rv).match(/restrict|revok|quarantin|correct answer/i), 'no solutions in the review');
   const locked = K.review(K.defaultState(), [1]);
   assert.equal(locked.next.level, 1);

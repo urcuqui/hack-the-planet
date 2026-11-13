@@ -859,6 +859,66 @@ test('gameplay with real input in headless Chrome', { skip: !CHROME && 'Chrome n
       assert.equal(await page.eval('!field && role === "kuky" && !insp'), true);
       page.assertNoErrors('level5');
     });
+
+    await sub('mastery: the domino protocol with real input — inspect, hint, retry, master', async () => {
+      await page.goto(base + '/');
+      // The concept must be understood in its mission first. The level 5 run above
+      // does that through real play; when this subtest runs alone, record the
+      // same campaign evidence through the public API.
+      if (await page.eval('HTPKnowledge.Progress.status(HTPKnowledge.Progress.load(), "cascading-failures")') !== 'understood') {
+        await page.eval(`HTPKnowledge.Progress.record({ source: 'L5:INC-05', stage: 'apply', result: 'best', firstTry: false })`);
+      }
+      if (await page.eval('HTPKnowledge.Progress.status(HTPKnowledge.Progress.load(), "cascading-failures")') === 'mastered') return;
+      await page.goto(base + '/');
+      await page.click('#tab-vault');
+      await page.click('#kv-all .kv-card[data-concept="cascading-failures"]');
+      await page.waitFor('document.getElementById("kv-detail").open');
+      const loaded = page.waitForEvent('Page.loadEventFired');
+      await page.click('#kv-start-challenge');
+      await loaded;
+      // Inspect services on the dependency map.
+      await page.click('.node[data-node="ROUTE-OPT-04"]');
+      assert.match(await page.eval('document.querySelector(".node-detail").textContent'), /Restarted by on-call/);
+      await page.click('.node[data-node="INVENTORY-SYNC-02"]');
+      assert.match(await page.eval('document.querySelector(".node-detail").textContent'), /publish_manifest 42\/min/);
+      // Use a hint: the attempt becomes guided.
+      await page.click('#step-roles .hintrow button');
+      assert.equal(await page.eval('attempt.guided'), true);
+      const roles = { 'INVENTORY-SYNC-02': 'origin', 'WEATHER-FEED-09': 'unrelated', 'ROUTE-OPT-04': 'symptom', 'CUSTOMS-CHECK-07': 'symptom', 'CRANE-SCHED-03': 'symptom', 'BILLING-AGENT-01': 'symptom' };
+      const answer = async () => {
+        for (const [n, v] of Object.entries(roles)) await page.click('input[name="roles::' + n + '"][value="' + v + '"]');
+        // Selects by keyboard type-ahead, the toggle with Space.
+        await page.eval('document.querySelector(\'select[name="contain::target"]\').focus()');
+        await page.key('KeyI');
+        await page.eval('document.querySelector(\'select[name="contain::action"]\').focus()');
+        await page.key('KeyI');
+        await page.eval('document.querySelector(\'input[name="contain::quarantine"]\').focus()');
+        if (!(await page.eval('document.querySelector(\'input[name="contain::quarantine"]\').checked'))) await page.key('Space');
+      };
+      await answer();
+      assert.equal(await page.eval('document.querySelector(\'select[name="contain::target"]\').value'), 'INVENTORY-SYNC-02');
+      assert.equal(await page.eval('document.querySelector(\'select[name="contain::action"]\').value'), 'rollback');
+      await page.click('#verify-btn');
+      await page.waitFor('/PASSED/.test((document.getElementById("verdict") || {}).textContent || "")');
+      assert.match(await page.eval('document.querySelector(".knowledge-line").textContent'), /hint/i, 'a guided pass is explained, not counted');
+      assert.equal(await page.eval('HTPKnowledge.Progress.status(HTPKnowledge.Progress.load(), "cascading-failures")'), 'understood');
+      // Start over without hints and pass: mastered.
+      await page.click('#restart-btn');
+      assert.equal(await page.eval('attempt.guided'), false);
+      await answer();
+      await page.click('#verify-btn');
+      await page.waitFor('/PASSED/.test((document.getElementById("verdict") || {}).textContent || "")');
+      assert.equal(await page.eval('HTPKnowledge.Progress.status(HTPKnowledge.Progress.load(), "cascading-failures")'), 'mastered');
+      await page.waitFor('!!document.querySelector(".htpk-unlock.k-mastered:not([hidden])")', 3000);
+      const k = await page.eval('HTPKnowledge.Progress.load()');
+      assert.equal(k.challenges.domino.firstAttempt, 'pass', 'the guided first attempt passed (history kept)');
+      assert.equal(k.concepts['cascading-failures'].excellenceAt, undefined, 'excellence needs an unguided first attempt');
+      const back = page.waitForEvent('Page.loadEventFired');
+      await page.click('#back-btn');
+      await back;
+      await page.waitFor('document.activeElement && document.activeElement.dataset.concept === "cascading-failures"', 3000);
+      page.assertNoErrors('mastery');
+    });
   } finally {
     await browser.close();
     server.close();

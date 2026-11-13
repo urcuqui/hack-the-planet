@@ -7,6 +7,9 @@
 // mastery: how MASTERED can be earned.
 //   'cross-level'    a later first-try, unguided success in a different level
 //   'cross-scenario' a later first-try, unguided success in a different scenario
+//   'challenge'      after understanding it in a mission, pass its mastery challenge
+//                    (js/knowledge/challenges.js) without hints; a retry after a failed
+//                    attempt counts, a first-attempt pass also earns an excellence mark
 //   'none'           no independent scenario exists yet: the concept stays at UNDERSTOOD
 //
 // Classic script: window.HTPKnowledge.Concepts in the browser, module in Node.
@@ -90,7 +93,8 @@
       category: 'agentic',
       icon: 'cascade',
       relatedLevels: [5],
-      mastery: 'none',
+      mastery: 'challenge',
+      challenge: 'domino',
       shortDescription: 'When agents trust each other, one compromised component can drive many — contain the origin, then restore in order.',
       detailedExplanation: 'In connected systems an incident rarely stays put. A compromised coordinator can send validly signed tasks to every agent that trusts it, and each downstream action looks legitimate on its own. Containment means finding and isolating the origin and revoking its credentials; recovery means restoring services in dependency order.',
       learningObjectives: [
@@ -101,7 +105,7 @@
       verificationGuidance: 'Check delegation chains in the logs, that revoked tokens are refused, and that your recovery runbook restores services in dependency order.',
       discoveryCriteria: 'Investigate failures spreading across several systems at once.',
       understandingCriteria: 'Contain the cascade at its origin.',
-      masteryCriteria: 'No independent mastery scenario yet — this concept stays at UNDERSTOOD.',
+      masteryCriteria: 'Pass THE DOMINO PROTOCOL — find the origin of a new cascade, contain it and verify recovery — without hints, after understanding it in Digital Mayhem.',
       lockedHint: 'One failure can become many.',
     },
     {
@@ -170,7 +174,8 @@
       category: 'model',
       icon: 'face',
       relatedLevels: [2],
-      mastery: 'none',
+      mastery: 'challenge',
+      challenge: 'privacy',
       shortDescription: 'A model\'s answers can leak the data it was trained on to anyone patient enough to keep asking.',
       detailedExplanation: 'Repeated, iterative queries against a prediction API can reconstruct sensitive training records, such as a face. Limiting and monitoring queries, returning less detail and privacy-preserving training all reduce what an attacker can extract.',
       learningObjectives: [
@@ -181,7 +186,7 @@
       verificationGuidance: 'Review per-client query volumes and patterns, how much detail responses carry, and alerts for iterative probing.',
       discoveryCriteria: 'Identify which client is probing a model and what it could reveal.',
       understandingCriteria: 'Apply and verify controls that limit what the model\'s outputs reveal.',
-      masteryCriteria: 'No independent mastery scenario yet — this concept stays at UNDERSTOOD.',
+      masteryCriteria: 'Pass THE PRIVACY LEAK — spot the probing clients, choose controls and verify them against a replayed attack — without hints, after understanding it in the AI Incident Lab.',
       lockedHint: 'Answers can give away more than they say.',
     },
     {
@@ -210,7 +215,8 @@
       category: 'responsible',
       icon: 'scale',
       relatedLevels: [2],
-      mastery: 'none',
+      mastery: 'challenge',
+      challenge: 'fairness',
       shortDescription: 'Models that score people can treat groups differently — measure outcomes per group before you trust them.',
       detailedExplanation: 'Skewed training data or proxies for protected traits can make a model systematically worse for some groups. Fairness work means measuring outcomes per group on more than one metric, with enough data behind each number, and fixing the cause rather than hiding the symptom.',
       learningObjectives: [
@@ -221,7 +227,7 @@
       verificationGuidance: 'Review outcome rates per group on several metrics, the sample size behind each, and who signs off the results.',
       discoveryCriteria: 'Diagnose why a model treats a group differently.',
       understandingCriteria: 'Apply and verify controls that reduce the disparity.',
-      masteryCriteria: 'No independent mastery scenario yet — this concept stays at UNDERSTOOD.',
+      masteryCriteria: 'Pass FAIRNESS UNDER PRESSURE — make and justify an evidence-based assessment, name the limits of the data and validate a fix — without hints, after understanding it in the AI Incident Lab.',
       lockedHint: 'Averages can hide who gets left out.',
     },
     {
@@ -230,7 +236,8 @@
       category: 'responsible',
       icon: 'cloud',
       relatedLevels: [2],
-      mastery: 'none',
+      mastery: 'challenge',
+      challenge: 'report',
       shortDescription: 'Fluent answers can be confidently wrong — ground them in sources and check claims against those sources.',
       detailedExplanation: 'Language models generate plausible text, not verified facts. Grounding answers in retrieved sources and checking each claim against them reduces — but does not eliminate — fabricated details. Unsupported claims should be flagged, not presented as fact.',
       learningObjectives: [
@@ -241,7 +248,7 @@
       verificationGuidance: 'Sample answers and check each claim against the cited sources; confirm unsupported answers are flagged, not presented as fact.',
       discoveryCriteria: 'Compare a model\'s claims with its sources.',
       understandingCriteria: 'Apply and verify grounding controls.',
-      masteryCriteria: 'No independent mastery scenario yet — this concept stays at UNDERSTOOD.',
+      masteryCriteria: 'Pass THE FABRICATED REPORT — check every claim against the case files and verify a grounded revision — without hints, after understanding it in the AI Incident Lab.',
       lockedHint: 'Confidence is not the same as being right.',
     },
   ];

@@ -8,7 +8,7 @@ const { PAGES, checkAll } = require('../tools/check-scripts.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
-const LEVEL_PAGES = PAGES.filter(p => p !== 'index.html');
+const LEVEL_PAGES = PAGES.filter(p => /^level\d\.html$/.test(p));
 
 test('inline scripts in the hub and all five levels parse, plus every module', () => {
   const modules = ['js', 'js/racer', 'js/arena', 'js/incident', 'js/social', 'js/mayhem', 'js/knowledge'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith('.js')));
@@ -95,7 +95,7 @@ test('level 5 is wired into the campaign: hub copy, level 4 hand-off, intro and 
 });
 
 test('every level reports to the shared Knowledge Vault and traps focus in its dialogs', () => {
-  const order = ['concepts', 'learning-events', 'rewards', 'progress', 'vault-ui'];
+  const order = ['concepts', 'challenges', 'learning-events', 'rewards', 'progress', 'vault-ui'];
   for (const page of LEVEL_PAGES) {
     const html = read(page);
     const at = order.map(m => html.indexOf('<script src="js/knowledge/' + m + '.js"></script>'));

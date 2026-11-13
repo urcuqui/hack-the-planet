@@ -287,6 +287,7 @@
 <script src="js/a11y.js"></script>
 <script src="js/progress.js"></script>
 <script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/challenges.js"></script>
 <script src="js/knowledge/learning-events.js"></script>
 <script src="js/knowledge/rewards.js"></script>
 <script src="js/knowledge/progress.js"></script>
@@ -663,7 +664,8 @@ function chooseOption(i) {
   if (decisionView !== 'choose' || !decisionArmed) return;
   const res = security.choose(i, raceTime);
   if (!res) return;
-  knowledge({ source: 'L4:' + res.event.def.id, stage: 'apply', result: res.option.outcome, firstTry: true, ref: 'lap ' + res.event.def.lap });
+  knowledge({ source: 'L4:' + res.event.def.id, stage: 'apply', result: res.option.outcome, firstTry: true, ref: 'lap ' + res.event.def.lap,
+    insight: { action: res.option.label, outcome: res.option.feedback } });
   decisionView = 'feedback';
   const { event, option } = res;
   const d = event.def;
@@ -794,7 +796,7 @@ $('change-car-btn').onclick = () => { phase = 'select'; $('hud').style.display =
 // ── Knowledge (shared Vault): unlocks wait until the car is not racing ──
 const unlocks = HTPKnowledge.UI.createNotifier({
   accent: '#ffd23f', position: 'top-center', top: '96px',
-  isBusy: () => phase === 'racing' || phase === 'countdown',
+  isBusy: () => phase === 'racing' || phase === 'countdown' || phase === 'paused',
   sound: kind => { if (!audioCtx) return; if (!sfxBus) { sfxBus = audioCtx.createGain(); sfxBus.gain.value = 0.5; sfxBus.connect(audioCtx.destination); } HTPKnowledge.UI.playCue(audioCtx, sfxBus, kind); },
 });
 const knowledge = HTPKnowledge.UI.reporter(unlocks);

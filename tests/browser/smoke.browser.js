@@ -314,7 +314,7 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       await page.eval('document.querySelector(".kv-card[data-concept=least-privilege]").focus()');
       await page.key('Enter');
       await page.waitFor('document.getElementById("kv-detail").open');
-      assert.match(await page.eval('document.getElementById("kv-detail").textContent'), /WHERE YOU MET IT[\s\S]*THE ENFORCER/);
+      assert.match(await page.eval('document.getElementById("kv-detail").textContent'), /WHERE YOU ENCOUNTERED IT[\s\S]*THE ENFORCER/);
       await page.key('Escape');
       await page.waitFor('!document.getElementById("kv-detail").open');
       assert.equal(await page.eval('document.activeElement.dataset.concept'), 'least-privilege', 'focus returns to the card');
@@ -329,6 +329,74 @@ test('campaign smoke test in headless Chrome', { skip: !CHROME && 'Chrome not fo
       assert.equal(await page.eval('localStorage.getItem("htp.progress")'), null);
       assert.match(await page.eval('document.getElementById("xp-chip").textContent'), /LEARNING XP 0/);
       page.assertNoErrors('hub vault');
+    });
+
+    await t.test('mastery challenge: from the Vault, fail, retry, master, return — keyboard, focus, reduced motion', async () => {
+      await page.goto(base + '/');
+      await page.eval('localStorage.clear()');
+      await page.eval(`(() => { localStorage.setItem('htp.progress', JSON.stringify({ version: 1, levels: { 1: { completed: true } } }));
+        HTPKnowledge.Progress.record({ source: 'L2:biasbot', stage: 'apply', result: 'verified', firstTry: true }); })()`);
+      await page.goto(base + '/');
+      await page.click('#tab-vault');
+      assert.match(await page.eval('document.querySelector(".kv-continue").textContent'), /FAIRNESS UNDER PRESSURE/, 'the recommended next step is the waiting challenge');
+      // A concept not understood yet points to its mission, not the challenge.
+      await page.click('#kv-all .kv-card[data-concept="hallucination"]');
+      await page.waitFor('document.getElementById("kv-detail").open');
+      assert.match(await page.eval('document.getElementById("kv-detail").textContent'), /UNDISCOVERED CONCEPT/);
+      await page.key('Escape');
+      await page.click('#kv-all .kv-card[data-concept="fairness"]');
+      await page.waitFor('document.getElementById("kv-detail").open');
+      assert.match(await page.eval('document.getElementById("kv-detail").textContent'), /MASTERY CHALLENGE AVAILABLE/);
+      const loaded = page.waitForEvent('Page.loadEventFired');
+      await page.click('#kv-start-challenge');
+      await loaded;
+      assert.match(await page.eval('location.search'), /c=fairness/);
+      assert.equal(await page.eval('actx'), null, 'no audio before a gesture');
+      assert.equal(await page.eval('document.activeElement.id'), 'title');
+      // Incomplete: verification explains and focuses what is missing.
+      await page.click('#verify-btn');
+      assert.match(await page.eval('document.getElementById("run-msg").textContent'), /Complete/);
+      assert.equal(await page.eval('document.activeElement.closest("fieldset").id'), 'step-assess');
+      const fill = async next => {
+        await page.click('input[name="assess::b-vs-a"][value="supported"]');
+        await page.click('input[name="assess::c-vs-a"][value="insufficient"]');
+        for (const v of ['similar-qualified', 'recall-gap']) await page.click('input[name="basis"][value="' + v + '"]');
+        for (const v of ['small-c', 'sample-size']) await page.click('input[name="limits"][value="' + v + '"]');
+        for (const v of next) await page.click('input[name="next"][value="' + v + '"]');
+      };
+      await fill(['quota']);
+      await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+      await page.click('#verify-btn');
+      await page.waitFor('!document.getElementById("results").hidden');
+      assert.match(await page.eval('document.getElementById("verdict").textContent'), /FAILED/);
+      assert.equal(await page.eval('document.activeElement.id'), 'verdict', 'focus moves to the verdict');
+      assert.match(await page.eval('document.getElementById("results").textContent'), /answers are not shown/);
+      let k = await page.eval('JSON.parse(localStorage.getItem("htp.knowledge"))');
+      assert.equal(k.concepts.fairness.masteredAt, undefined);
+      assert.deepEqual([k.challenges.fairness.attempts, k.challenges.fairness.firstAttempt], [1, 'fail']);
+      // Retry keeps the answers; switch the next step by keyboard (Space toggles the focused checkbox).
+      await page.click('#retry-btn');
+      await page.eval('document.querySelector(\'input[name="next"][value="quota"]\').focus()');
+      await page.key('Space');
+      await page.eval('document.querySelector(\'input[name="next"][value="audit"]\').focus()');
+      await page.key('Space');
+      await page.click('#verify-btn');
+      await page.waitFor('!document.getElementById("results").hidden && /PASSED/.test(document.getElementById("verdict").textContent)');
+      assert.equal(await page.eval('document.querySelectorAll(".timeline li").length'), await page.eval('HTPKnowledge.Challenges.evaluate("fairness", collect()).timeline.length'),
+        'reduced motion: every consequence is shown at once');
+      assert.match(await page.eval('document.querySelector(".knowledge-line").textContent'), /MASTERED/);
+      k = await page.eval('JSON.parse(localStorage.getItem("htp.knowledge"))');
+      assert.ok(k.concepts.fairness.masteredAt);
+      assert.equal(k.concepts.fairness.excellenceAt, undefined, 'a retry masters without the excellence mark');
+      assert.equal(k.challenges.fairness.firstAttempt, 'fail', 'the first attempt is not rewritten');
+      await page.send('Emulation.setEmulatedMedia', { features: [] });
+      const back = page.waitForEvent('Page.loadEventFired');
+      await page.click('#back-btn');
+      await back;
+      await page.waitFor('document.activeElement && document.activeElement.dataset.concept === "fairness"', 3000);
+      assert.equal(await page.eval('document.activeElement.dataset.status'), 'mastered', 'back on the card, now mastered');
+      assert.equal(await page.eval('localStorage.getItem("htp.progress")'), JSON.stringify({ version: 1, levels: { 1: { completed: true } } }), 'campaign untouched');
+      page.assertNoErrors('mastery challenge');
     });
 
     await t.test('hub: corrupt storage renders a fresh campaign without errors', async () => {

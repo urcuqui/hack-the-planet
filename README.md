@@ -12,7 +12,7 @@
 
 - **Who it's for:** anyone curious about agentic AI security — tool permissions, prompt injection, data poisoning, identity and message verification, cascading failures. No prior security knowledge is needed; experienced players can skip the tutorials.
 - **How long:** about 5–15 minutes per mission. Open `index.html` (or run `npm start`) and pick a mission in the **Mission Hub**, which saves your progress.
-- **What you take away:** every mission feeds one **Knowledge Vault** in the Mission Hub. Concepts you meet in play become *discovered*, applying the right control makes them *understood*, and applying it again first time in a different mission makes them *mastered* — with learning XP, five specialist badges and a review of what to practise next. **PLAY. DISCOVER. UNDERSTAND. MASTER.**
+- **What you take away:** every mission feeds one **Knowledge Vault** in the Mission Hub. Concepts you meet in play become *discovered*, applying the right control makes them *understood*, and applying it again first time in a different mission — or passing its short **mastery challenge** — makes them *mastered*, with learning XP, five specialist badges and a recommendation of what to practise next. **PLAY. DISCOVER. UNDERSTAND. MASTER.**
 - **What it is not:** an independent, experimental learning project. It is **not affiliated with or endorsed by TryHackMe** or any other company, and nothing in it measures a real system. The agents are transparent simulations (state machines and policies), not AI models.
 
 Everything runs in the browser with plain HTML, CSS and JavaScript. There's no build step, no framework and no backend. All music and sound effects are generated live with the Web Audio API, so the game ships no audio files.
@@ -98,9 +98,22 @@ The Mission Hub has three tabs: **MISSIONS**, **KNOWLEDGE VAULT** and **ACHIEVEM
 |---|---|
 | ◆ **DISCOVERED** | You examined the evidence (never just by opening a screen, and never before the concept's name would stop being a hint) |
 | ✓ **UNDERSTOOD** | You applied the right control. Unsafe or over-restrictive choices count as attempts, not understanding |
-| ★ **MASTERED** | Later, you applied it right first time, without the guide, in a *different* mission (or a different case, for social engineering). Concepts with no independent scenario stay at UNDERSTOOD |
+| ★ **MASTERED** | Later, you applied it right first time, without the guide, in a *different* mission (or a different case, for social engineering). Four concepts that appear in only one mission are mastered by passing their **mastery challenge** without hints |
 
 Learning XP (25 / 75 / 150) is paid once per milestone and cannot be farmed by replaying. Five specialist badges — AGENT CONTAINMENT SPECIALIST, AI SECURITY INVESTIGATOR, IDENTITY DETECTIVE, SAFETY-FIRST DRIVER, CITY GUARDIAN — have explicit conditions; none is given for finishing a mission. In a mission, a short **KNOWLEDGE UNLOCKED** card (with an original sound cue) appears after the decision that earned it, and waits while you are fighting, racing or driving. Locked concept cards never reveal names or answers. The full design — catalog, event mappings, reward conditions — is in [`docs/PHASE7-KNOWLEDGE.md`](docs/PHASE7-KNOWLEDGE.md).
+
+### Mastery challenges
+
+Four concepts appear in only one mission, so each has an optional 2–3 minute **mastery challenge** in a new setting, opened from the concept's card or from **CONTINUE LEARNING** in the Vault:
+
+| Challenge | Concept | You… |
+|---|---|---|
+| THE DOMINO PROTOCOL | Cascading Failures | trace a failing harbour logistics grid back to its origin, contain it without stopping the port, and verify the dependents recover |
+| THE PRIVACY LEAK | Training-Data Privacy | tell legitimate API clients from a model-inversion attack, choose controls, and replay the attack against them |
+| FAIRNESS UNDER PRESSURE | Bias & Fairness | decide which shortlist-rate differences are supported, name the limits of the evidence, and validate a fix against a recall policy |
+| THE FABRICATED REPORT | Hallucination & Grounding | check eight AI-written incident-report claims against the case files and choose controls that ground the re-draft |
+
+Wrong but plausible choices play out with visible consequences, and every result ends with the residual risk and the lesson. The page sends your answers, not a verdict: the Vault recomputes the result itself. Hints are optional; a guided pass is recorded but does not master the concept. Retrying after a failed attempt can master it, your first-attempt result is kept, and mastering on the very first unguided attempt earns an **EXCELLENCE** mark. The Vault and challenges share a **REWARD SOUNDS** toggle, and Level 1 has a new **SFX** mute. Details: [`docs/PHASE8-MASTERY.md`](docs/PHASE8-MASTERY.md).
 
 ## Mission notes
 
@@ -204,6 +217,7 @@ hack-the-planet/
 ├── level3.html              # 03 Operation Ghost: page, HUD, case panel, case files, map, CIPHER, results (logic in js/social/)
 ├── level4.html              # 04 Neon Grand Prix: page, HUD, decisions, report (logic in js/racer/)
 ├── level5.html              # 05 Digital Mayhem: intro, HUD, inspector, dependency map, field checks, log, radio, results (logic in js/mayhem/)
+├── mastery.html             # Optional mastery challenges, launched from the Knowledge Vault (?c=domino|privacy|fairness|report)
 ├── js/
 │   ├── progress.js          # Shared campaign state: level list, unlocks, localStorage
 │   ├── a11y.js              # Shared modal focus trap
@@ -212,6 +226,7 @@ hack-the-planet/
 │   │   ├── learning-events.js #   gameplay sources → concepts, validation
 │   │   ├── rewards.js       #   learning XP and badge conditions
 │   │   ├── progress.js      #   DISCOVERED/UNDERSTOOD/MASTERED, idempotent events, review, htp.knowledge
+│   │   ├── challenges.js    #   The four mastery challenges: evidence, steps, deterministic evaluators
 │   │   └── vault-ui.js      #   icons, unlock cards, reward sounds, Vault and Achievements views
 │   ├── arena/               # Level 1 modules (classic scripts, also loadable in Node)
 │   │   ├── world.js         #   Main Street geometry, collisions, line of sight, navigation, barriers
@@ -256,6 +271,8 @@ hack-the-planet/
 │   ├── mayhem.test.js       # Level 5: policy, simulation, pressure, cascade, recovery order, incidents, city layout
 │   ├── mayhem-audio.test.js # Level 5: audio gating, transitions, mute, volumes, pause, restart, stings (fake AudioContext)
 │   ├── knowledge.test.js    # Knowledge system: registry, events, learning states, mastery, persistence
+│   ├── challenges.test.js   # Mastery challenges: evaluators, wrong strategies, verdict recompute, excellence, retries
+│   ├── knowledge-audio.test.js # Reward cues: routing, cleanup, shared sound preference, paused levels
 │   ├── rewards.test.js      # Learning XP and badge conditions
 │   ├── serve.test.js        # Static server: valid, missing, malformed, traversal
 │   ├── pages.test.js        # Links, completion hooks, SRI, intro still present
@@ -267,6 +284,7 @@ hack-the-planet/
 ├── trailer.gif              # README trailer (7.6 s, 640×360, 12 fps)
 ├── docs/PHASE6-REVIEW.md    # Learning objectives, usability review findings and open playtest questions
 ├── docs/PHASE7-KNOWLEDGE.md # Knowledge system: catalog, learning events, rewards, Vault, a11y/camera/audio changes
+├── docs/PHASE8-MASTERY.md   # Mastery challenges, authoritative evidence, mastery policy, Vault UX, audio, a11y
 ├── trailer-contact-sheet.png  # Frames from each scene, for reviewing the trailer
 ├── preview.gif              # Earlier illustrated preview
 ├── package.json             # npm scripts only, no dependencies
@@ -298,6 +316,7 @@ On macOS, run the browser suites under `caffeinate -dimsu` (for example `caffein
 
 - `npm test` covers progression and unlock logic, corrupt and throwing `localStorage`, the static server (valid files, 404s, malformed URLs, `..` and encoded traversal, sibling-prefix paths, dotfiles, symlink escape) and page wiring. `tests/racer.test.js` checks that the circuit closes and is identical every lap, that the minimap turns where the road turns, that road edges and penalties share one boundary, that physics match at 30/60/144 fps, that rivals stay on the asphalt, that each security event fires once on its lap, and that every combination of choices finishes with a distinct score and report. `tests/arena.test.js` covers WASD and classic movement, frame-rate independence, the pitch limit and aim direction, solid buildings and cover, pulses stopping at structures/ground/sky and hitting each agent's own body, temporary barriers, the Scout's state sequence and audit chain, agents never seeing or firing through cover and routing around it, every Enforcer tool decision (allowed/blocked/held, with reasons), held requests resolving after review, the Signal's message checks and their consequences, the bounty board's order, the inspector reading real log entries, and an honest report. `tests/incident.test.js` checks that every robot spawns on a walkable, reachable, non-overlapping tile, collisions, the six distinct diagnosis styles, that no case names its vulnerability before diagnosis, the poisoning keyword trap and the bias small-sample distractor, that different mitigations give different verification results, that a failed verification means NEEDS REVIEW and −10%, that nothing counts twice, that security status only goes down, and that all six incidents can be completed. `tests/social.test.js` checks that the city layout validates (talk spots and cars free and reachable, nothing overlapping), that every visible building and obstacle is solid, that routes never cut through buildings, frame-rate-independent walking and driving, normalised diagonals, smooth acceleration and turning, sliding along walls, speed-dependent steering, stuck-car recovery and safe exits, traffic that yields, a camera that stays out of walls and frames conversations, that no case names its technique before LEARN, that wrong answers explain without revealing, that the five cases complete in any order with no duplicate files, that CIPHER is locked until five and needs every step, and that the rig keeps feet on the ground in every animation.
 - `tests/mayhem.test.js` checks the Level 5 policy engine (identity, grants, scope, privilege tiers, monitor vs enforce, human review, one-time approval, sender verification, quarantined feeds, revoked delegation). It also checks that the simulation is deterministic, that incidents trigger on time or on progress, and that only valid state transitions are accepted. It verifies that pressure comes from state (opening a panel changes nothing) and that every change is explained. Further checks: blocked calls never execute while legitimate work continues, every call is logged with its states, approval escalates, review holds, verified senders launch the hospital drone and hold the spoof, and the field-gated poisoning fix works. In the cascade, the wrong agent fails, the origin contains it, and recovery is ordered. Finally, dependencies are announced, failed verification has no penalty, best and costly strategies both win (scored separately), ignoring the crisis loses on a visible threshold, a new mission starts clean, the incident data is consistent, and the city layout is valid (routes on asphalt, right-hand lanes, no overlaps, field paths clear of buildings). `tests/mayhem-audio.test.js` runs the audio engine against a fake `AudioContext`: nothing before a gesture, one scheduler, bar-line transitions, mute, clamped and persisted volumes, pause ducking, restart without lingering nodes, 4–6 s stings, routing for every effect, and no crash without Web Audio.
+- `tests/challenges.test.js` checks that each mastery challenge passes its reference solution and fails every tempting wrong strategy with the expected consequence, that feedback never names an answer, that answers are sanitised and the verdict recomputed (a page claiming success with wrong answers gets nothing), that mastery needs the mission first and an unguided pass, that excellence needs the first attempt, that retries keep first-attempt history, and that replays cannot farm XP. `tests/knowledge-audio.test.js` checks reward-cue routing and cleanup, the shared sound preference, and that cues wait while a level is paused. The browser smoke test and the gameplay test each play a challenge from the Vault: fail, retry, master, return with focus restored.
 - `npm run test:browser` starts the local server and drives Chrome over the DevTools Protocol. It walks the hub and all five levels in order and checks that:
   - audio only starts after a real click
   - skipping the intro can't reopen the menu mid-match
@@ -381,7 +400,7 @@ Gameplay timing varies a little between runs, so each capture yields a slightly 
 - Level 3's five cases and CIPHER's analysis are fixed, hand-written scenarios. Pedestrians walk through GHOST rather than around him, traffic only yields (no crashes), and the city is a compact, stylised Miami, not a map of the real one.
 - Level 5's crisis is deterministic: the same five incidents in the same order every run, so the tests can replay it exactly. The district has cars and drones but no pedestrians, and GHOST's field checks are short guided scenes, not free movement. The radio's spoken announcements depend on the browser's speech voices.
 - Accessibility has been improved (focus traps in every modal dialog, text plus symbols for every security and learning state, live regions, 11 px minimum CSS text, reduced motion including Level 3's camera, reduced alerts in Level 5) but **not tested with assistive technology**. Aiming (Level 1), walking (Levels 2–3) and driving (Level 4) have no alternative to real-time keyboard/mouse control. Full accessibility compliance is not claimed.
-- Knowledge Vault: four concepts have only one scenario and cannot be mastered yet; XP and badges reflect decisions in these games, not real-world competence. The Level 1 pointer-lock fix and the reward sounds are not exercised by headless tests.
+- Knowledge Vault: the four mastery challenges are fixed, hand-written decision exercises (same evidence every time) with illustrative numbers; XP and badges reflect decisions in these games, not real-world competence. The Level 1 pointer-lock fix and the reward sounds are not exercised by headless tests.
 - The learning objectives in `docs/PHASE6-REVIEW.md` describe what each mission asks players to do; no learner study has been run, so learning effects are not claimed.
 - Level 2's incidents are fixed, hand-written cases, and the same every run. The evidence is simplified for teaching, and SECURITY STATUS is a simple weighting rule for this lab, not a real risk model.
 

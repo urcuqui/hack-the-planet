@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
-const PAGES = ['index.html', 'level1.html', 'level2.html', 'level3.html', 'level4.html', 'level5.html'];
+const PAGES = ['index.html', 'level1.html', 'level2.html', 'level3.html', 'level4.html', 'level5.html', 'mastery.html'];
 
 function inlineScripts(html) {
   return [...html.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script>/gi)]

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HACK THE PLANET - Mastery Challenge</title>
+<meta name="description" content="Optional mastery challenges from the Knowledge Vault: apply an AI security concept in a new scenario.">
+<style>
+  :root {
+    --bg: #070a12; --panel: rgba(14, 18, 30, 0.96); --text: #eef3ff; --muted: rgba(226, 234, 255, 0.68);
+    --accent: #58D8E8; --accent2: #F08ABD; --ok: #42C99A; --bad: #EF646A; --warn: #F2BE5C; --line: rgba(255,255,255,0.14);
+  }
+  [data-theme="lab"] { --accent: #7dff9a; --accent2: #ffcc33; --bg: #050b06; --panel: rgba(6, 16, 9, 0.96); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); font-family: "Courier New", monospace; }
+  body { min-height: 100vh; }
+  :focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .pre { font-size: 12px; letter-spacing: 4px; color: var(--muted); }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { font: inherit; font-size: 12px; letter-spacing: 2px; padding: 9px 14px; cursor: pointer; text-decoration: none; display: inline-block;
+    color: var(--bg); background: var(--accent); border: 1px solid var(--accent); }
+  .btn.ghost { color: var(--text); background: transparent; border-color: var(--line); }
+  .btn.alt { background: var(--accent2); border-color: var(--accent2); }
+  .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+  h1 { font-size: clamp(26px, 5vw, 44px); letter-spacing: 5px; color: var(--accent2); line-height: 1.1; }
+  .setting { font-size: 13px; letter-spacing: 3px; color: var(--accent); margin: 6px 0 12px; }
+  .brief { border-left: 3px solid var(--accent2); padding: 4px 0 4px 14px; font-size: 14px; line-height: 1.7; max-width: 900px; }
+  .objective { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+  .notice { margin-top: 12px; border: 1px solid var(--warn); padding: 10px 12px; font-size: 13px; line-height: 1.6; color: #ffe7b0; }
+  .notice b { color: var(--warn); font-weight: normal; letter-spacing: 2px; }
+  .work { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; margin-top: 20px; align-items: start; }
+  section.panel { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; }
+  h2 { font-size: 13px; letter-spacing: 4px; color: var(--accent); margin-bottom: 10px; font-weight: normal; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .tab { font: inherit; font-size: 12px; letter-spacing: 1px; padding: 6px 10px; cursor: pointer; color: var(--muted); background: transparent; border: 1px solid var(--line); }
+  .tab[aria-selected="true"] { color: var(--text); border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
+  .doc { font-size: 13px; line-height: 1.6; }
+  .doc pre { white-space: pre-wrap; font: inherit; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .doc th, .doc td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .doc th { color: var(--muted); font-weight: normal; letter-spacing: 1px; }
+  .map { position: relative; height: 290px; border: 1px solid var(--line); margin: 6px 0 10px; background: rgba(0,0,0,0.25); }
+  .map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .node { position: absolute; transform: translate(-50%, -50%); font: inherit; font-size: 11px; line-height: 1.3; padding: 5px 7px; cursor: pointer;
+    background: #141c2e; color: var(--text); border: 1px solid var(--line); text-align: center; max-width: 140px; }
+  .node[aria-pressed="true"] { border-color: var(--accent2); outline: 2px solid var(--accent2); }
+  .node .st { display: block; font-size: 11px; }
+  .st-CRITICAL { color: var(--bad); } .st-DEGRADED { color: var(--warn); } .st-OK { color: var(--ok); }
+  .st-CRITICAL::before { content: "■ "; } .st-DEGRADED::before { content: "▲ "; } .st-OK::before { content: "● "; }
+  .node-detail { font-size: 13px; line-height: 1.6; min-height: 60px; }
+  .node-detail li { margin-left: 18px; }
+  fieldset.step { border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 14px; }
+  fieldset.step legend { padding: 0 6px; font-size: 13px; letter-spacing: 3px; color: var(--accent2); }
+  .prompt { font-size: 13px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+  .item { border-top: 1px solid var(--line); padding: 8px 0; }
+  .item:first-of-type { border-top: none; }
+  .item .lbl { font-size: 13px; line-height: 1.5; margin-bottom: 6px; }
+  .radios { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; letter-spacing: 1px; }
+  label.opt { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.5; padding: 5px 0; cursor: pointer; }
+  input[type="radio"], input[type="checkbox"] { accent-color: var(--accent2); width: 16px; height: 16px; margin-top: 2px; flex: none; }
+  select { font: inherit; font-size: 13px; padding: 6px; width: 100%; background: #0d1322; color: var(--text); border: 1px solid var(--line); margin-top: 4px; }
+  .field { margin-bottom: 10px; font-size: 12px; letter-spacing: 2px; color: var(--muted); }
+  .hintrow { margin-top: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+  .hint { color: var(--warn); line-height: 1.5; font-size: 13px; }
+  .count { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .run { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .msg { font-size: 13px; color: var(--warn); }
+  #results { margin-top: 20px; }
+  #results[hidden] { display: none; }
+  .verdict { font-size: clamp(20px, 3vw, 28px); letter-spacing: 4px; margin-bottom: 10px; }
+  .verdict.pass { color: var(--ok); } .verdict.fail { color: var(--bad); }
+  .checks { list-style: none; display: grid; gap: 6px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
+  .checks li.ok::before { content: "✓ "; color: var(--ok); }
+  .checks li.no::before { content: "✕ "; color: var(--bad); }
+  .checks small { display: block; color: var(--muted); margin-left: 18px; }
+  .timeline { list-style: none; border-left: 2px solid var(--line); padding-left: 12px; margin: 8px 0 14px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; }
+  .timeline li b { font-weight: normal; color: var(--muted); margin-right: 8px; }
+  .timeline li.good::after { content: "  ✓"; color: var(--ok); } .timeline li.bad::after { content: "  ✕"; color: var(--bad); }
+  .learn p { font-size: 13px; line-height: 1.65; margin: 6px 0; }
+  .learn b { font-weight: normal; color: var(--accent); letter-spacing: 2px; font-size: 12px; }
+  .knowledge-line { border: 1px solid var(--accent); padding: 10px 12px; margin: 12px 0; font-size: 13px; line-height: 1.6; }
+  .knowledge-line.mastered { border-color: #ffd23f; color: #fff1c2; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (max-width: 860px) { .work { grid-template-columns: 1fr; } .map { height: 330px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="pre">HACK THE PLANET · MASTERY CHALLENGE · <span id="concept-name"></span></div>
+    <div class="tools">
+      <button class="btn ghost" id="sound-btn" type="button" aria-pressed="true">SOUND: ON</button>
+      <a class="btn ghost" id="vault-link" href="index.html">&lt; KNOWLEDGE VAULT</a>
+    </div>
+  </header>
+  <main id="main">
+    <h1 id="title"></h1>
+    <div class="setting" id="setting"></div>
+    <p class="brief" id="brief"></p>
+    <p class="objective" id="objective"></p>
+    <div id="notice"></div>
+    <div class="work">
+      <section class="panel" aria-labelledby="ev-h">
+        <h2 id="ev-h">EVIDENCE</h2>
+        <div id="map-host"></div>
+        <div class="tabs" role="tablist" aria-label="Evidence" id="ev-tabs"></div>
+        <div class="doc" id="ev-doc" role="tabpanel" tabindex="0"></div>
+      </section>
+      <section class="panel" aria-labelledby="inv-h">
+        <h2 id="inv-h">YOUR INVESTIGATION</h2>
+        <form id="steps" novalidate></form>
+        <div class="run">
+          <button class="btn alt" id="verify-btn" type="button">RUN VERIFICATION</button>
+          <span class="msg" id="run-msg" role="status" aria-live="polite"></span>
+        </div>
+      </section>
+    </div>
+    <section class="panel" id="results" hidden aria-labelledby="verdict"></section>
+  </main>
+</div>
+<div class="sr" id="announce" role="status" aria-live="polite"></div>
+
+<script src="js/a11y.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/challenges.js"></script>
+<script src="js/knowledge/learning-events.js"></script>
+<script src="js/knowledge/rewards.js"></script>
+<script src="js/knowledge/progress.js"></script>
+<script src="js/knowledge/vault-ui.js"></script>
+<script>
+'use strict';
+const K = HTPKnowledge;
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+// Checked live: the OS setting can change while the page is open.
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── Which challenge ──
+const params = new URLSearchParams(location.search);
+const ch = K.Challenges.byId[params.get('c')] || K.Challenges.CHALLENGES[0];
+const concept = K.Concepts.byId[ch.concept];
+document.title = 'HACK THE PLANET - Mastery: ' + ch.title;
+document.documentElement.dataset.theme = ch.theme;
+
+// ── Audio: created on the first gesture, one context, one SFX bus ──
+let actx = null, sfxBus = null;
+function soundOn() { return K.UI.prefs().rewardSounds; }
+function ensureAudio() {
+  if (actx || !soundOn()) return;
+  const C = window.AudioContext || window.webkitAudioContext;
+  if (!C) return;
+  try { actx = new C(); sfxBus = actx.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(actx.destination); } catch (e) { actx = null; }
+}
+document.addEventListener('pointerdown', ensureAudio, { once: true, capture: true });
+document.addEventListener('keydown', ensureAudio, { once: true, capture: true });
+function tone(f, at, dur, type = 'triangle', peak = 0.06) {
+  if (!actx || !soundOn()) return;
+  const t = actx.currentTime + at, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + dur + 0.05);
+}
+const sfx = { pass: () => { tone(659, 0, 0.12); tone(988, 0.1, 0.2); }, fail: () => { tone(330, 0, 0.14, 'square', 0.04); tone(262, 0.12, 0.2, 'square', 0.04); }, select: () => tone(880, 0, 0.05, 'sine', 0.03) };
+function syncSound() { const on = soundOn(); $('sound-btn').textContent = 'SOUND: ' + (on ? 'ON' : 'OFF'); $('sound-btn').setAttribute('aria-pressed', String(on)); }
+$('sound-btn').onclick = () => { K.UI.setPref('rewardSounds', !soundOn()); syncSound(); if (!soundOn() && sfxBus) sfxBus.gain.value = 0; else if (sfxBus) sfxBus.gain.value = 0.7; ensureAudio(); };
+syncSound();
+window.addEventListener('pagehide', () => { if (actx && actx.close) actx.close(); actx = null; });
+
+const unlocks = K.UI.createNotifier({ accent: ch.theme === 'lab' ? '#7dff9a' : '#F08ABD', position: 'top-right', top: '16px', isBusy: () => false,
+  sound: kind => { ensureAudio(); if (actx) K.UI.playCue(actx, sfxBus, kind); } });
+
+// ── Header and context ──
+$('concept-name').textContent = concept.title.toUpperCase();
+$('title').textContent = ch.title;
+$('setting').textContent = ch.setting + ' · ABOUT ' + ch.minutes + ' MIN · OPTIONAL';
+$('brief').textContent = ch.brief;
+$('objective').textContent = 'OBJECTIVE: ' + ch.objective + ' No timer. Hints are available, but an attempt with a hint does not count towards mastery.';
+function renderNotice() {
+  const st = K.Progress.status(K.Progress.load(), concept.id);
+  const box = $('notice');
+  box.replaceChildren();
+  if (st === 'understood' || st === 'mastered') return;
+  const n = el('div', 'notice');
+  const levels = HTPProgress.LEVELS.filter(l => concept.relatedLevels.includes(l.id));
+  n.append(el('b', '', 'FIRST, UNDERSTAND THIS CONCEPT. '), document.createTextNode('You can play this challenge now, but it counts towards mastery only after you have understood ' + concept.title + ' in ' +
+    levels.map(l => l.code + ' · ' + l.name).join(' or ') + '. '));
+  const lvl = levels.find(l => HTPProgress.statusOf(HTPProgress.load(), l.id) !== 'locked');
+  if (lvl) { const a = el('a', '', 'Go to ' + lvl.code + ' >'); a.href = lvl.url; n.append(a); }
+  box.append(n);
+}
+renderNotice();
+
+// ── Evidence ──
+let evSel = 0;
+function renderEvidence() {
+  const tabs = $('ev-tabs');
+  tabs.replaceChildren();
+  ch.evidence.forEach((e, i) => {
+    const b = el('button', 'tab', e.title);
+    b.type = 'button'; b.setAttribute('role', 'tab'); b.id = 'ev-tab-' + i;
+    b.setAttribute('aria-selected', String(i === evSel)); b.tabIndex = i === evSel ? 0 : -1;
+    b.setAttribute('aria-controls', 'ev-doc');
+    b.onclick = () => { evSel = i; sfx.select(); renderEvidence(); $('ev-tab-' + i).focus(); };
+    b.onkeydown = e2 => {
+      if (e2.key !== 'ArrowRight' && e2.key !== 'ArrowLeft') return;
+      e2.preventDefault();
+      evSel = (i + (e2.key === 'ArrowRight' ? 1 : ch.evidence.length - 1)) % ch.evidence.length;
+      renderEvidence(); $('ev-tab-' + evSel).focus();
+    };
+    tabs.append(b);
+  });
+  const doc = $('ev-doc');
+  doc.setAttribute('aria-labelledby', 'ev-tab-' + evSel);
+  doc.replaceChildren();
+  const e = ch.evidence[evSel];
+  if (e.kind === 'table') {
+    const t = el('table'), hr = el('tr');
+    e.head.forEach(h => hr.append(el('th', '', h)));
+    t.append(hr);
+    e.rows.forEach(r => { const tr = el('tr'); r.forEach(c => tr.append(el('td', '', c))); t.append(tr); });
+    doc.append(t);
+  } else doc.append(el('pre', '', e.lines.join('\n')));
+}
+renderEvidence();
+
+// Dependency map (THE DOMINO PROTOCOL): inspect each service.
+let nodeSel = null;
+function renderMap() {
+  if (!ch.map) return;
+  const host = $('map-host');
+  host.replaceChildren();
+  host.append(el('div', 'prompt', 'DEPENDENCY MAP — select a service to inspect it. Arrows show what feeds what.'));
+  const map = el('div', 'map');
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
+  const pos = Object.fromEntries(ch.map.nodes.map(n => [n.id, n]));
+  for (const [a, b] of ch.map.edges) {
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('x1', pos[a].x); l.setAttribute('y1', pos[a].y); l.setAttribute('x2', pos[b].x); l.setAttribute('y2', pos[b].y);
+    l.setAttribute('stroke', 'rgba(88,216,232,0.45)'); l.setAttribute('stroke-width', '0.6'); l.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.append(l);
+    const m = document.createElementNS(ns, 'circle');            // direction: a dot near the consumer
+    m.setAttribute('cx', pos[a].x + (pos[b].x - pos[a].x) * 0.78); m.setAttribute('cy', pos[a].y + (pos[b].y - pos[a].y) * 0.78);
+    m.setAttribute('r', '1.2'); m.setAttribute('fill', 'rgba(88,216,232,0.8)');
+    svg.append(m);
+  }
+  map.append(svg);
+  for (const n of ch.map.nodes) {
+    const b = el('button', 'node');
+    b.type = 'button'; b.dataset.node = n.id;
+    b.style.left = n.x + '%'; b.style.top = n.y + '%';
+    b.setAttribute('aria-pressed', String(nodeSel === n.id));
+    b.append(document.createTextNode(n.id), el('span', 'st st-' + n.status, n.status));
+    b.setAttribute('aria-label', n.id + ', status ' + n.status + '. Feeds ' + (ch.map.edges.filter(e => e[0] === n.id).map(e => e[1]).join(', ') || 'nothing') + '.');
+    b.onclick = () => { nodeSel = n.id; sfx.select(); renderMap(); const again = document.querySelector('.node[data-node="' + n.id + '"]'); if (again) again.focus(); };
+    map.append(b);
+  }
+  host.append(map);
+  const det = el('div', 'node-detail');
+  det.setAttribute('aria-live', 'polite');
+  if (nodeSel) { det.append(el('b', '', nodeSel)); const ul = el('ul'); ch.map.details[nodeSel].forEach(l => ul.append(el('li', '', l))); det.append(ul); }
+  else det.append(el('span', 'prompt', 'No service selected.'));
+  host.append(det);
+}
+renderMap();
+
+// ── Investigation steps (native controls: radios, checkboxes, selects) ──
+let attempt = { guided: false, startedAt: performance.now(), hintsShown: new Set() };
+function renderSteps(keep) {
+  const form = $('steps');
+  const prev = keep ? collect() : {};
+  form.replaceChildren();
+  ch.steps.forEach((st, si) => {
+    const fs = el('fieldset', 'step');
+    fs.id = 'step-' + st.id;
+    fs.append(el('legend', '', (si + 1) + ' · ' + st.title));
+    fs.append(el('p', 'prompt', st.prompt));
+    if (st.type === 'classify') {
+      st.items.forEach(it => {
+        const box = el('div', 'item');
+        const g = el('div', 'radios');
+        g.setAttribute('role', 'radiogroup');
+        const lid = 'lbl-' + st.id + '-' + it.id;
+        const lab = el('div', 'lbl', it.label); lab.id = lid;
+        g.setAttribute('aria-labelledby', lid);
+        st.options.forEach(o => {
+          const l = el('label', 'opt');
+          const r = document.createElement('input');
+          r.type = 'radio'; r.name = st.id + '::' + it.id; r.value = o.id;
+          if (prev[st.id] && prev[st.id][it.id] === o.id) r.checked = true;
+          l.append(r, document.createTextNode(o.label));
+          g.append(l);
+        });
+        box.append(lab, g);
+        fs.append(box);
+      });
+    } else if (st.type === 'choose') {
+      st.options.forEach(o => {
+        const l = el('label', 'opt');
+        const c = document.createElement('input');
+        c.type = 'checkbox'; c.name = st.id; c.value = o.id;
+        if (prev[st.id] && prev[st.id].includes(o.id)) c.checked = true;
+        c.onchange = () => {
+          const n = form.querySelectorAll('input[name="' + st.id + '"]:checked').length;
+          if (n > st.max) { c.checked = false; $('announce').textContent = 'Up to ' + st.max + ' — deselect one first.'; $('cnt-' + st.id).textContent = 'Up to ' + st.max + ' — deselect one first.'; return; }
+          $('cnt-' + st.id).textContent = n + ' selected' + (st.max < st.options.length ? ' · up to ' + st.max : '');
+        };
+        l.append(c, document.createTextNode(o.label));
+        fs.append(l);
+      });
+      const cnt = el('div', 'count', ((prev[st.id] || []).length) + ' selected' + (st.max < st.options.length ? ' · up to ' + st.max : ''));
+      cnt.id = 'cnt-' + st.id; cnt.setAttribute('aria-live', 'polite');
+      fs.append(cnt);
+    } else if (st.type === 'configure') {
+      st.fields.forEach(f => {
+        if (f.toggle) {
+          const l = el('label', 'opt');
+          const c = document.createElement('input');
+          c.type = 'checkbox'; c.name = st.id + '::' + f.id;
+          if (prev[st.id] && prev[st.id][f.id] === true) c.checked = true;
+          l.append(c, document.createTextNode(f.label));
+          fs.append(l);
+        } else {
+          const w = el('label', 'field', f.label);
+          const s = document.createElement('select');
+          s.name = st.id + '::' + f.id;
+          s.append(new Option('— choose —', ''));
+          f.options.forEach(o => s.append(new Option(o.label, o.id)));
+          if (prev[st.id] && prev[st.id][f.id]) s.value = prev[st.id][f.id];
+          w.append(s);
+          fs.append(w);
+        }
+      });
+    }
+    // Optional hint: marks this attempt as guided.
+    const hr = el('div', 'hintrow');
+    const hb = el('button', 'btn ghost', attempt.hintsShown.has(st.id) ? 'HINT SHOWN' : 'HINT');
+    hb.type = 'button';
+    hb.disabled = attempt.hintsShown.has(st.id);
+    hb.setAttribute('aria-describedby', 'hint-note-' + st.id);
+    const note = el('span', 'prompt', attempt.hintsShown.has(st.id) ? '' : 'Using a hint means this attempt will not count towards mastery.');
+    note.id = 'hint-note-' + st.id;
+    hb.onclick = () => {
+      attempt.guided = true; attempt.hintsShown.add(st.id);
+      renderSteps(true);
+      const f = document.querySelector('#step-' + st.id + ' .hint');
+      if (f) { f.tabIndex = -1; f.focus(); }
+    };
+    hr.append(hb, note);
+    if (attempt.hintsShown.has(st.id)) hr.append(el('p', 'hint', '💡 ' + st.hint));
+    fs.append(hr);
+    form.append(fs);
+  });
+}
+renderSteps(false);
+
+function collect() {
+  const form = $('steps');
+  const out = {};
+  for (const st of ch.steps) {
+    if (st.type === 'classify') {
+      out[st.id] = {};
+      for (const it of st.items) { const r = form.querySelector('input[name="' + CSS.escape(st.id + '::' + it.id) + '"]:checked'); if (r) out[st.id][it.id] = r.value; }
+    } else if (st.type === 'choose') {
+      out[st.id] = [...form.querySelectorAll('input[name="' + CSS.escape(st.id) + '"]:checked')].map(c => c.value);
+    } else {
+      out[st.id] = {};
+      for (const f of st.fields) {
+        const n = form.querySelector('[name="' + CSS.escape(st.id + '::' + f.id) + '"]');
+        if (!n) continue;
+        out[st.id][f.id] = f.toggle ? n.checked : n.value || undefined;
+      }
+    }
+  }
+  return out;
+}
+// What is still unanswered (verification needs a complete attempt).
+function missing(a) {
+  const m = [];
+  for (const st of ch.steps) {
+    if (st.type === 'classify' && st.items.some(it => !a[st.id][it.id])) m.push(st);
+    if (st.type === 'choose' && !a[st.id].length) m.push(st);
+    if (st.type === 'configure' && st.fields.some(f => !f.toggle && !a[st.id][f.id])) m.push(st);
+  }
+  return m;
+}
+
+// ── Verification ──
+$('verify-btn').onclick = () => {
+  const answers = collect();
+  const miss = missing(answers);
+  if (miss.length) {
+    $('run-msg').textContent = 'Complete ' + miss.map(s => '“' + s.title + '”').join(', ') + ' first.';
+    const first = document.querySelector('#step-' + miss[0].id + ' input, #step-' + miss[0].id + ' select');
+    if (first) first.focus();
+    return;
+  }
+  $('run-msg').textContent = '';
+  const verdict = K.Challenges.evaluate(ch.id, answers);          // what the player sees…
+  const before = K.Progress.status(K.Progress.load(), concept.id);
+  // …and what the knowledge system records: it re-evaluates the answers itself.
+  const res = K.Progress.record({ source: ch.source, stage: 'apply', result: verdict.pass ? 'verified' : 'failed', answers,
+    attemptId: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), guided: attempt.guided,
+    timeMs: Math.round(performance.now() - attempt.startedAt) });
+  if (res.changes.length) unlocks.push(res.changes, id => res.state.concepts[id] && res.state.concepts[id].insight);
+  verdict.pass ? sfx.pass() : sfx.fail();
+  showResults(verdict, before, K.Progress.status(res.state, concept.id), res);
+};
+
+function showResults(v, before, after, res) {
+  const box = $('results');
+  box.replaceChildren();
+  box.hidden = false;
+  const h = el('h2', 'verdict ' + (v.pass ? 'pass' : 'fail'), v.pass ? '✓ VERIFICATION PASSED' : '✕ VERIFICATION FAILED');
+  h.id = 'verdict'; h.tabIndex = -1;
+  box.append(h);
+  const checks = el('ul', 'checks');
+  for (const c of v.checks) { const li = el('li', c.ok ? 'ok' : 'no', c.label); if (c.detail) li.append(el('small', '', c.detail)); checks.append(li); }
+  box.append(el('h2', '', 'WHAT YOUR CHOICES DID'));
+  const tl = el('ol', 'timeline');
+  box.append(tl);
+  box.append(el('h2', '', 'VERIFICATION CRITERIA'), checks);
+  // Consequences appear one after another (all at once with reduced motion).
+  v.timeline.forEach((t, i) => {
+    const li = el('li', t.kind);
+    li.append(el('b', '', t.t), document.createTextNode(t.text));
+    if (reducedMotion()) tl.append(li); else setTimeout(() => tl.append(li), 220 * i);
+  });
+  const learn = el('div', 'learn');
+  const add = (k, val) => { const p = el('p'); p.append(el('b', '', k + ' '), document.createTextNode(val)); learn.append(p); };
+  if (v.pass) { add('WHY IT WORKED', v.lesson); add('RESIDUAL RISK', v.residual); add('REAL-WORLD APPLICATION', concept.realWorldApplication); add('WHAT TO VERIFY', concept.verificationGuidance); }
+  else add('NEXT', 'Re-read the evidence the failed criteria point to, adjust your answers and run the verification again. The correct answers are not shown — the checks above say where to look.');
+  box.append(learn);
+  // Knowledge outcome, honestly explained.
+  const kl = el('div', 'knowledge-line' + (after === 'mastered' ? ' mastered' : ''));
+  const gained = res.changes.map(c => c.kind);
+  let msg;
+  if (gained.includes('mastered')) msg = '★ ' + concept.title + ' MASTERED' + (gained.includes('excellence') ? ' — with excellence: passed on your first attempt.' : '.');
+  else if (v.pass && before === 'mastered') msg = 'Already mastered — this replay adds no XP, and your first-attempt result is unchanged.';
+  else if (v.pass && attempt.guided) msg = 'Passed with a hint: well done, but a guided attempt does not count towards mastery. Try again without hints.';
+  else if (v.pass && before !== 'understood' && before !== 'mastered') msg = 'Passed. ' + concept.title + ' is now understood; mastery needs it understood in its mission first, then a challenge pass.';
+  else if (v.pass) msg = 'Passed.';
+  else msg = 'Not passed yet. Your first-attempt result is kept; a later unguided pass still masters the concept.';
+  kl.textContent = 'KNOWLEDGE VAULT · ' + msg;
+  box.append(kl);
+  const row = el('div', 'run');
+  if (!v.pass) { const r = el('button', 'btn alt', 'ADJUST AND RETRY'); r.type = 'button'; r.id = 'retry-btn'; r.onclick = retry; row.append(r); }
+  const again = el('button', 'btn ghost', 'START OVER'); again.type = 'button'; again.id = 'restart-btn'; again.onclick = restart; row.append(again);
+  const back = el('a', 'btn', 'BACK TO KNOWLEDGE VAULT'); back.href = 'index.html'; back.id = 'back-btn'; back.onclick = rememberReturn; row.append(back);
+  box.append(row);
+  renderNotice();
+  box.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
+  h.focus();
+}
+function newAttempt() { attempt = { guided: false, startedAt: performance.now(), hintsShown: new Set() }; }
+function retry() {
+  newAttempt();
+  renderSteps(true);                         // keep the answers to adjust them
+  $('results').hidden = true;
+  const first = $('steps').querySelector('input, select');
+  if (first) first.focus();
+}
+function restart() {
+  newAttempt();
+  nodeSel = null; evSel = 0;
+  renderSteps(false); renderEvidence(); renderMap();
+  $('results').hidden = true;
+  $('title').tabIndex = -1; $('title').focus();
+}
+function rememberReturn() {
+  try { sessionStorage.setItem('htp.hub.tab', 'tab-vault'); sessionStorage.setItem('htp.hub.focus', concept.id); } catch (e) { /* convenience */ }
+}
+$('vault-link').onclick = rememberReturn;
+$('title').tabIndex = -1;
+$('title').focus();
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
 <script src="js/progress.js"></script>
 <script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/challenges.js"></script>
 <script src="js/knowledge/learning-events.js"></script>
 <script src="js/knowledge/rewards.js"></script>
 <script src="js/knowledge/progress.js"></script>
@@ -464,7 +465,7 @@ function sfx(kind) {
 // ── Knowledge (shared Vault): unlocks wait while GHOST is driving ──
 const unlocks = HTPKnowledge.UI.createNotifier({
   accent: '#F58FC4', position: 'top-right', top: '84px',
-  isBusy: () => !!drivingCar,
+  isBusy: () => !!drivingCar || gamePhase === 'paused',
   sound: kind => { if (audioCtx && sfxBus) HTPKnowledge.UI.playCue(audioCtx, sfxBus, kind); },
 });
 const knowledge = HTPKnowledge.UI.reporter(unlocks);
@@ -1264,7 +1265,8 @@ function renderCase() {
         const r = op.decide(caseId, o.id);
         if (r.ok) {
           const st = op.cases[caseId];
-          knowledge({ source: 'L3:' + caseId, stage: 'apply', result: 'correct', firstTry: st.inspectTries === 1 && st.decideTries === 1 });
+          knowledge({ source: 'L3:' + caseId, stage: 'apply', result: 'correct', firstTry: st.inspectTries === 1 && st.decideTries === 1,
+            insight: { action: o.text, outcome: r.outcome } });
           sfx('good'); setFeedback('ok', '✓ OUTCOME', r.outcome); renderCase(); focusCase(); }
         else { sfx('bad'); b.classList.add('tried'); b.disabled = true; setFeedback('bad', '✗ WHAT WOULD HAPPEN', r.outcome + ' Try another response.'); const next = opts.querySelector('button:not(:disabled)'); if (next) next.focus(); }
       }, { key: String(i + 1) });

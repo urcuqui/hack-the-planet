@@ -228,6 +228,8 @@
   #cylinder { margin-top: 6px; letter-spacing: 3px; font-size: 14px; }
   #cylinder .empty { color: rgba(245,221,180,0.25); }
   #reloading { color: var(--amber); font-size: 12px; letter-spacing: 2px; }
+  #sfx-btn { position: absolute; top: 108px; right: 16px; font-family: inherit; font-size: 12px; letter-spacing: 2px; color: var(--cream);
+    background: var(--panel); border: 1px solid var(--panel-line); padding: 5px 9px; cursor: pointer; pointer-events: all; }
   #music-btn { position: absolute; top: 74px; right: 16px; font-family: inherit; font-size: 12px; letter-spacing: 2px; color: var(--cream);
     background: var(--panel); border: 1px solid var(--panel-line); padding: 5px 9px; cursor: pointer; pointer-events: all; }
   /* State badges: icon + word, never colour alone */
@@ -433,6 +435,7 @@
     <div id="cylinder" aria-label="Pulse revolver charges"></div>
   </div>
   <button id="music-btn" onclick="toggleMusic()" aria-pressed="true" aria-label="Music (M)">♪ BGM: ON</button>
+  <button id="sfx-btn" onclick="toggleSfx()" aria-pressed="true" aria-label="Sound effects">♪ SFX: ON</button>
 </div>
 
 <!-- ══ BRIEFING ══ -->
@@ -517,6 +520,7 @@
 <script src="js/a11y.js"></script>
 <script src="js/progress.js"></script>
 <script src="js/knowledge/concepts.js"></script>
+<script src="js/knowledge/challenges.js"></script>
 <script src="js/knowledge/learning-events.js"></script>
 <script src="js/knowledge/rewards.js"></script>
 <script src="js/knowledge/progress.js"></script>
@@ -1184,8 +1188,8 @@ let audioCtx = null;
 // ── Knowledge (shared Vault): unlocks wait until the duel is not live ──
 const unlocks = HTPKnowledge.UI.createNotifier({
   accent: '#ffb347', position: 'top-center', top: '90px',
-  isBusy: () => phase === 'playing' || phase === 'draw',
-  sound: kind => { if (audioCtx) HTPKnowledge.UI.playCue(audioCtx, audioCtx.destination, kind); },
+  isBusy: () => phase === 'playing' || phase === 'draw' || phase === 'paused',
+  sound: kind => { if (audioCtx && sfxEnabled) HTPKnowledge.UI.playCue(audioCtx, sfxOut(), kind); },
 });
 const knowledge = HTPKnowledge.UI.reporter(unlocks);
 HTPA11y.installModalTrap(() => document.querySelector('.screen.open'));   // Tab stays inside open dialogs
@@ -2291,7 +2295,8 @@ function openInspector() {
   openScreen('inspector-screen', 'inspector-close');
   if (agent.kind === 'scout' && security.outcomes().scout === 'complete' && !openInspector.done) {
     openInspector.done = true;
-    knowledge({ source: 'L1:scout', stage: 'apply', result: 'complete', firstTry: true });
+    knowledge({ source: 'L1:scout', stage: 'apply', result: 'complete', firstTry: true,
+      insight: { action: 'Scanned the Scout in ' + [...security.state.scout.scanned].join(' and ') + ' and opened its activity log.', outcome: 'Its behaviour was traced from observation to execution.' } });
     toast('<b>✓ AGENT OBSERVABILITY</b><br>You traced the Scout from signal to attack: observation, inference, request, policy, execution.');
   }
 }
@@ -2340,11 +2345,13 @@ function chooseConsole(i) {
   if (!consoleView || consoleView.stage !== 'choose') return;
   const res = security.decide(agent.kind, i, combatTime);
   if (!res) return;
-  knowledge({ source: 'L1:' + agent.kind, stage: 'apply', result: res.option.outcome, firstTry: true });
   const { def, option } = res;
   consoleView.stage = 'feedback';
   const status = Agents.resolvePending(agent, security.policy);
   if (status === 'executed' && agent.kind === 'enforcer') setGate(true);
+  // Insight from the resolved call itself: executed, blocked, or (no held call) the decision's own result.
+  knowledge({ source: 'L1:' + agent.kind, stage: 'apply', result: res.option.outcome, firstTry: true,
+    insight: { action: res.option.label, outcome: status === 'executed' ? 'The requested tool call EXECUTED.' : status === 'blocked' ? 'The requested tool call was BLOCKED by policy.' : res.option.feedback } });
   playSFX(option.outcome === 'complete' ? 'good' : 'deny');
   const card = $('console-card');
   const label = { complete: '✓ ACTION BLOCKED · POLICY ENFORCED', 'needs-improvement': '◐ NEEDS REVIEW', exploited: '✕ ACTION EXECUTED · UNSAFE' }[option.outcome];
@@ -2445,14 +2452,30 @@ function showResults(win) {
 // ═══════════════════════════════════════════════════
 // 8. SOUND EFFECTS (music has its own bus)
 // ═══════════════════════════════════════════════════
+// Sound effects and reward cues share one bus, so the SFX button mutes both.
+let sfxBus = null;
+let sfxEnabled = (() => { try { return localStorage.getItem('htp.l1.sfx') !== 'off'; } catch (e) { return true; } })();
+function sfxOut() {
+  if (!sfxBus) { sfxBus = audioCtx.createGain(); sfxBus.connect(audioCtx.destination); }
+  sfxBus.gain.value = sfxEnabled ? 1 : 0;
+  return sfxBus;
+}
+function syncSfxButton() { const b = document.getElementById('sfx-btn'); if (b) { b.textContent = '♪ SFX: ' + (sfxEnabled ? 'ON' : 'OFF'); b.setAttribute('aria-pressed', String(sfxEnabled)); } }
+function toggleSfx() {
+  sfxEnabled = !sfxEnabled;
+  try { localStorage.setItem('htp.l1.sfx', sfxEnabled ? 'on' : 'off'); } catch (e) { /* not persistent */ }
+  if (sfxBus) sfxBus.gain.value = sfxEnabled ? 1 : 0;
+  syncSfxButton();
+}
+syncSfxButton();
 function playSFX(type) {
-  if (!audioCtx) return;
+  if (!audioCtx || !sfxEnabled) return;
   const t = audioCtx.currentTime;
   const tone = (wave, f1, f2, dur, vol, at = 0) => {
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.type = wave; o.frequency.setValueAtTime(f1, t + at); o.frequency.exponentialRampToValueAtTime(f2, t + at + dur);
     g.gain.setValueAtTime(vol, t + at); g.gain.exponentialRampToValueAtTime(0.001, t + at + dur);
-    o.connect(g); g.connect(audioCtx.destination); o.start(t + at); o.stop(t + at + dur);
+    o.connect(g); g.connect(sfxOut()); o.start(t + at); o.stop(t + at + dur);
   };
   if (type === 'shoot_player') { tone('sawtooth', 1400, 300, 0.12, 0.07); tone('sine', 2400, 1200, 0.06, 0.05); }
   else if (type === 'shoot_enemy') tone('square', 420, 200, 0.09, 0.05);

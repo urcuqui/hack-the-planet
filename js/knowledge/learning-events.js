@@ -12,10 +12,16 @@
 // results that count as a correct application. Anything else (unsafe,
 // over-restricted, failed) is recorded as an attempt, never as understanding.
 // Sources with no concepts are badge evidence only.
+//
+// Two contexts (Phase 8):
+//   campaign   L<n>:… sources inside a mission (levelId = n)
+//   challenge  C:… mastery challenges (levelId = null, challengeId set). Their
+//              reports carry the player's answers; the result is not trusted —
+//              the challenge's own evaluate() decides whether it passed.
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./concepts.js'));
-  else (root.HTPKnowledge = root.HTPKnowledge || {}).Events = factory(root.HTPKnowledge.Concepts);
-})(typeof self !== 'undefined' ? self : this, function (Concepts) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./concepts.js'), require('./challenges.js'));
+  else { const K = root.HTPKnowledge = root.HTPKnowledge || {}; K.Events = factory(K.Concepts, K.Challenges); }
+})(typeof self !== 'undefined' ? self : this, function (Concepts, Challenges) {
   'use strict';
 
   const STAGES = ['discover', 'apply'];
@@ -80,6 +86,12 @@
     // Badge-only evidence (no concept): a clean city restore.
     'L5:city': { level: 5, scenario: 'CORAL DISTRICT', concepts: [], accept: ['restored-clean'] },
   };
+  for (const s of Object.values(SOURCES)) s.context = 'campaign';
+  // ── Mastery challenges (no level: an independent context) ─────
+  for (const ch of Challenges.CHALLENGES) {
+    SOURCES[ch.source] = { context: 'challenge', level: null, challengeId: ch.id, scenario: ch.title + ' · ' + ch.setting,
+      concepts: [ch.concept], accept: ['verified'], evidence: ch.brief, did: 'Passed the challenge\'s verification.' };
+  }
 
   // Validates a level report. Returns { ok, reason }.
   function validate(input) {
@@ -88,23 +100,41 @@
     if (!src) return { ok: false, reason: 'unknown source ' + input.source };
     if (!STAGES.includes(input.stage)) return { ok: false, reason: 'unknown stage ' + input.stage };
     if (input.stage === 'apply' && (typeof input.result !== 'string' || !input.result)) return { ok: false, reason: 'apply needs a result' };
+    if (src.context === 'challenge' && input.stage === 'apply') {
+      if (!input.answers || typeof input.answers !== 'object') return { ok: false, reason: 'a challenge report needs its answers' };
+      if (typeof input.attemptId !== 'string' || !/^[\w.:-]{6,64}$/.test(input.attemptId)) return { ok: false, reason: 'a challenge report needs an attemptId' };
+    }
     for (const c of src.concepts) if (!Concepts.byId[c]) return { ok: false, reason: 'unknown concept ' + c };
     return { ok: true };
   }
 
   // Expands a level report into one semantic event per concept.
   // eventId is deterministic, so the same report is the same event.
-  function expand(input, now) {
+  // For challenges the verdict comes from evaluate(), never from input.result.
+  function verdictOf(input) {
     const src = SOURCES[input.source];
-    const accepted = input.stage === 'apply' && src.accept.includes(input.result);
+    if (src.context !== 'challenge' || input.stage !== 'apply') return null;
+    return Challenges.evaluate(src.challengeId, input.answers);
+  }
+  function expand(input, now, verdict) {
+    const src = SOURCES[input.source];
+    if (src.context === 'challenge' && input.stage === 'apply' && verdict === undefined) verdict = verdictOf(input);
+    const result = verdict ? (verdict.pass ? 'verified' : 'failed') : input.result || null;
+    const accepted = input.stage === 'apply' && src.accept.includes(result);
     const type = input.stage === 'discover' ? 'knowledge.discovered' : accepted ? 'knowledge.understood' : 'knowledge.attempted';
     return src.concepts.map(conceptId => ({
-      eventId: [type, conceptId, input.source, input.result || '', input.firstTry ? 1 : 0, input.guided ? 1 : 0].join('|'),
+      // Challenge attempts are distinct events (one per attempt); campaign
+      // reports are identical events when nothing about them differs.
+      eventId: [type, conceptId, input.source, result || '', input.firstTry ? 1 : 0, input.guided ? 1 : 0, src.context === 'challenge' ? input.attemptId || '' : ''].join('|'),
       type, conceptId, levelId: src.level,
+      context: src.context,
+      scenarioId: input.source,
+      challengeId: src.challengeId || null,
+      verificationResult: verdict ? (verdict.pass ? 'passed' : 'failed') : null,
       sourceAction: input.source,
       evidenceReference: input.ref ? String(input.ref).slice(0, 60) : input.source,
       timestamp: (now || new Date()).toISOString(),
-      result: input.result || null,
+      result,
       firstTry: !!input.firstTry,
       guided: !!input.guided,
     }));
@@ -118,5 +148,5 @@
     return Object.entries(SOURCES).filter(([, s]) => s.concepts.includes(conceptId)).map(([id, s]) => Object.assign({ id }, s));
   }
 
-  return { STAGES, SOURCES, validate, expand, sourcesForLevel, sourcesForConcept };
+  return { STAGES, SOURCES, validate, expand, verdictOf, sourcesForLevel, sourcesForConcept };
 });
